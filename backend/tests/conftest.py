@@ -10,23 +10,56 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import String, event, text
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-
-from app.models.base import Base
 
 # ---------------------------------------------------------------------------
 # SQLite compatibility: PostgreSQL UUID -> CHAR(32)
 # ---------------------------------------------------------------------------
-# The models use PG_UUID(as_uuid=True) which only works with PostgreSQL.
-# For SQLite tests we compile it as a CHAR(32) column instead.
+# Models use PG_UUID(as_uuid=True) which is PostgreSQL-specific.
+# We register a dialect-level impl for SQLite so that create_all works.
 
-from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.types import CHAR, TypeDecorator
 
-@compiles(PG_UUID, "sqlite")
-def _compile_pg_uuid_for_sqlite(type_, compiler, **kw):
-    return "CHAR(32)"
+# Patch PG_UUID so it renders as CHAR(32) on non-PostgreSQL dialects.
+# This must happen before any model metadata is reflected.
+_original_pg_uuid_get_dbapi_type = getattr(PG_UUID, "get_dbapi_type", None)
+
+
+class _SQLiteUUID(TypeDecorator):
+    """Store Python uuid.UUID as a 32-char hex string in SQLite."""
+
+    impl = CHAR(32)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            if isinstance(value, uuid.UUID):
+                return value.hex
+            return uuid.UUID(value).hex
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            return uuid.UUID(value)
+        return value
+
+
+# Monkey-patch: make PG_UUID load_dialect_impl return CHAR(32) for sqlite
+_original_load_dialect_impl = PG_UUID.load_dialect_impl
+
+
+def _patched_load_dialect_impl(self, dialect):
+    if dialect.name == "sqlite":
+        return _SQLiteUUID().dialect_impl(dialect)
+    return _original_load_dialect_impl(self, dialect)
+
+
+PG_UUID.load_dialect_impl = _patched_load_dialect_impl
+
+# Now import models (after the patch)
+from app.models.base import Base
 from app.models.facility import Facility
 from app.models.department import Department
 from app.models.work_area import WorkArea
@@ -45,8 +78,6 @@ from app.models.enums import (
 # Engine & session fixtures
 # ---------------------------------------------------------------------------
 
-# Use SQLite with aiosqlite for fast in-memory tests.
-# StaticPool ensures the same connection is reused (required for in-memory SQLite).
 TEST_DATABASE_URL = "sqlite+aiosqlite://"
 
 
@@ -60,9 +91,6 @@ async def engine():
         echo=False,
     )
 
-    # SQLite does not have native enum support — the SAEnum columns use
-    # VARCHAR fallback automatically when create_constraint=True on SQLite.
-    # We also need to ensure UUID columns work (stored as CHAR(32)).
     async with eng.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
