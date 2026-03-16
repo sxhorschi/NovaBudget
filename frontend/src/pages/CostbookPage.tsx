@@ -43,7 +43,7 @@ const statusOptions = (Object.keys(STATUS_LABELS) as ApprovalStatus[]).map((s) =
 // ---------------------------------------------------------------------------
 
 const CostbookPage: React.FC = () => {
-  const { departments, workAreas, costItems, updateCostItem, deleteCostItem } = useBudgetData();
+  const { departments, workAreas, costItems, updateCostItem, deleteCostItem, createCostItem } = useBudgetData();
   const { filters, setFilter, setAllFilters, resetFilters, hasActiveFilters } = useFilterState();
   const { filteredDepartments, filteredWorkAreas, filteredItems, summary } =
     useFilteredData(filters);
@@ -147,6 +147,48 @@ const CostbookPage: React.FC = () => {
     }
   }, [selectedItem]);
 
+  const handleDuplicate = useCallback(
+    (itemToDuplicate: CostItem) => {
+      const newItem = createCostItem(itemToDuplicate.work_area_id, {
+        description: `${itemToDuplicate.description} (Kopie)`,
+        original_amount: itemToDuplicate.original_amount,
+        current_amount: itemToDuplicate.current_amount,
+        expected_cash_out: itemToDuplicate.expected_cash_out,
+        cost_basis: itemToDuplicate.cost_basis,
+        cost_driver: itemToDuplicate.cost_driver,
+        basis_description: itemToDuplicate.basis_description,
+        assumptions: itemToDuplicate.assumptions,
+        project_phase: itemToDuplicate.project_phase,
+        product: itemToDuplicate.product,
+        zielanpassung: itemToDuplicate.zielanpassung,
+        zielanpassung_reason: itemToDuplicate.zielanpassung_reason,
+        comments: itemToDuplicate.comments,
+        approval_status: 'open',
+      });
+      setSelectedItem(newItem);
+      toast.success('Position dupliziert');
+    },
+    [createCostItem, toast],
+  );
+
+  const handleFilterDepartment = useCallback(
+    (deptName: string) => {
+      const dept = departments.find((d) => d.name === deptName);
+      if (dept) {
+        setFilter('departments', [dept.id]);
+      }
+    },
+    [departments, setFilter],
+  );
+
+  const handleScrollToWorkArea = useCallback((_workAreaName: string) => {
+    // Scroll to work area row in table (best-effort via DOM query)
+    const el = document.querySelector(`[data-workarea-name="${CSS.escape(_workAreaName)}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
+
   return (
     <>
       {/* ---- Sticky container: SavedViews + FilterBar + SummaryStrip ---- */}
@@ -207,6 +249,12 @@ const CostbookPage: React.FC = () => {
               </span>
             )}
 
+            {/* Filter counter */}
+            <span className="ml-auto text-xs text-gray-400 tabular-nums whitespace-nowrap">
+              {summary.itemCount === summary.totalItemCount
+                ? `${summary.totalItemCount} Positionen`
+                : `${summary.itemCount} von ${summary.totalItemCount} Positionen`}
+            </span>
           </div>
         </div>
 
@@ -214,8 +262,8 @@ const CostbookPage: React.FC = () => {
         <SummaryStrip
           budget={summary.budget}
           committed={summary.committed}
+          forecast={summary.forecast}
           remaining={summary.remaining}
-          delta={summary.delta}
           itemCount={summary.itemCount}
         />
       </div>
@@ -249,6 +297,9 @@ const CostbookPage: React.FC = () => {
           onSave={handleSave}
           onClose={() => setSelectedItem(null)}
           onDelete={handleDeleteFromPanel}
+          onDuplicate={handleDuplicate}
+          onFilterDepartment={handleFilterDepartment}
+          onScrollToWorkArea={handleScrollToWorkArea}
         />
       </div>
 

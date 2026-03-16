@@ -1,11 +1,40 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
-import type { Facility, Department, WorkArea, CostItem } from '../types/budget';
+import type { Facility, Department, WorkArea, CostItem, BudgetAdjustment } from '../types/budget';
 import {
   mockFacility,
   mockDepartments,
   mockWorkAreas,
   mockCostItems,
+  mockBudgetAdjustments,
 } from '../mocks/data';
+
+// ---------------------------------------------------------------------------
+// localStorage key for department budget overrides
+// ---------------------------------------------------------------------------
+
+const BUDGET_OVERRIDES_KEY = 'budget-tool:department-budget-overrides';
+
+function loadBudgetOverrides(): Record<number, number> {
+  try {
+    const raw = localStorage.getItem(BUDGET_OVERRIDES_KEY);
+    if (raw) return JSON.parse(raw) as Record<number, number>;
+  } catch {
+    // ignore corrupt data
+  }
+  return {};
+}
+
+function saveBudgetOverrides(overrides: Record<number, number>): void {
+  localStorage.setItem(BUDGET_OVERRIDES_KEY, JSON.stringify(overrides));
+}
+
+function applyOverrides(departments: Department[]): Department[] {
+  const overrides = loadBudgetOverrides();
+  if (Object.keys(overrides).length === 0) return departments;
+  return departments.map((d) =>
+    overrides[d.id] !== undefined ? { ...d, budget_total: overrides[d.id] } : d,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Context value interface
@@ -16,11 +45,20 @@ export interface BudgetDataContextValue {
   departments: Department[];
   workAreas: WorkArea[];
   costItems: CostItem[];
+  budgetAdjustments: BudgetAdjustment[];
 
   // CRUD Mutations (optimistic updates)
   updateCostItem: (id: number, data: Partial<CostItem>) => void;
   deleteCostItem: (id: number) => void;
   createCostItem: (workAreaId: number, data: Partial<CostItem>) => CostItem;
+  updateDepartmentBudget: (deptId: number, newBudget: number) => void;
+
+  // Bulk import (replaces all data with imported data)
+  bulkImport: (data: {
+    departments: Department[];
+    workAreas: WorkArea[];
+    costItems: CostItem[];
+  }) => void;
 
   // Loading state (fuer zukuenftigen API-Modus)
   isLoading: boolean;
@@ -49,6 +87,10 @@ export function useBudgetData(): BudgetDataContextValue {
 export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const [departments, setDepartments] = useState<Department[]>(() =>
+    applyOverrides(mockDepartments),
+  );
+  const [workAreas, setWorkAreas] = useState<WorkArea[]>(mockWorkAreas);
   const [costItems, setCostItems] = useState<CostItem[]>(mockCostItems);
 
   // --- updateCostItem ---
@@ -109,19 +151,45 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
+  // --- updateDepartmentBudget ---
+  const updateDepartmentBudget = useCallback(
+    (deptId: number, newBudget: number) => {
+      setDepartments((prev) =>
+        prev.map((d) => (d.id === deptId ? { ...d, budget_total: newBudget } : d)),
+      );
+      const overrides = loadBudgetOverrides();
+      overrides[deptId] = newBudget;
+      saveBudgetOverrides(overrides);
+    },
+    [],
+  );
+
+  // --- bulkImport ---
+  const bulkImport = useCallback(
+    (data: { departments: Department[]; workAreas: WorkArea[]; costItems: CostItem[] }) => {
+      setDepartments(data.departments);
+      setWorkAreas(data.workAreas);
+      setCostItems(data.costItems);
+    },
+    [],
+  );
+
   // --- stable value object ---
   const value = useMemo<BudgetDataContextValue>(
     () => ({
       facility: mockFacility,
-      departments: mockDepartments,
-      workAreas: mockWorkAreas,
+      departments,
+      workAreas,
       costItems,
+      budgetAdjustments: mockBudgetAdjustments,
       updateCostItem,
       deleteCostItem,
       createCostItem,
+      updateDepartmentBudget,
+      bulkImport,
       isLoading: false,
     }),
-    [costItems, updateCostItem, deleteCostItem, createCostItem],
+    [costItems, departments, workAreas, updateCostItem, deleteCostItem, createCostItem, updateDepartmentBudget, bulkImport],
   );
 
   return (

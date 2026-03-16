@@ -7,7 +7,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, ForeignKey, Numeric, String, Text
+from sqlalchemy import Date, ForeignKey, Index, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -31,6 +31,15 @@ if TYPE_CHECKING:
 
 class CostItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "cost_items"
+    __table_args__ = (
+        Index("ix_cost_items_work_area_id", "work_area_id"),
+        Index("ix_cost_items_approval_status", "approval_status"),
+        Index("ix_cost_items_project_phase", "project_phase"),
+        Index("ix_cost_items_product", "product"),
+        Index("ix_cost_items_expected_cash_out", "expected_cash_out"),
+        Index("ix_cost_items_current_amount", "current_amount"),
+        Index("ix_cost_items_created_at", "created_at"),
+    )
 
     work_area_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True),

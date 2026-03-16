@@ -50,6 +50,21 @@ class CostItemRead(BaseModel):
     updated_at: datetime
 
 
+class CostItemAggregations(BaseModel):
+    total_amount: Decimal
+    by_status: dict[str, Decimal] = {}
+    by_phase: dict[str, Decimal] = {}
+    by_department: dict[str, Decimal] = {}
+
+
+class CostItemSearchResult(BaseModel):
+    items: list[CostItemRead]
+    total: int
+    page: int
+    page_size: int
+    aggregations: CostItemAggregations
+
+
 class CostItemUpdate(BaseModel):
     description: str | None = None
     original_amount: Decimal | None = None

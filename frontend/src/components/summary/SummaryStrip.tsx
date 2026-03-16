@@ -9,8 +9,8 @@ import HelpTooltip from '../help/HelpTooltip';
 interface SummaryStripProps {
   budget: number;
   committed: number;
+  forecast: number;
   remaining: number;
-  delta: number;
   itemCount: number;
 }
 
@@ -38,18 +38,6 @@ function remainingColor(remaining: number, budget: number): 'green' | 'yellow' |
   if (pct > 20) return 'green';
   if (pct >= 5) return 'yellow';
   return 'red';
-}
-
-function deltaTextColor(delta: number): string {
-  if (delta > 0) return 'text-green-700';
-  if (delta < 0) return 'text-red-700';
-  return 'text-gray-700';
-}
-
-function deltaBarColor(delta: number): 'green' | 'red' | 'indigo' {
-  if (delta > 0) return 'green';
-  if (delta < 0) return 'red';
-  return 'indigo';
 }
 
 // ---------------------------------------------------------------------------
@@ -94,8 +82,8 @@ const KPICard: React.FC<KPICardProps> = ({
 const SummaryStrip: React.FC<SummaryStripProps> = ({
   budget,
   committed,
+  forecast,
   remaining,
-  delta,
   itemCount,
 }) => {
   const remColor = remainingColor(remaining, budget);
@@ -111,18 +99,29 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
           barValue={budget}
           barMax={budget}
           barColor="indigo"
-          tooltip="Genehmigte Gesamtmittel aller Abteilungen"
+          tooltip="Genehmigtes Gesamtbudget aller sichtbaren Abteilungen, inkl. Zielanpassungen"
         />
 
         {/* Committed */}
         <KPICard
           label="Committed"
           value={formatEur(committed)}
-          textColor="text-orange-700"
+          textColor="text-green-700"
           barValue={committed}
-          barMax={budget}
+          barMax={budget || 1}
+          barColor="green"
+          tooltip="Summe aller freigegebenen (approved) Kostenpositionen"
+        />
+
+        {/* Forecast */}
+        <KPICard
+          label="Forecast"
+          value={formatEur(forecast)}
+          textColor="text-orange-700"
+          barValue={forecast}
+          barMax={budget || 1}
           barColor="yellow"
-          tooltip="Summe aller aktuellen Kostenpositionen"
+          tooltip="Erwartete Gesamtkosten: alle Positionen die nicht abgelehnt oder obsolet sind"
         />
 
         {/* Remaining */}
@@ -136,21 +135,10 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
                 ? 'text-yellow-700'
                 : 'text-red-700'
           }
-          barValue={remaining}
-          barMax={budget}
-          barColor={remColor}
-          tooltip="Verbleibendes Budget = Budget - Committed"
-        />
-
-        {/* Delta */}
-        <KPICard
-          label="Delta"
-          value={`${delta >= 0 ? '+' : ''}${formatEur(delta)}`}
-          textColor={deltaTextColor(delta)}
-          barValue={Math.abs(delta)}
+          barValue={Math.max(remaining, 0)}
           barMax={budget || 1}
-          barColor={deltaBarColor(delta)}
-          tooltip="Kostenveränderung = Original - Aktuell. Negativ = Mehrkosten"
+          barColor={remColor}
+          tooltip="Verbleibendes Budget = Budget - Forecast"
         />
 
         {/* Items */}

@@ -1,6 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { ApprovalStatus } from '../../types/budget';
 import { STATUS_LABELS } from '../../types/budget';
+
+// Statuses that require confirmation before applying
+const CRITICAL_STATUSES: Set<ApprovalStatus> = new Set(['rejected', 'obsolete']);
 
 // ---------------------------------------------------------------------------
 // Status color mapping
@@ -39,20 +42,22 @@ interface StatusBadgeProps {
 
 export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
   const [open, setOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<ApprovalStatus | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const style = STATUS_STYLE[status];
 
-  // Close dropdown on outside click
+  // Close dropdown/confirmation on outside click
   useEffect(() => {
-    if (!open) return;
+    if (!open && !pendingStatus) return;
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
+        setPendingStatus(null);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  }, [open, pendingStatus]);
 
   // Close on Escape
   useEffect(() => {
@@ -71,9 +76,25 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
   };
 
   const handleSelect = (newStatus: ApprovalStatus) => {
+    if (CRITICAL_STATUSES.has(newStatus) && newStatus !== status) {
+      setPendingStatus(newStatus);
+      setOpen(false);
+      return;
+    }
     onChange?.(newStatus);
     setOpen(false);
   };
+
+  const confirmPending = useCallback(() => {
+    if (pendingStatus) {
+      onChange?.(pendingStatus);
+      setPendingStatus(null);
+    }
+  }, [pendingStatus, onChange]);
+
+  const cancelPending = useCallback(() => {
+    setPendingStatus(null);
+  }, []);
 
   return (
     <div ref={ref} className="relative inline-block">
@@ -127,6 +148,38 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* Confirmation dialog for critical status changes */}
+      {pendingStatus && (
+        <div
+          className="absolute left-0 z-50 mt-1 w-[240px] rounded-lg border bg-white p-3 shadow-lg"
+          style={{ borderColor: 'var(--border-default)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="text-sm font-medium text-gray-900 mb-1">
+            Status ändern?
+          </p>
+          <p className="text-xs text-gray-500 mb-3">
+            Wirklich auf <span className="font-semibold">{STATUS_LABELS[pendingStatus]}</span> setzen?
+          </p>
+          <div className="flex items-center gap-2 justify-end">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); cancelPending(); }}
+              className="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); confirmPending(); }}
+              className="px-2.5 py-1 text-xs font-medium rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
+            >
+              Bestätigen
+            </button>
+          </div>
         </div>
       )}
     </div>

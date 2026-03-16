@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { ArrowUp, ArrowDown, SearchX } from 'lucide-react';
+import { ArrowUp, ArrowDown, SearchX, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import type { Department, WorkArea, CostItem, ApprovalStatus } from '../../types/budget';
 import DepartmentRow from './DepartmentRow';
 import WorkAreaRow from './WorkAreaRow';
@@ -149,6 +149,31 @@ export default function CostbookTable({
     return map;
   }, [workAreas]);
 
+  // -- Expand / Collapse All ---------------------------------------------------
+  const allDeptIds = useMemo(() => departments.map((d) => d.id), [departments]);
+  const allWAIds = useMemo(() => workAreas.map((wa) => wa.id), [workAreas]);
+
+  const allDeptsExpanded = useMemo(
+    () => allDeptIds.length > 0 && allDeptIds.every((id) => expandedDepts.has(id)),
+    [allDeptIds, expandedDepts],
+  );
+  const allWAsExpanded = useMemo(
+    () => allWAIds.length > 0 && allWAIds.every((id) => expandedWAs.has(id)),
+    [allWAIds, expandedWAs],
+  );
+
+  const allExpanded = allDeptsExpanded && allWAsExpanded;
+
+  const expandAll = useCallback(() => {
+    setExpandedDepts(new Set(allDeptIds));
+    setExpandedWAs(new Set(allWAIds));
+  }, [allDeptIds, allWAIds]);
+
+  const collapseAll = useCallback(() => {
+    setExpandedDepts(new Set());
+    setExpandedWAs(new Set());
+  }, []);
+
   // -- Collect all items for grand total ---------------------------------------
   const allItems = useMemo(() => {
     const items: CostItem[] = [];
@@ -168,6 +193,30 @@ export default function CostbookTable({
   // ---------------------------------------------------------------------------
 
   return (
+    <div>
+      {/* Toolbar: Expand/Collapse All */}
+      {departments.length > 0 && (
+        <div className="flex items-center justify-end gap-2 mb-2">
+          <button
+            type="button"
+            onClick={allExpanded ? collapseAll : expandAll}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            {allExpanded ? (
+              <>
+                <ChevronsDownUp size={14} />
+                Alle zuklappen
+              </>
+            ) : (
+              <>
+                <ChevronsUpDown size={14} />
+                Alle aufklappen
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
     <div className="overflow-auto rounded-xl border shadow-sm scroll-smooth" style={{ borderColor: 'var(--border-default)' }}>
       <table className="w-full border-collapse">
         {/* ------------------------------------------------------------------ */}
@@ -301,6 +350,7 @@ export default function CostbookTable({
         {/* ------------------------------------------------------------------ */}
         <TableFooter totalAmount={grandTotal} itemCount={allItems.length} />
       </table>
+    </div>
     </div>
   );
 }

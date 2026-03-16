@@ -1,5 +1,9 @@
+import React, { useCallback } from 'react';
+import { useToast } from '../common/ToastProvider';
+
 // ---------------------------------------------------------------------------
 // AmountCell — Formatted EUR amount with optional delta indicator
+// Click on the amount copies the raw number to clipboard.
 // ---------------------------------------------------------------------------
 
 interface AmountCellProps {
@@ -23,10 +27,26 @@ function formatEUR(value: number): string {
 export default function AmountCell({ original, current }: AmountCellProps) {
   const delta = current - original;
   const hasDelta = delta !== 0;
+  const toast = useToast();
+
+  const handleCopy = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(String(current)).then(() => {
+        toast.info(`${formatEUR(current)} kopiert`);
+      });
+    },
+    [current, toast],
+  );
 
   return (
-    <span className="inline-flex flex-col items-end font-mono tabular-nums font-medium text-sm leading-tight" style={{ fontVariantNumeric: 'tabular-nums' }}>
-      <span className="text-slate-900">{formatEUR(current)}</span>
+    <span
+      className="inline-flex flex-col items-end font-mono tabular-nums font-medium text-sm leading-tight cursor-copy"
+      style={{ fontVariantNumeric: 'tabular-nums' }}
+      onClick={handleCopy}
+      title="Klick zum Kopieren"
+    >
+      <span className="text-slate-900 hover:text-indigo-600 transition-colors duration-150">{formatEUR(current)}</span>
       {hasDelta && (
         <span
           className="text-[11px] font-normal"

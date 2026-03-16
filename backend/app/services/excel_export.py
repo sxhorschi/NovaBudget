@@ -211,8 +211,35 @@ async def generate_standard_export(
 
 
 # ---------------------------------------------------------------------------
-# 2. Finance Export (BudgetTemplate format)
+# 2. Finance Export (BudgetTemplate format — pixel-perfect)
 # ---------------------------------------------------------------------------
+
+# Finance-specific style constants
+_FIN_TITLE_FONT = Font(name="Calibri", bold=True, size=14, color="1F3864")
+_FIN_SUBTITLE_FONT = Font(name="Calibri", bold=True, size=11, color="1F3864")
+_FIN_HEADER_FONT = Font(name="Calibri", bold=True, size=10, color="000000")
+_FIN_HEADER_FILL = PatternFill(start_color="D6DCE4", end_color="D6DCE4", fill_type="solid")
+_FIN_MONTH_FILL = PatternFill(start_color="D9E2F3", end_color="D9E2F3", fill_type="solid")
+_FIN_QTR_FILL = PatternFill(start_color="B4C6E7", end_color="B4C6E7", fill_type="solid")
+_FIN_YEAR_FILL = PatternFill(start_color="8DB4E2", end_color="8DB4E2", fill_type="solid")
+_FIN_TOTAL_FILL = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+_FIN_TOTAL_FONT = Font(name="Calibri", bold=True, size=10, color="FFFFFF")
+_FIN_DEPT_FILL = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
+_FIN_DEPT_FONT = Font(name="Calibri", bold=True, size=10, color="375623")
+_FIN_NUM_FMT = '#,##0.00 "EUR"'
+_FIN_DATA_FONT = Font(name="Calibri", size=10)
+_FIN_BORDER_THIN = Border(
+    left=Side(style="thin", color="B4C6E7"),
+    right=Side(style="thin", color="B4C6E7"),
+    top=Side(style="thin", color="B4C6E7"),
+    bottom=Side(style="thin", color="B4C6E7"),
+)
+_FIN_BORDER_BOTTOM_MED = Border(
+    bottom=Side(style="medium", color="4472C4"),
+)
+_FIN_ROW1_FONT = Font(name="Calibri", size=9, color="808080")
+_FIN_ROW2_FONT = Font(name="Calibri", size=9, color="808080")
+_FIN_ROW3_FONT = Font(name="Calibri", bold=True, size=9, color="2F5496")
 
 
 def _generate_month_range(start_year: int = 2026, start_month: int = 1,
@@ -223,7 +250,6 @@ def _generate_month_range(start_year: int = 2026, start_month: int = 1,
     end = date(end_year, end_month, 1)
     while current <= end:
         months.append(current)
-        # advance to next month
         if current.month == 12:
             current = date(current.year + 1, 1, 1)
         else:
@@ -249,166 +275,368 @@ async def generate_finance_export(
     end_year: int = 2027,
     end_month: int = 12,
 ) -> bytes:
-    """Generate the BudgetTemplate-style finance export.
+    """Generate the pixel-perfect BudgetTemplate-style finance export.
 
-    Core logic: IF(item.cash_out_date == month, item.amount, 0)
-    With quarterly and yearly aggregation columns.
+    Row layout matches the original Excel template exactly:
+      Row 1: Year numbers (YEAR(date)) above each month column
+      Row 2: Month numbers (MONTH(date)) above each month column
+      Row 3: Quarter labels ("Q1 2026", ...) above quarter columns
+      Row 4: (empty separator)
+      Row 5: "TYTAN Technologies" merged title
+      Row 6: "CAPITAL EXPENSES" label + monthly/quarterly/yearly sub-headers
+      Row 7: Column headers (Identifier, Account, ...)
+      Row 8+: Data rows grouped by department
+      Last:  SUM totals row
+
+    Core formula: IF(item.cash_out == month, amount * factor, 0)
     """
     departments = await _load_departments(session, facility_id)
 
     months = _generate_month_range(start_year, start_month, end_year, end_month)
     month_keys = [_month_key(m) for m in months]
 
-    # Determine unique quarters and years
-    quarters_seen: dict[str, list[int]] = {}  # label -> list of month col indices
-    years_seen: dict[str, list[int]] = {}     # label -> list of month col indices
-
+    # Build quarter / year indices
+    quarters_seen: dict[str, list[int]] = {}
+    years_seen: dict[str, list[int]] = {}
     for idx, m in enumerate(months):
-        ql = _quarter_label(m)
-        quarters_seen.setdefault(ql, []).append(idx)
-        yl = _year_label(m)
-        years_seen.setdefault(yl, []).append(idx)
+        quarters_seen.setdefault(_quarter_label(m), []).append(idx)
+        years_seen.setdefault(_year_label(m), []).append(idx)
 
-    # Stable ordering
     quarter_labels = list(dict.fromkeys(_quarter_label(m) for m in months))
     year_labels = list(dict.fromkeys(_year_label(m) for m in months))
+
+    # -- Column layout -------------------------------------------------
+    # A-N = 14 metadata columns  (cols 1-14)
+    meta_headers = [
+        "Identifier", "Account", "Account name", "Category",
+        "CC", "CC name", "Ccar", "Ccar name",
+        "category", "Description", "Date", "Unit Cost",
+        "Useful Life", "Until",
+    ]
+    NUM_META = len(meta_headers)  # 14
+
+    month_col_start = NUM_META + 1                          # col 15
+    qtr_col_start = month_col_start + len(months)           # after months
+    yr_col_start = qtr_col_start + len(quarter_labels)      # after quarters
+    total_col_end = yr_col_start + len(year_labels) - 1     # last column
 
     wb = Workbook()
     ws = wb.active
     ws.title = "BudgetTemplate"
 
-    # --- Metadata columns ---
-    meta_headers = [
-        "Identifier", "Account", "Account Name", "Category",
-        "CC", "CC Name", "Description", "Department", "Work Area",
-        "Date", "Unit Cost", "Useful Life",
-    ]
-    num_meta = len(meta_headers)
-
-    # Month column headers start after meta
-    month_col_start = num_meta + 1
-
-    # --- Row 1: Section labels ---
-    ws.cell(row=1, column=1, value="Item Metadata")
-    ws.cell(row=1, column=month_col_start, value="Monthly Cash-Out")
-
-    qtr_col_start = month_col_start + len(months)
-    ws.cell(row=1, column=qtr_col_start, value="Quarterly Totals")
-
-    yr_col_start = qtr_col_start + len(quarter_labels)
-    ws.cell(row=1, column=yr_col_start, value="Yearly Totals")
-
-    for c in [1, month_col_start, qtr_col_start, yr_col_start]:
-        ws.cell(row=1, column=c).font = Font(bold=True, size=10, color="808080")
-
-    # --- Row 2: Column headers ---
-    for col_idx, header in enumerate(meta_headers, 1):
-        cell = ws.cell(row=2, column=col_idx, value=header)
-        cell.font = _HEADER_FONT
-        cell.fill = _HEADER_FILL
-        cell.alignment = Alignment(horizontal="center")
-
-    # Month headers
+    # ================================================================
+    # ROW 1 — Year numbers above month columns
+    # ================================================================
     for idx, m in enumerate(months):
         col = month_col_start + idx
-        cell = ws.cell(row=2, column=col, value=m.strftime("%b %Y"))
-        cell.font = _HEADER_FONT
-        cell.fill = PatternFill(start_color="5B9BD5", end_color="5B9BD5", fill_type="solid")
+        cell = ws.cell(row=1, column=col, value=m.year)
+        cell.font = _FIN_ROW1_FONT
         cell.alignment = Alignment(horizontal="center")
 
-    # Quarter headers
+    # ================================================================
+    # ROW 2 — Month numbers above month columns
+    # ================================================================
+    for idx, m in enumerate(months):
+        col = month_col_start + idx
+        cell = ws.cell(row=2, column=col, value=m.month)
+        cell.font = _FIN_ROW2_FONT
+        cell.alignment = Alignment(horizontal="center")
+
+    # ================================================================
+    # ROW 3 — Quarter labels above quarter columns
+    # ================================================================
     for idx, ql in enumerate(quarter_labels):
         col = qtr_col_start + idx
-        cell = ws.cell(row=2, column=col, value=ql)
-        cell.font = _HEADER_FONT
-        cell.fill = PatternFill(start_color="2E75B6", end_color="2E75B6", fill_type="solid")
+        cell = ws.cell(row=3, column=col, value=ql)
+        cell.font = _FIN_ROW3_FONT
         cell.alignment = Alignment(horizontal="center")
 
-    # Year headers
+    # Year labels above year columns (also row 3)
     for idx, yl in enumerate(year_labels):
         col = yr_col_start + idx
-        cell = ws.cell(row=2, column=col, value=yl)
-        cell.font = _HEADER_FONT
-        cell.fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
+        cell = ws.cell(row=3, column=col, value=yl)
+        cell.font = _FIN_ROW3_FONT
         cell.alignment = Alignment(horizontal="center")
 
-    # --- Data rows ---
-    row_num = 3
+    # ================================================================
+    # ROW 4 — empty separator (kept blank)
+    # ================================================================
+
+    # ================================================================
+    # ROW 5 — "TYTAN Technologies" merged title
+    # ================================================================
+    last_col_letter = get_column_letter(total_col_end)
+    ws.merge_cells(f"A5:{last_col_letter}5")
+    title_cell = ws["A5"]
+    title_cell.value = "TYTAN Technologies"
+    title_cell.font = _FIN_TITLE_FONT
+    title_cell.alignment = Alignment(horizontal="left", vertical="center")
+
+    # ================================================================
+    # ROW 6 — "CAPITAL EXPENSES" + section sub-headers
+    # ================================================================
+    ws.cell(row=6, column=1, value="CAPITAL EXPENSES").font = _FIN_SUBTITLE_FONT
+
+    # Sub-header over monthly columns
+    if len(months) > 1:
+        m_start_letter = get_column_letter(month_col_start)
+        m_end_letter = get_column_letter(month_col_start + len(months) - 1)
+        ws.merge_cells(f"{m_start_letter}6:{m_end_letter}6")
+    m_label_cell = ws.cell(row=6, column=month_col_start, value="Monthly Cash-Out")
+    m_label_cell.font = Font(name="Calibri", bold=True, size=9, color="2F5496")
+    m_label_cell.alignment = Alignment(horizontal="center")
+
+    # Sub-header over quarter columns
+    if len(quarter_labels) > 1:
+        q_start_letter = get_column_letter(qtr_col_start)
+        q_end_letter = get_column_letter(qtr_col_start + len(quarter_labels) - 1)
+        ws.merge_cells(f"{q_start_letter}6:{q_end_letter}6")
+    q_label_cell = ws.cell(row=6, column=qtr_col_start, value="Quarterly Totals")
+    q_label_cell.font = Font(name="Calibri", bold=True, size=9, color="2F5496")
+    q_label_cell.alignment = Alignment(horizontal="center")
+
+    # Sub-header over year columns
+    if len(year_labels) > 1:
+        y_start_letter = get_column_letter(yr_col_start)
+        y_end_letter = get_column_letter(yr_col_start + len(year_labels) - 1)
+        ws.merge_cells(f"{y_start_letter}6:{y_end_letter}6")
+    y_label_cell = ws.cell(row=6, column=yr_col_start, value="Yearly Totals")
+    y_label_cell.font = Font(name="Calibri", bold=True, size=9, color="2F5496")
+    y_label_cell.alignment = Alignment(horizontal="center")
+
+    # ================================================================
+    # ROW 7 — Column headers
+    # ================================================================
+    for col_idx, header in enumerate(meta_headers, 1):
+        cell = ws.cell(row=7, column=col_idx, value=header)
+        cell.font = _FIN_HEADER_FONT
+        cell.fill = _FIN_HEADER_FILL
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = _FIN_BORDER_THIN
+
+    # Month column headers (e.g. "Jan 2026")
+    for idx, m in enumerate(months):
+        col = month_col_start + idx
+        cell = ws.cell(row=7, column=col, value=m.strftime("%b %Y"))
+        cell.font = _FIN_HEADER_FONT
+        cell.fill = _FIN_MONTH_FILL
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = _FIN_BORDER_THIN
+
+    # Quarter column headers
+    for idx, ql in enumerate(quarter_labels):
+        col = qtr_col_start + idx
+        cell = ws.cell(row=7, column=col, value=ql)
+        cell.font = _FIN_HEADER_FONT
+        cell.fill = _FIN_QTR_FILL
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = _FIN_BORDER_THIN
+
+    # Year column headers
+    for idx, yl in enumerate(year_labels):
+        col = yr_col_start + idx
+        cell = ws.cell(row=7, column=col, value=yl)
+        cell.font = Font(name="Calibri", bold=True, size=10, color="FFFFFF")
+        cell.fill = _FIN_YEAR_FILL
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = _FIN_BORDER_THIN
+
+    # ================================================================
+    # ROW 8+ — Data rows, grouped by department
+    # ================================================================
+    DATA_START_ROW = 8
+    row_num = DATA_START_ROW
     item_counter = 1
+    dept_group_starts: list[tuple[int, int, str]] = []  # (start_row, end_row, name)
 
     for dept in departments:
+        dept_start = row_num
+
+        # -- Department separator row --
+        for c in range(1, total_col_end + 1):
+            cell = ws.cell(row=row_num, column=c)
+            cell.fill = _FIN_DEPT_FILL
+            cell.border = _FIN_BORDER_THIN
+        ws.cell(row=row_num, column=1, value=dept.name).font = _FIN_DEPT_FONT
+        row_num += 1
+
+        dept_has_items = False
+
         for wa in dept.work_areas:
             for item in wa.cost_items:
-                # Meta columns
+                dept_has_items = True
+
+                # --- Meta columns ---
                 ws.cell(row=row_num, column=1, value=f"CAPEX-{item_counter:04d}")
-                ws.cell(row=row_num, column=2, value="")  # Account
-                ws.cell(row=row_num, column=3, value="")  # Account Name
-                ws.cell(row=row_num, column=4, value=_enum_display(item.cost_driver))  # Category
-                ws.cell(row=row_num, column=5, value="")  # CC
-                ws.cell(row=row_num, column=6, value="")  # CC Name
-                ws.cell(row=row_num, column=7, value=item.description)
-                ws.cell(row=row_num, column=8, value=dept.name)
-                ws.cell(row=row_num, column=9, value=wa.name)
-                ws.cell(row=row_num, column=10, value=_date_str(item.expected_cash_out))
+                ws.cell(row=row_num, column=2, value="")           # Account
+                ws.cell(row=row_num, column=3, value="")           # Account name
+                ws.cell(row=row_num, column=4,
+                        value=_enum_display(item.cost_driver))     # Category
+                ws.cell(row=row_num, column=5, value="")           # CC
+                ws.cell(row=row_num, column=6, value="")           # CC name
+                ws.cell(row=row_num, column=7, value="")           # Ccar
+                ws.cell(row=row_num, column=8, value="")           # Ccar name
+                ws.cell(row=row_num, column=9,
+                        value=_enum_display(item.cost_basis))      # category (cost basis)
+                ws.cell(row=row_num, column=10, value=item.description)  # Description
+                ws.cell(row=row_num, column=11,
+                        value=_date_str(item.expected_cash_out))   # Date
+
                 unit_cost = float(item.current_amount * budget_factor)
-                ws.cell(row=row_num, column=11, value=unit_cost)
-                ws.cell(row=row_num, column=11).number_format = _NUM_FMT
-                ws.cell(row=row_num, column=12, value="")  # Useful Life
+                uc_cell = ws.cell(row=row_num, column=12, value=unit_cost)
+                uc_cell.number_format = _FIN_NUM_FMT
 
-                # Monthly columns: IF(item.cash_out_date == month, amount * factor, 0)
+                ws.cell(row=row_num, column=13, value="")          # Useful Life
+                ws.cell(row=row_num, column=14, value="")          # Until
+
+                # Apply base styling to meta cols
+                for c in range(1, NUM_META + 1):
+                    cell = ws.cell(row=row_num, column=c)
+                    cell.font = _FIN_DATA_FONT
+                    cell.border = _FIN_BORDER_THIN
+
+                # --- Monthly columns: IF(cash_out == month, amount*factor, 0) ---
                 item_month = _month_key(item.expected_cash_out) if item.expected_cash_out else None
-                monthly_values = []
-                for idx, mk in enumerate(month_keys):
-                    val = unit_cost if item_month == mk else 0
+                monthly_values: list[float] = []
+                for mi, mk in enumerate(month_keys):
+                    val = unit_cost if item_month == mk else 0.0
                     monthly_values.append(val)
-                    col = month_col_start + idx
+                    col = month_col_start + mi
                     cell = ws.cell(row=row_num, column=col, value=val)
-                    cell.number_format = _NUM_FMT
+                    cell.number_format = _FIN_NUM_FMT
+                    cell.font = _FIN_DATA_FONT
+                    cell.border = _FIN_BORDER_THIN
 
-                # Quarterly aggregation
+                # --- Quarterly aggregation: SUM of 3 months ---
                 for q_idx, ql in enumerate(quarter_labels):
                     q_month_indices = quarters_seen[ql]
-                    q_total = sum(monthly_values[mi] for mi in q_month_indices)
+                    # Build SUM formula referencing the month columns
+                    parts = []
+                    for mi in q_month_indices:
+                        parts.append(f"{get_column_letter(month_col_start + mi)}{row_num}")
+                    formula = f"={'+'.join(parts)}"
                     col = qtr_col_start + q_idx
-                    cell = ws.cell(row=row_num, column=col, value=q_total)
-                    cell.number_format = _NUM_FMT
+                    cell = ws.cell(row=row_num, column=col, value=formula)
+                    cell.number_format = _FIN_NUM_FMT
+                    cell.font = _FIN_DATA_FONT
+                    cell.border = _FIN_BORDER_THIN
 
-                # Yearly aggregation
+                # --- Yearly totals: SUM over quarter columns ---
                 for y_idx, yl in enumerate(year_labels):
-                    y_month_indices = years_seen[yl]
-                    y_total = sum(monthly_values[mi] for mi in y_month_indices)
+                    # Find which quarter columns belong to this year
+                    yr_qtr_cols: list[str] = []
+                    for q_idx, ql in enumerate(quarter_labels):
+                        if ql.endswith(yl):
+                            yr_qtr_cols.append(
+                                f"{get_column_letter(qtr_col_start + q_idx)}{row_num}"
+                            )
                     col = yr_col_start + y_idx
-                    cell = ws.cell(row=row_num, column=col, value=y_total)
-                    cell.number_format = _NUM_FMT
+                    if yr_qtr_cols:
+                        formula = f"={'+'.join(yr_qtr_cols)}"
+                        cell = ws.cell(row=row_num, column=col, value=formula)
+                    else:
+                        cell = ws.cell(row=row_num, column=col, value=0)
+                    cell.number_format = _FIN_NUM_FMT
+                    cell.font = _FIN_DATA_FONT
+                    cell.border = _FIN_BORDER_THIN
 
                 row_num += 1
                 item_counter += 1
 
-    # --- Totals row ---
+        dept_end = row_num - 1 if dept_has_items else dept_start
+        dept_group_starts.append((dept_start + 1, dept_end, dept.name))
+
+    # ================================================================
+    # TOTALS ROW — SUM formulas over all data rows
+    # ================================================================
     total_row = row_num
-    ws.cell(row=total_row, column=1, value="TOTAL").font = Font(bold=True)
-    total_cols_start = 11  # Unit Cost column
-    # Sum formula for Unit Cost
-    if row_num > 3:
-        for col in [11]:  # Unit Cost total
-            letter = get_column_letter(col)
-            ws.cell(row=total_row, column=col,
-                    value=f"=SUM({letter}3:{letter}{row_num - 1})")
-            ws.cell(row=total_row, column=col).number_format = _NUM_FMT
-            ws.cell(row=total_row, column=col).font = Font(bold=True)
+    first_data = DATA_START_ROW
+    last_data = row_num - 1
 
-        # Monthly, quarterly, yearly totals
-        for col in range(month_col_start, yr_col_start + len(year_labels)):
-            letter = get_column_letter(col)
-            ws.cell(row=total_row, column=col,
-                    value=f"=SUM({letter}3:{letter}{row_num - 1})")
-            ws.cell(row=total_row, column=col).number_format = _NUM_FMT
-            ws.cell(row=total_row, column=col).font = Font(bold=True)
+    # Style the whole totals row
+    for c in range(1, total_col_end + 1):
+        cell = ws.cell(row=total_row, column=c)
+        cell.fill = _FIN_TOTAL_FILL
+        cell.font = _FIN_TOTAL_FONT
+        cell.border = Border(
+            top=Side(style="medium", color="2F5496"),
+            bottom=Side(style="medium", color="2F5496"),
+        )
 
-    # Auto-width for meta columns
-    for col_idx in range(1, num_meta + 1):
-        ws.column_dimensions[get_column_letter(col_idx)].width = 16
-    ws.column_dimensions[get_column_letter(7)].width = 35  # Description
+    ws.cell(row=total_row, column=1, value="TOTAL")
+
+    if last_data >= first_data:
+        # Unit Cost total (col 12)
+        letter = get_column_letter(12)
+        ws.cell(row=total_row, column=12,
+                value=f"=SUM({letter}{first_data}:{letter}{last_data})")
+        ws.cell(row=total_row, column=12).number_format = _FIN_NUM_FMT
+        ws.cell(row=total_row, column=12).font = _FIN_TOTAL_FONT
+        ws.cell(row=total_row, column=12).fill = _FIN_TOTAL_FILL
+
+        # Monthly, quarterly, yearly SUM totals
+        for col in range(month_col_start, total_col_end + 1):
+            letter = get_column_letter(col)
+            cell = ws.cell(row=total_row, column=col,
+                           value=f"=SUM({letter}{first_data}:{letter}{last_data})")
+            cell.number_format = _FIN_NUM_FMT
+            cell.font = _FIN_TOTAL_FONT
+            cell.fill = _FIN_TOTAL_FILL
+
+    # ================================================================
+    # Row grouping (outline) by department
+    # ================================================================
+    for grp_start, grp_end, _name in dept_group_starts:
+        if grp_end >= grp_start:
+            ws.row_dimensions.group(grp_start, grp_end, outline_level=1, hidden=False)
+
+    # ================================================================
+    # Column widths
+    # ================================================================
+    col_widths = {
+        1: 14,   # Identifier
+        2: 10,   # Account
+        3: 16,   # Account name
+        4: 14,   # Category
+        5: 8,    # CC
+        6: 16,   # CC name
+        7: 10,   # Ccar
+        8: 16,   # Ccar name
+        9: 16,   # category
+        10: 35,  # Description
+        11: 12,  # Date
+        12: 16,  # Unit Cost
+        13: 12,  # Useful Life
+        14: 12,  # Until
+    }
+    for c, w in col_widths.items():
+        ws.column_dimensions[get_column_letter(c)].width = w
+
+    # Month columns
+    for idx in range(len(months)):
+        ws.column_dimensions[get_column_letter(month_col_start + idx)].width = 14
+
+    # Quarter columns
+    for idx in range(len(quarter_labels)):
+        ws.column_dimensions[get_column_letter(qtr_col_start + idx)].width = 14
+
+    # Year columns
+    for idx in range(len(year_labels)):
+        ws.column_dimensions[get_column_letter(yr_col_start + idx)].width = 16
+
+    # ================================================================
+    # Freeze panes — fix header rows + meta columns
+    # ================================================================
+    # Freeze at row 8 (first data row) and column O (first month column)
+    freeze_cell = f"{get_column_letter(month_col_start)}{DATA_START_ROW}"
+    ws.freeze_panes = freeze_cell
+
+    # ================================================================
+    # Print setup
+    # ================================================================
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.paperSize = ws.PAPERSIZE_A3
 
     buf = io.BytesIO()
     wb.save(buf)

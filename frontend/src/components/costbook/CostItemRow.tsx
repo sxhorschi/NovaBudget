@@ -5,6 +5,24 @@ import AmountCell from './AmountCell';
 import StatusBadge from './StatusBadge';
 
 // ---------------------------------------------------------------------------
+// Relative time helper
+// ---------------------------------------------------------------------------
+
+function relativeTime(isoDate: string): string {
+  const now = new Date('2026-03-16T12:00:00Z'); // currentDate from context
+  const then = new Date(isoDate);
+  const diffMs = now.getTime() - then.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return '';
+  if (diffDays === 0) return 'heute';
+  if (diffDays === 1) return 'gestern';
+  if (diffDays < 7) return `vor ${diffDays} Tagen`;
+  if (diffDays < 30) return `vor ${Math.floor(diffDays / 7)} Wo.`;
+  if (diffDays < 365) return `vor ${Math.floor(diffDays / 30)} Mon.`;
+  return `vor ${Math.floor(diffDays / 365)} J.`;
+}
+
+// ---------------------------------------------------------------------------
 // CostItemRow — Single cost item (deepest level in the hierarchy)
 // ---------------------------------------------------------------------------
 
@@ -30,15 +48,20 @@ export default function CostItemRow({
         'group cursor-pointer border-b transition-all duration-150 ease-out',
         selected
           ? 'bg-indigo-50/80 border-l-[3px] border-l-indigo-500'
-          : 'hover:bg-slate-50/80 border-l-[3px] border-l-transparent',
+          : 'hover:bg-indigo-50/30 border-l-[3px] border-l-transparent hover:border-l-indigo-200',
       ].join(' ')}
       style={{
         borderBottomColor: 'var(--border-default)',
       }}
     >
-      {/* Description */}
+      {/* Description + last edited */}
       <td className="pl-14 pr-4 py-2.5 text-sm text-slate-800 max-w-0 overflow-hidden">
         <span className="truncate block">{item.description}</span>
+        {item.updated_at && (
+          <span className="text-[10px] text-gray-400 block mt-0.5" title={item.updated_at}>
+            {relativeTime(item.updated_at)}
+          </span>
+        )}
       </td>
 
       {/* Amount */}

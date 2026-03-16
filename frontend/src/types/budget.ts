@@ -194,6 +194,18 @@ export const STATUS_COLORS: Record<ApprovalStatus, string> = {
   obsolete: 'bg-gray-300 text-gray-600',
 };
 
+/** Dot colors for status indicator in dropdowns / badges */
+export const STATUS_DOT_COLORS: Record<ApprovalStatus, string> = {
+  open: '#9ca3af',
+  submitted_for_approval: '#eab308',
+  approved: '#22c55e',
+  rejected: '#ef4444',
+  on_hold: '#f97316',
+  pending_supplier_negotiation: '#3b82f6',
+  pending_technical_clarification: '#60a5fa',
+  obsolete: '#6b7280',
+};
+
 export const PRODUCT_LABELS: Record<Product, string> = {
   atlas: 'Atlas',
   orion: 'Orion',

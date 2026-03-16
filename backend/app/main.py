@@ -13,6 +13,9 @@ from app.api.summary import router as summary_router
 from app.api.attachments import router as attachments_router
 from app.api.import_export import router as import_export_router
 from app.api.budget_adjustments import router as budget_adjustments_router
+from app.api.audit import router as audit_router
+from app.api.bulk_operations import router as bulk_operations_router
+from app.api.dashboard import router as dashboard_router
 from app.api.export import router as export_router
 
 
@@ -50,6 +53,9 @@ app.include_router(import_export_router)
 app.include_router(export_router)
 app.include_router(attachments_router)
 app.include_router(budget_adjustments_router)
+app.include_router(audit_router)
+app.include_router(bulk_operations_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/health", tags=["health"])

@@ -74,13 +74,15 @@ const TYPE_BADGE_COLORS: Record<AttachmentType, string> = {
 
 interface AttachmentListProps {
   costItemId: string;
+  /** Callback to report current attachment count (for parent badge display) */
+  onCountChange?: (count: number) => void;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId }) => {
+const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChange }) => {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -110,6 +112,11 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId }) => {
   useEffect(() => {
     fetchAttachments();
   }, [fetchAttachments]);
+
+  // Report count to parent
+  useEffect(() => {
+    onCountChange?.(attachments.length);
+  }, [attachments.length, onCountChange]);
 
   // Upload handler
   const handleUpload = useCallback(
@@ -217,20 +224,9 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId }) => {
   );
 
   return (
-    <div className="mt-6">
-      {/* Section Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-1.5">
-          <Paperclip size={14} className="text-gray-400" />
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            Anhänge
-          </h3>
-          {attachments.length > 0 && (
-            <span className="ml-1 text-xs text-gray-400">
-              ({attachments.length})
-            </span>
-          )}
-        </div>
+    <div>
+      {/* Upload button */}
+      <div className="flex items-center justify-end mb-3">
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}

@@ -116,15 +116,19 @@ const ExportMenu: React.FC = () => {
               exportFinance(departments, workAreas, items);
               break;
             case 'steering-committee': {
-              const committed = items.reduce((s, i) => s + i.current_amount, 0);
-              const budget = departments.reduce((s, d) => s + d.budget_total, 0);
-              const delta = items.reduce((s, i) => s + (i.original_amount - i.current_amount), 0);
+              const approved = items.filter(i => i.approval_status === 'approved');
+              const committedAmt = approved.reduce((s, i) => s + i.current_amount, 0);
+              const forecastItems = items.filter(i => i.approval_status !== 'rejected' && i.approval_status !== 'obsolete');
+              const forecastAmt = forecastItems.reduce((s, i) => s + i.current_amount, 0);
+              const budgetAmt = departments.reduce((s, d) => s + d.budget_total, 0);
               exportSteeringCommittee(departments, workAreas, items, {
-                budget,
-                committed,
-                remaining: budget - committed,
-                delta,
+                budget: budgetAmt,
+                committed: committedAmt,
+                forecast: forecastAmt,
+                remaining: budgetAmt - forecastAmt,
+                delta: 0,
                 itemCount: items.length,
+                totalItemCount: items.length,
               });
               break;
             }

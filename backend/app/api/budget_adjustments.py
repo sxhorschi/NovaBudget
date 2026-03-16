@@ -14,6 +14,7 @@ from app.db import get_session
 from app.models.budget_adjustment import BudgetAdjustment
 from app.models.department import Department
 from app.schemas.budget_adjustment import BudgetAdjustmentCreate, BudgetAdjustmentRead
+from app.services.audit import log_change
 
 router = APIRouter(prefix="/api/v1/budget-adjustments", tags=["budget-adjustments"])
 
@@ -62,4 +63,5 @@ async def create_budget_adjustment(
     session.add(adjustment)
     await session.commit()
     await session.refresh(adjustment)
+    await log_change(session, "budget_adjustment", adjustment.id, "created")
     return adjustment

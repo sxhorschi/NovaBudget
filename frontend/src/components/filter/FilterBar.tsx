@@ -26,6 +26,9 @@ interface FilterBarProps {
   ) => void;
   onReset: () => void;
   hasActiveFilters: boolean;
+  /** Filtered / total item counts for counter display */
+  filteredCount?: number;
+  totalCount?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -59,6 +62,8 @@ const FilterBar: React.FC<FilterBarProps> = ({
   onFilterChange,
   onReset,
   hasActiveFilters,
+  filteredCount,
+  totalCount,
 }) => {
   const { departments } = useBudgetData();
   const deptOptions = useMemo(
@@ -134,6 +139,15 @@ const FilterBar: React.FC<FilterBarProps> = ({
           value={filters.search}
           onChange={(v) => onFilterChange('search', v)}
         />
+
+        {/* Filter counter */}
+        {filteredCount != null && totalCount != null && (
+          <span className="text-xs text-gray-400 tabular-nums whitespace-nowrap">
+            {filteredCount === totalCount
+              ? `${totalCount} Positionen`
+              : `${filteredCount} von ${totalCount} Positionen`}
+          </span>
+        )}
       </div>
     </div>
   );

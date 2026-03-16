@@ -10,9 +10,11 @@ import { useBudgetData } from '../context/BudgetDataContext';
 export interface FilteredSummary {
   budget: number;
   committed: number;
+  forecast: number;
   remaining: number;
   delta: number;
   itemCount: number;
+  totalItemCount: number;
 }
 
 export interface FilteredData {
@@ -27,8 +29,12 @@ export interface FilteredData {
 // ---------------------------------------------------------------------------
 
 export function useFilteredData(filters: FilterState): FilteredData {
-  const { departments: allDepartments, workAreas: allWorkAreas, costItems: allCostItems } =
-    useBudgetData();
+  const {
+    departments: allDepartments,
+    workAreas: allWorkAreas,
+    costItems: allCostItems,
+    budgetAdjustments,
+  } = useBudgetData();
 
   return useMemo(() => {
     // ---- Step 1: Determine which departments are in scope ----
@@ -88,18 +94,36 @@ export function useFilteredData(filters: FilterState): FilteredData {
     );
 
     // ---- Step 6: Compute summary ----
-    const committed = items.reduce((sum, ci) => sum + ci.current_amount, 0);
 
-    // Budget = sum of budget_total for departments that have filtered items
-    const budget = filteredDepartments.reduce(
+    // Committed = nur freigegebene (approved) Items
+    const committed = items
+      .filter((ci) => ci.approval_status === 'approved')
+      .reduce((sum, ci) => sum + ci.current_amount, 0);
+
+    // Forecast = alle Items die nicht rejected oder obsolete sind
+    const forecast = items
+      .filter(
+        (ci) =>
+          ci.approval_status !== 'rejected' &&
+          ci.approval_status !== 'obsolete',
+      )
+      .reduce((sum, ci) => sum + ci.current_amount, 0);
+
+    // Budget = Basis-Budget + Zielanpassungen fuer sichtbare Departments
+    const filteredDeptIds = new Set(filteredDepartments.map((d) => d.id));
+    const baseBudget = filteredDepartments.reduce(
       (sum, d) => sum + d.budget_total,
       0,
     );
+    const adjustmentTotal = budgetAdjustments
+      .filter((adj) => filteredDeptIds.has(adj.department_id))
+      .reduce((sum, adj) => sum + adj.amount, 0);
+    const budget = baseBudget + adjustmentTotal;
 
-    const remaining = budget - committed;
+    // Remaining = Budget - Forecast
+    const remaining = budget - forecast;
 
-    // Delta = sum of (original - current) for all filtered items
-    // Positive delta = under budget, negative = over budget
+    // Delta = Summe (original - current) fuer alle sichtbaren Items
     const delta = items.reduce(
       (sum, ci) => sum + (ci.original_amount - ci.current_amount),
       0,
@@ -112,10 +136,12 @@ export function useFilteredData(filters: FilterState): FilteredData {
       summary: {
         budget,
         committed,
+        forecast,
         remaining,
         delta,
         itemCount: items.length,
+        totalItemCount: allCostItems.length,
       },
     };
-  }, [filters, allDepartments, allWorkAreas, allCostItems]);
+  }, [filters, allDepartments, allWorkAreas, allCostItems, budgetAdjustments]);
 }
