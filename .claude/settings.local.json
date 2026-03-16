@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(where libreoffice:*)",
+      "Bash(cd /tmp)",
+      "Bash(unzip -q \"c:/Users/WeisGeorg/Documents/01_Projects/budget-tool/260217_CostbookInd_3k.xlsx\" -d xlsx_extracted)",
+      "Bash(unzip -o -q \"c:/Users/WeisGeorg/Documents/01_Projects/budget-tool/260217_CostbookInd_3k.xlsx\" -d xlsx_extracted)",
+      "WebSearch",
+      "Bash(cd:*)",
+      "Bash(pkill:*)",
+      "Bash(cd)"
+    ]
+  }
+}
