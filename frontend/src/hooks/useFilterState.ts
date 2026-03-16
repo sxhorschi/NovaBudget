@@ -12,6 +12,7 @@ export interface FilterState {
   products: Product[];
   statuses: ApprovalStatus[];
   search: string;
+  overBudget: boolean;
 }
 
 type FilterField = keyof FilterState;
@@ -22,6 +23,7 @@ const EMPTY_FILTER: FilterState = {
   products: [],
   statuses: [],
   search: '',
+  overBudget: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -34,6 +36,7 @@ const PARAM_KEYS: Record<string, string> = {
   products: 'product',
   statuses: 'status',
   search: 'q',
+  overBudget: 'ob',
 };
 
 // ---------------------------------------------------------------------------
@@ -71,6 +74,7 @@ export function useFilterState() {
       products: parseStringArray<Product>(searchParams.get(PARAM_KEYS.products)),
       statuses: parseStringArray<ApprovalStatus>(searchParams.get(PARAM_KEYS.statuses)),
       search: searchParams.get(PARAM_KEYS.search) ?? '',
+      overBudget: searchParams.get(PARAM_KEYS.overBudget) === '1',
     };
   }, [searchParams]);
 
@@ -85,6 +89,13 @@ export function useFilterState() {
           const str = values as string;
           if (str) {
             next.set(paramKey, str);
+          } else {
+            next.delete(paramKey);
+          }
+        } else if (field === 'overBudget') {
+          const v = values as boolean;
+          if (v) {
+            next.set(paramKey, '1');
           } else {
             next.delete(paramKey);
           }
@@ -131,6 +142,10 @@ export function useFilterState() {
         if (newFilters.search) {
           next.set(PARAM_KEYS.search, newFilters.search);
         }
+        // Set overBudget
+        if (newFilters.overBudget) {
+          next.set(PARAM_KEYS.overBudget, '1');
+        }
 
         return next;
       }, { replace: true });
@@ -154,7 +169,8 @@ export function useFilterState() {
       filters.phases.length > 0 ||
       filters.products.length > 0 ||
       filters.statuses.length > 0 ||
-      filters.search.length > 0
+      filters.search.length > 0 ||
+      filters.overBudget
     );
   }, [filters]);
 

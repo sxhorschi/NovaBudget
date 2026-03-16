@@ -61,7 +61,8 @@ async def create_budget_adjustment(
 
     adjustment = BudgetAdjustment(**data.model_dump())
     session.add(adjustment)
+    await session.flush()
+    await log_change(session, "budget_adjustment", adjustment.id, "created")
     await session.commit()
     await session.refresh(adjustment)
-    await log_change(session, "budget_adjustment", adjustment.id, "created")
     return adjustment

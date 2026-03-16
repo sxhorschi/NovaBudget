@@ -61,6 +61,26 @@ const COL = {
   COMMENTS: 14,       // O
 } as const;
 
+type ColumnKey = keyof typeof COL;
+type ColumnMap = Record<ColumnKey, number>;
+
+const HEADER_ALIASES: Record<ColumnKey, string[]> = {
+  WORK_AREA: ['work area', 'workarea', 'arbeitsbereich'],
+  PHASE: ['phase', 'projektphase'],
+  PRODUCT: ['product', 'produkt'],
+  DESCRIPTION: ['description', 'beschreibung', 'desc'],
+  AMOUNT: ['amount', 'betrag', 'kosten', 'value'],
+  CASH_OUT: ['cash out', 'cash-out', 'cashout'],
+  COST_BASIS: ['cost basis', 'kostenbasis', 'basis'],
+  COST_DRIVER: ['cost driver', 'kostentreiber', 'driver'],
+  BASIS_DESC: ['basis description', 'basis beschreibung'],
+  ASSUMPTIONS: ['assumptions', 'annahmen'],
+  APPROVAL: ['approval', 'approval status', 'genehmigung', 'status'],
+  APPROVAL_DATE: ['approval date', 'freigabedatum', 'genehmigungsdatum'],
+  ZIELANPASSUNG: ['zielanpassung', 'target adjustment'],
+  COMMENTS: ['comments', 'comment', 'kommentare'],
+};
+
 const COLUMN_NAMES: Record<number, string> = {
   [COL.WORK_AREA]: 'Work Area',
   [COL.PHASE]: 'Phase',
@@ -213,23 +233,54 @@ function cellDateOrNull(row: unknown[], colIdx: number): string | null {
 // Row classification (mirrors backend logic)
 // ---------------------------------------------------------------------------
 
-function isSubtotalRow(row: unknown[]): boolean {
-  const hasWorkArea = row[COL.WORK_AREA] != null;
-  const hasAmount = row[COL.AMOUNT] != null;
-  const hasDescription = row[COL.DESCRIPTION] != null;
-  const hasPhase = row[COL.PHASE] != null;
+function normalizeHeader(value: unknown): string {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_\-\n]+/g, ' ')
+    .replace(/\s+/g, ' ');
+}
+
+function detectColumnMap(headerRow: unknown[] | undefined): { map: ColumnMap; detected: Set<ColumnKey> } {
+  const map: ColumnMap = { ...COL };
+  const detected = new Set<ColumnKey>();
+  if (!headerRow) return { map, detected };
+
+  for (let colIdx = 0; colIdx < headerRow.length; colIdx++) {
+    const header = normalizeHeader(headerRow[colIdx]);
+    if (!header) continue;
+
+    for (const key of Object.keys(HEADER_ALIASES) as ColumnKey[]) {
+      if (detected.has(key)) continue;
+      const aliases = HEADER_ALIASES[key];
+      if (aliases.some((alias) => header.includes(alias))) {
+        map[key] = colIdx;
+        detected.add(key);
+      }
+    }
+  }
+
+  return { map, detected };
+}
+
+function isSubtotalRow(row: unknown[], map: ColumnMap): boolean {
+  const hasWorkArea = row[map.WORK_AREA] != null;
+  const hasAmount = row[map.AMOUNT] != null;
+  const hasDescription = row[map.DESCRIPTION] != null;
+  const hasPhase = row[map.PHASE] != null;
   return hasWorkArea && hasAmount && !hasDescription && !hasPhase;
 }
 
-function isDataRow(row: unknown[]): boolean {
-  const hasDescription = row[COL.DESCRIPTION] != null && String(row[COL.DESCRIPTION]).trim().length > 0;
-  const hasAmount = row[COL.AMOUNT] != null;
+function isDataRow(row: unknown[], map: ColumnMap): boolean {
+  const hasDescription = row[map.DESCRIPTION] != null && String(row[map.DESCRIPTION]).trim().length > 0;
+  const hasAmount = row[map.AMOUNT] != null;
   return hasDescription && hasAmount;
 }
 
-function isEmptyRow(row: unknown[]): boolean {
+function isEmptyRow(row: unknown[], map: ColumnMap): boolean {
   if (!row) return true;
-  for (let i = 1; i <= 14; i++) {
+  const columns = new Set<number>(Object.values(map));
+  for (const i of columns) {
     if (row[i] != null && String(row[i]).trim().length > 0) return false;
   }
   return true;
@@ -262,11 +313,8 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
 
   const now = new Date().toISOString().split('T')[0];
 
-  // Build column mappings from the known structure
-  const columnMappings: ColumnMapping[] = Object.entries(COLUMN_NAMES).map(([idx, field]) => ({
-    column: `Spalte ${colLetter(Number(idx))}`,
-    field,
-  }));
+  // Build column mappings from first detected data sheet
+  const columnMappings: ColumnMapping[] = [];
 
   // Process each sheet as a department
   for (const sheetName of workbook.SheetNames) {
@@ -289,6 +337,7 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
     // Verify this looks like a data sheet by checking for header keywords in row 5
     const headerRow = rawRows[HEADER_ROW - 1]; // 0-indexed
     if (!headerRow) continue;
+    const { map: colMap, detected } = detectColumnMap(headerRow);
 
     // Heuristic: a data sheet should have recognizable headers
     const headerStr = headerRow.map(h => String(h ?? '').toLowerCase()).join(' ');
@@ -307,6 +356,27 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
       continue;
     }
 
+    const required: ColumnKey[] = ['DESCRIPTION', 'AMOUNT'];
+    const missingRequired = required.filter((k) => !detected.has(k));
+    if (missingRequired.length > 0) {
+      warnings.push({
+        sheet: sheetName,
+        row: HEADER_ROW,
+        message: `Header nicht gefunden für: ${missingRequired.join(', ')}. Es wird auf Standard-Spalten zurückgefallen.`,
+        severity: 'warning',
+      });
+    }
+
+    if (columnMappings.length === 0) {
+      for (const key of Object.keys(colMap) as ColumnKey[]) {
+        const idx = colMap[key];
+        columnMappings.push({
+          column: `Spalte ${colLetter(idx)}`,
+          field: COLUMN_NAMES[idx] ?? key,
+        });
+      }
+    }
+
     // Create department for this sheet
     const deptId = nextDeptId++;
     const deptName = sheetName.replace(/_/g, ' ');
@@ -323,13 +393,13 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
     // Parse data rows (starting from DATA_START_ROW, 1-indexed → index DATA_START_ROW - 1)
     for (let rowIdx = DATA_START_ROW - 1; rowIdx < rawRows.length; rowIdx++) {
       const row = rawRows[rowIdx];
-      if (!row || isEmptyRow(row)) continue;
+      if (!row || isEmptyRow(row, colMap)) continue;
 
       const excelRow = rowIdx + 1; // 1-indexed for display
 
       // Subtotal row → extract work area name
-      if (isSubtotalRow(row)) {
-        const waName = cellStr(row, COL.WORK_AREA);
+      if (isSubtotalRow(row, colMap)) {
+        const waName = cellStr(row, colMap.WORK_AREA);
         if (waName) {
           // Check if we already have this work area
           const existing = workAreas.find(
@@ -352,9 +422,9 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
       }
 
       // Data row
-      if (isDataRow(row)) {
+      if (isDataRow(row, colMap)) {
         // If col B has a work area name and we don't have a current one, create it
-        const waCellValue = cellStr(row, COL.WORK_AREA);
+        const waCellValue = cellStr(row, colMap.WORK_AREA);
         if (waCellValue && !currentWorkArea) {
           const existing = workAreas.find(
             wa => wa.department_id === deptId && wa.name === waCellValue,
@@ -384,7 +454,7 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
           workAreas.push(currentWorkArea);
         }
 
-        const amount = cellNum(row, COL.AMOUNT);
+        const amount = cellNum(row, colMap.AMOUNT);
         if (amount === 0) {
           warnings.push({
             sheet: sheetName,
@@ -395,8 +465,8 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
           continue;
         }
 
-        const description = cellStr(row, COL.DESCRIPTION) ?? '';
-        const zielVal = cellNum(row, COL.ZIELANPASSUNG);
+        const description = cellStr(row, colMap.DESCRIPTION) ?? '';
+        const zielVal = cellNum(row, colMap.ZIELANPASSUNG);
 
         const costItem: CostItem = {
           id: nextCiId++,
@@ -404,18 +474,18 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
           description,
           original_amount: amount,
           current_amount: amount,
-          expected_cash_out: cellDate(row, COL.CASH_OUT),
-          cost_basis: parseEnum(COST_BASIS_MAP, row[COL.COST_BASIS], 'cost_estimation' as CostBasis),
-          cost_driver: parseEnum(COST_DRIVER_MAP, row[COL.COST_DRIVER], 'initial_setup' as CostDriver),
-          basis_description: cellStr(row, COL.BASIS_DESC) ?? '',
-          assumptions: cellStr(row, COL.ASSUMPTIONS) ?? '',
-          approval_status: parseEnum(APPROVAL_STATUS_MAP, row[COL.APPROVAL], 'open' as ApprovalStatus),
-          approval_date: cellDateOrNull(row, COL.APPROVAL_DATE),
-          project_phase: parseEnum(PROJECT_PHASE_MAP, row[COL.PHASE], 'phase_1' as ProjectPhase),
-          product: parseEnum(PRODUCT_MAP, row[COL.PRODUCT], 'overall' as Product),
+          expected_cash_out: cellDate(row, colMap.CASH_OUT),
+          cost_basis: parseEnum(COST_BASIS_MAP, row[colMap.COST_BASIS], 'cost_estimation' as CostBasis),
+          cost_driver: parseEnum(COST_DRIVER_MAP, row[colMap.COST_DRIVER], 'initial_setup' as CostDriver),
+          basis_description: cellStr(row, colMap.BASIS_DESC) ?? '',
+          assumptions: cellStr(row, colMap.ASSUMPTIONS) ?? '',
+          approval_status: parseEnum(APPROVAL_STATUS_MAP, row[colMap.APPROVAL], 'open' as ApprovalStatus),
+          approval_date: cellDateOrNull(row, colMap.APPROVAL_DATE),
+          project_phase: parseEnum(PROJECT_PHASE_MAP, row[colMap.PHASE], 'phase_1' as ProjectPhase),
+          product: parseEnum(PRODUCT_MAP, row[colMap.PRODUCT], 'overall' as Product),
           zielanpassung: zielVal !== 0,
           zielanpassung_reason: zielVal !== 0 ? String(zielVal) : '',
-          comments: cellStr(row, COL.COMMENTS) ?? '',
+          comments: cellStr(row, colMap.COMMENTS) ?? '',
           created_at: now,
           updated_at: now,
         };
@@ -428,13 +498,13 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
           previewRows.push({
             _sheet: sheetName,
             _row: excelRow,
-            'Work Area': cellStr(row, COL.WORK_AREA) ?? currentWorkArea.name,
-            'Phase': cellStr(row, COL.PHASE) ?? '',
-            'Product': cellStr(row, COL.PRODUCT) ?? '',
+            'Work Area': cellStr(row, colMap.WORK_AREA) ?? currentWorkArea.name,
+            'Phase': cellStr(row, colMap.PHASE) ?? '',
+            'Product': cellStr(row, colMap.PRODUCT) ?? '',
             'Beschreibung': description,
             'Betrag': amount,
-            'Cash-Out': cellStr(row, COL.CASH_OUT) ?? '',
-            'Status': cellStr(row, COL.APPROVAL) ?? '',
+            'Cash-Out': cellStr(row, colMap.CASH_OUT) ?? '',
+            'Status': cellStr(row, colMap.APPROVAL) ?? '',
           });
         }
       }

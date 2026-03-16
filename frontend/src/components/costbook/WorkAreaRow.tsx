@@ -47,10 +47,10 @@ export default function WorkAreaRow({
             className="text-slate-400 shrink-0 transition-transform duration-200 ease-out"
             style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
           />
-          <span className="text-xs font-normal text-slate-400 tabular-nums">
-            {itemCount} {itemCount === 1 ? 'Position' : 'Positionen'}
-          </span>
           {name}
+          <span className="text-xs font-normal text-slate-400 tabular-nums ml-1">
+            ({itemCount})
+          </span>
         </span>
       </td>
 

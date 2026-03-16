@@ -6,6 +6,16 @@ import AttachmentList from './AttachmentList';
 import DecisionLog from './DecisionLog';
 import BudgetAdjustmentHistory from './BudgetAdjustmentHistory';
 
+function isDraftDirty(draft: CostItem | null, item: CostItem | null): boolean {
+  if (!draft || !item) return false;
+  for (const key of Object.keys(draft) as (keyof CostItem)[]) {
+    if (draft[key] !== item[key]) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // Department color mapping (mirrors CostbookTable & CashOutPage)
 // ---------------------------------------------------------------------------
@@ -148,10 +158,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
     [],
   );
 
-  const hasChanges = useCallback(() => {
-    if (!draft || !item) return false;
-    return JSON.stringify(draft) !== JSON.stringify(item);
-  }, [draft, item]);
+  const hasUnsavedChanges = isDraftDirty(draft, item);
 
   const handleSave = useCallback(() => {
     if (!draft || !item) return;
@@ -169,14 +176,14 @@ const SidePanel: React.FC<SidePanelProps> = ({
   }, [draft, item, onSave, onClose]);
 
   const safeClose = useCallback(() => {
-    if (hasChanges()) {
+    if (hasUnsavedChanges) {
       if (window.confirm('Ungespeicherte \u00c4nderungen verwerfen?')) {
         onClose();
       }
     } else {
       onClose();
     }
-  }, [hasChanges, onClose]);
+  }, [hasUnsavedChanges, onClose]);
 
   // Close on Escape, Cmd+Enter to save
   useEffect(() => {
@@ -220,7 +227,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
   // Don't render if no item
   if (!item) return null;
 
-  const _hasChanges = hasChanges();
+  const _hasChanges = hasUnsavedChanges;
 
   return (
     <div

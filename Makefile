@@ -1,4 +1,4 @@
-.PHONY: up down build logs migrate migration seed reset-db dev
+.PHONY: up down build logs migrate migration seed reset-db dev test test-local
 
 up:
 	docker compose up -d
@@ -30,3 +30,9 @@ reset-db:
 	@echo "Waiting for database to be ready..."
 	@sleep 3
 	docker compose exec backend alembic upgrade head
+
+test:
+	docker compose exec backend pytest -v
+
+test-local:
+	cd backend; python -m pytest -v

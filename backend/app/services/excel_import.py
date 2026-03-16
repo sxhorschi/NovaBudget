@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
@@ -40,15 +41,6 @@ KNOWN_DEPARTMENT_SHEETS: dict[str, str] = {
 # If Row 5 contains at least 3 of these in any order, we treat it as a dept sheet.
 HEADER_KEYWORDS = {"work area", "description", "amount", "cost basis", "approval", "phase"}
 
-# Column headers we look for to confirm the standard layout
-EXPECTED_HEADERS_ROW5 = {
-    "work area": 2,
-    "phase": 3,
-    "product": 4,
-    "description": 5,
-    "amount": 6,
-}
-
 HEADER_ROW = 5
 DATA_START_ROW = 6
 BUDGET_FACTOR = Decimal("0.85")
@@ -68,6 +60,40 @@ COL_APPROVAL = 12        # L
 COL_APPROVAL_DATE = 13   # M
 COL_ZIELANPASSUNG = 14   # N
 COL_COMMENTS = 15        # O
+
+DEFAULT_COLUMN_MAP: dict[str, int] = {
+    "work_area": COL_WORK_AREA,
+    "phase": COL_PHASE,
+    "product": COL_PRODUCT,
+    "description": COL_DESCRIPTION,
+    "amount": COL_AMOUNT,
+    "cash_out": COL_CASH_OUT,
+    "cost_basis": COL_COST_BASIS,
+    "cost_driver": COL_COST_DRIVER,
+    "basis_desc": COL_BASIS_DESC,
+    "assumptions": COL_ASSUMPTIONS,
+    "approval": COL_APPROVAL,
+    "approval_date": COL_APPROVAL_DATE,
+    "zielanpassung": COL_ZIELANPASSUNG,
+    "comments": COL_COMMENTS,
+}
+
+HEADER_ALIASES: dict[str, set[str]] = {
+    "work_area": {"work area", "workarea", "arbeitsbereich"},
+    "phase": {"phase", "projektphase"},
+    "product": {"product", "produkt"},
+    "description": {"description", "beschreibung", "desc"},
+    "amount": {"amount", "betrag", "value", "kosten"},
+    "cash_out": {"cash out", "cash-out", "cashout", "cash out datum", "cash out date"},
+    "cost_basis": {"cost basis", "kostenbasis", "basis"},
+    "cost_driver": {"cost driver", "kostentreiber", "driver"},
+    "basis_desc": {"basis description", "basis beschreibung"},
+    "assumptions": {"assumptions", "annahmen"},
+    "approval": {"approval", "approval status", "genehmigung", "status"},
+    "approval_date": {"approval date", "freigabedatum", "genehmigungsdatum"},
+    "zielanpassung": {"zielanpassung", "target adjustment"},
+    "comments": {"comments", "kommentare", "comment"},
+}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -149,24 +175,66 @@ def _parse_enum(enum_class, value, default=None):
     return default, f"Unknown {enum_class.__name__} value '{str_val}'"
 
 
-def _is_subtotal_row(ws: Worksheet, row: int) -> bool:
+def _normalize_header(value: object) -> str:
+    if value is None:
+        return ""
+    normalized = str(value).strip().lower()
+    normalized = normalized.replace("\n", " ").replace("_", " ").replace("-", " ")
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized
+
+
+def _detect_column_map(ws: Worksheet) -> tuple[dict[str, int], set[str]]:
+    """Detect actual column positions from header row and fall back to defaults."""
+    detected: dict[str, int] = {}
+    max_col = max(ws.max_column or 0, 20)
+
+    for col in range(1, max_col + 1):
+        header = _normalize_header(ws.cell(row=HEADER_ROW, column=col).value)
+        if not header:
+            continue
+
+        for field, aliases in HEADER_ALIASES.items():
+            if field in detected:
+                continue
+            if any(alias in header for alias in aliases):
+                detected[field] = col
+                break
+
+    col_map = {
+        field: detected.get(field, default_col)
+        for field, default_col in DEFAULT_COLUMN_MAP.items()
+    }
+    return col_map, set(detected.keys())
+
+
+def _cell_value(ws: Worksheet, row: int, col_map: dict[str, int], field: str):
+    return ws.cell(row=row, column=col_map[field]).value
+
+
+def _is_subtotal_row(ws: Worksheet, row: int, col_map: dict[str, int] | None = None) -> bool:
     """Subtotal rows have Work Area name (B) + Amount (F) but NO Description and NO Phase."""
-    has_b = ws.cell(row=row, column=COL_WORK_AREA).value is not None
-    has_f = ws.cell(row=row, column=COL_AMOUNT).value is not None
-    has_description = ws.cell(row=row, column=COL_DESCRIPTION).value is not None
-    has_phase = ws.cell(row=row, column=COL_PHASE).value is not None
+    cols = col_map or DEFAULT_COLUMN_MAP
+    has_b = ws.cell(row=row, column=cols["work_area"]).value is not None
+    has_f = ws.cell(row=row, column=cols["amount"]).value is not None
+    has_description = ws.cell(row=row, column=cols["description"]).value is not None
+    has_phase = ws.cell(row=row, column=cols["phase"]).value is not None
     return has_b and has_f and not has_description and not has_phase
 
 
-def _is_data_row(ws: Worksheet, row: int) -> bool:
+def _is_data_row(ws: Worksheet, row: int, col_map: dict[str, int] | None = None) -> bool:
     """Data rows must have at least a description."""
-    has_description = ws.cell(row=row, column=COL_DESCRIPTION).value is not None
-    return has_description
+    cols = col_map or DEFAULT_COLUMN_MAP
+    has_description = ws.cell(row=row, column=cols["description"]).value is not None
+    has_amount = ws.cell(row=row, column=cols["amount"]).value is not None
+    return has_description and has_amount
 
 
-def _row_is_empty(ws: Worksheet, row: int) -> bool:
-    """Check if an entire data row is empty (columns B through O)."""
-    return all(ws.cell(row=row, column=c).value is None for c in range(2, 16))
+def _row_is_empty(ws: Worksheet, row: int, col_map: dict[str, int] | None = None) -> bool:
+    """Check if an entire mapped data row is empty."""
+    cols = col_map or DEFAULT_COLUMN_MAP
+    used_cols = sorted(set(cols.values()))
+    return all(ws.cell(row=row, column=c).value is None for c in used_cols)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -214,8 +282,9 @@ def _detect_department_sheets(wb) -> dict[str, str]:
         if sheet_name in wb.sheetnames and sheet_name not in detected:
             # Verify it has at least some data rows
             ws = wb[sheet_name]
+            col_map, _ = _detect_column_map(ws)
             has_data = any(
-                ws.cell(row=r, column=COL_DESCRIPTION).value is not None
+                ws.cell(row=r, column=col_map["description"]).value is not None
                 for r in range(DATA_START_ROW, min(DATA_START_ROW + 5, ws.max_row + 1))
             )
             if has_data:
@@ -363,6 +432,14 @@ async def import_excel_file(
             ws_form = wb_formulas[sheet_name] if wb_formulas and sheet_name in wb_formulas.sheetnames else None
 
             dept_report = DepartmentReport(name=dept_display_name)
+            col_map, detected_fields = _detect_column_map(ws)
+
+            missing_required = {"description", "amount"} - detected_fields
+            if missing_required:
+                report.add_warning(
+                    f"{dept_display_name}: Header not found for {', '.join(sorted(missing_required))}. "
+                    "Fallback to default columns will be used."
+                )
 
             # Find or create department
             dept_stmt = select(Department).where(
@@ -395,12 +472,12 @@ async def import_excel_file(
 
             for row in range(DATA_START_ROW, max_row + 1):
                 # Skip fully empty rows
-                if _row_is_empty(ws, row):
+                if _row_is_empty(ws, row, col_map):
                     continue
 
                 # ── Subtotal row → extract/create work area ───────────────
-                if _is_subtotal_row(ws, row):
-                    wa_name = _safe_str(ws.cell(row=row, column=COL_WORK_AREA).value)
+                if _is_subtotal_row(ws, row, col_map):
+                    wa_name = _safe_str(_cell_value(ws, row, col_map, "work_area"))
                     if wa_name:
                         current_work_area = await _get_or_create_work_area(
                             session, department, wa_name, dept_report,
@@ -408,16 +485,16 @@ async def import_excel_file(
                     continue
 
                 # ── Data row ──────────────────────────────────────────────
-                if not _is_data_row(ws, row):
+                if not _is_data_row(ws, row, col_map):
                     continue
 
-                description_raw = ws.cell(row=row, column=COL_DESCRIPTION).value
+                description_raw = _cell_value(ws, row, col_map, "description")
                 description = str(description_raw).strip() if description_raw else ""
                 if not description:
                     continue
 
                 # Resolve work area from col B if needed
-                wa_cell = _safe_str(ws.cell(row=row, column=COL_WORK_AREA).value)
+                wa_cell = _safe_str(_cell_value(ws, row, col_map, "work_area"))
                 if wa_cell and current_work_area is None:
                     current_work_area = await _get_or_create_work_area(
                         session, department, wa_cell, dept_report,
@@ -434,7 +511,7 @@ async def import_excel_file(
                     )
 
                 # Amount (computed value from data_only workbook)
-                amount = _safe_decimal(ws.cell(row=row, column=COL_AMOUNT).value)
+                amount = _safe_decimal(_cell_value(ws, row, col_map, "amount"))
 
                 # Skip items with zero amount (optional: could be a warning)
                 if amount == 0:
@@ -445,12 +522,12 @@ async def import_excel_file(
                     continue
 
                 # Formula comment: if the amount cell was a formula, note it
-                formula_comment = _extract_formula_comment(ws_form, row, COL_AMOUNT)
+                formula_comment = _extract_formula_comment(ws_form, row, col_map["amount"])
 
                 # Parse enum fields with error tracking
                 approval_status, approval_err = _parse_enum(
                     ApprovalStatus,
-                    ws.cell(row=row, column=COL_APPROVAL).value,
+                    _cell_value(ws, row, col_map, "approval"),
                     ApprovalStatus.OPEN,
                 )
                 if approval_err:
@@ -458,7 +535,7 @@ async def import_excel_file(
 
                 cost_basis, cb_err = _parse_enum(
                     CostBasis,
-                    ws.cell(row=row, column=COL_COST_BASIS).value,
+                    _cell_value(ws, row, col_map, "cost_basis"),
                     CostBasis.COST_ESTIMATION,
                 )
                 if cb_err:
@@ -466,7 +543,7 @@ async def import_excel_file(
 
                 cost_driver, cd_err = _parse_enum(
                     CostDriver,
-                    ws.cell(row=row, column=COL_COST_DRIVER).value,
+                    _cell_value(ws, row, col_map, "cost_driver"),
                     CostDriver.INITIAL_SETUP,
                 )
                 if cd_err:
@@ -474,7 +551,7 @@ async def import_excel_file(
 
                 phase, ph_err = _parse_enum(
                     ProjectPhase,
-                    ws.cell(row=row, column=COL_PHASE).value,
+                    _cell_value(ws, row, col_map, "phase"),
                     ProjectPhase.PHASE_1,
                 )
                 if ph_err:
@@ -482,16 +559,16 @@ async def import_excel_file(
 
                 product, pr_err = _parse_enum(
                     Product,
-                    ws.cell(row=row, column=COL_PRODUCT).value,
+                    _cell_value(ws, row, col_map, "product"),
                     Product.OVERALL,
                 )
                 if pr_err:
                     report.add_warning(f"{dept_display_name}, Row {row}: {pr_err}")
 
-                ziel_val = _safe_decimal(ws.cell(row=row, column=COL_ZIELANPASSUNG).value)
+                ziel_val = _safe_decimal(_cell_value(ws, row, col_map, "zielanpassung"))
 
                 # Build comments: merge cell comment + formula comment
-                cell_comment = _safe_str(ws.cell(row=row, column=COL_COMMENTS).value)
+                cell_comment = _safe_str(_cell_value(ws, row, col_map, "comments"))
                 comments_parts: list[str] = []
                 if cell_comment:
                     comments_parts.append(cell_comment)
@@ -509,19 +586,19 @@ async def import_excel_file(
                     existing.original_amount = amount
                     existing.current_amount = amount
                     existing.expected_cash_out = _parse_date(
-                        ws.cell(row=row, column=COL_CASH_OUT).value
+                        _cell_value(ws, row, col_map, "cash_out")
                     )
                     existing.cost_basis = cost_basis
                     existing.cost_driver = cost_driver
                     existing.basis_description = _safe_str(
-                        ws.cell(row=row, column=COL_BASIS_DESC).value
+                        _cell_value(ws, row, col_map, "basis_desc")
                     )
                     existing.assumptions = _safe_str(
-                        ws.cell(row=row, column=COL_ASSUMPTIONS).value
+                        _cell_value(ws, row, col_map, "assumptions")
                     )
                     existing.approval_status = approval_status
                     existing.approval_date = _parse_date(
-                        ws.cell(row=row, column=COL_APPROVAL_DATE).value
+                        _cell_value(ws, row, col_map, "approval_date")
                     )
                     existing.project_phase = phase
                     existing.product = product
@@ -536,19 +613,19 @@ async def import_excel_file(
                         original_amount=amount,
                         current_amount=amount,
                         expected_cash_out=_parse_date(
-                            ws.cell(row=row, column=COL_CASH_OUT).value
+                            _cell_value(ws, row, col_map, "cash_out")
                         ),
                         cost_basis=cost_basis,
                         cost_driver=cost_driver,
                         basis_description=_safe_str(
-                            ws.cell(row=row, column=COL_BASIS_DESC).value
+                            _cell_value(ws, row, col_map, "basis_desc")
                         ),
                         assumptions=_safe_str(
-                            ws.cell(row=row, column=COL_ASSUMPTIONS).value
+                            _cell_value(ws, row, col_map, "assumptions")
                         ),
                         approval_status=approval_status,
                         approval_date=_parse_date(
-                            ws.cell(row=row, column=COL_APPROVAL_DATE).value
+                            _cell_value(ws, row, col_map, "approval_date")
                         ),
                         project_phase=phase,
                         product=product,

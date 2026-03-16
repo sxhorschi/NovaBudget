@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 UPLOADS_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
+_UPLOADS_ROOT = UPLOADS_DIR.resolve()
 
 MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50 MB
 
@@ -36,6 +37,14 @@ class FileStorageError(Exception):
 
 def _ensure_upload_dir(sub: Path) -> None:
     sub.mkdir(parents=True, exist_ok=True)
+
+
+def _is_within_upload_root(path: Path) -> bool:
+    try:
+        path.resolve().relative_to(_UPLOADS_ROOT)
+        return True
+    except ValueError:
+        return False
 
 
 def validate_file(filename: str, content_type: str, size: int) -> None:
@@ -70,7 +79,10 @@ async def save_file(filename: str, data: bytes) -> tuple[str, str]:
     target_dir = UPLOADS_DIR / year / month
     _ensure_upload_dir(target_dir)
 
-    target_path = target_dir / stored_name
+    target_path = (target_dir / stored_name).resolve()
+    if not _is_within_upload_root(target_path):
+        raise FileStorageError("Refusing to write file outside uploads directory")
+
     target_path.write_bytes(data)
 
     # Return relative path from uploads root for portability
@@ -80,11 +92,18 @@ async def save_file(filename: str, data: bytes) -> tuple[str, str]:
 
 def get_file_path(storage_path: str) -> Path:
     """Resolve a storage_path back to an absolute file path."""
-    return UPLOADS_DIR / storage_path
+    path = (UPLOADS_DIR / storage_path).resolve()
+    if not _is_within_upload_root(path):
+        raise FileStorageError("Invalid storage path outside uploads directory")
+    return path
 
 
 def delete_file(storage_path: str) -> None:
     """Delete a file from disk. Silently ignores missing files."""
-    path = UPLOADS_DIR / storage_path
+    try:
+        path = get_file_path(storage_path)
+    except FileStorageError:
+        return
+
     if path.exists():
         path.unlink()

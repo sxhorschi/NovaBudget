@@ -30,42 +30,47 @@ from app.services.excel_import import (
 
 def test_parse_enum_maps_exact_value():
     """Exact enum value string should map correctly."""
-    result = _parse_enum(ApprovalStatus, "APPROVED")
+    result, err = _parse_enum(ApprovalStatus, "APPROVED")
     assert result == ApprovalStatus.APPROVED, (
         f"Expected APPROVED, got {result}"
     )
+    assert err is None
 
 
 def test_parse_enum_case_insensitive():
     """Enum parsing should be case-insensitive."""
-    result = _parse_enum(ApprovalStatus, "approved")
+    result, err = _parse_enum(ApprovalStatus, "approved")
     assert result == ApprovalStatus.APPROVED, (
         f"'approved' (lowercase) should map to APPROVED, got {result}"
     )
+    assert err is None
 
 
 def test_parse_enum_with_spaces():
     """Spaces in enum values should be replaced with underscores."""
-    result = _parse_enum(ApprovalStatus, "Submitted For Approval")
+    result, err = _parse_enum(ApprovalStatus, "Submitted For Approval")
     assert result == ApprovalStatus.SUBMITTED_FOR_APPROVAL, (
         f"'Submitted For Approval' should map to SUBMITTED_FOR_APPROVAL, got {result}"
     )
+    assert err is None
 
 
 def test_parse_enum_returns_default_for_unknown():
     """Unknown value should return the provided default."""
-    result = _parse_enum(ApprovalStatus, "NONEXISTENT", default=ApprovalStatus.OPEN)
+    result, err = _parse_enum(ApprovalStatus, "NONEXISTENT", default=ApprovalStatus.OPEN)
     assert result == ApprovalStatus.OPEN, (
         f"Unknown value should return default OPEN, got {result}"
     )
+    assert err is not None
 
 
 def test_parse_enum_returns_default_for_none():
     """None value should return the provided default."""
-    result = _parse_enum(CostBasis, None, default=CostBasis.COST_ESTIMATION)
+    result, err = _parse_enum(CostBasis, None, default=CostBasis.COST_ESTIMATION)
     assert result == CostBasis.COST_ESTIMATION, (
         f"None should return default, got {result}"
     )
+    assert err is None
 
 
 # ---------------------------------------------------------------------------
@@ -75,42 +80,46 @@ def test_parse_enum_returns_default_for_none():
 
 def test_legacy_product_bryan_maps_to_atlas():
     """Legacy product name 'Bryan' should map to ATLAS."""
-    result = _parse_enum(Product, "Bryan")
+    result, err = _parse_enum(Product, "Bryan")
     assert result == Product.ATLAS, (
         f"Legacy name 'Bryan' should map to ATLAS, got {result}"
     )
+    assert err is None
 
 
 def test_legacy_product_guenther_maps_to_orion():
     """Legacy product name 'Guenther' should map to ORION."""
-    result = _parse_enum(Product, "Guenther")
+    result, err = _parse_enum(Product, "Guenther")
     assert result == Product.ORION, (
         f"Legacy name 'Guenther' should map to ORION, got {result}"
     )
+    assert err is None
 
 
 def test_legacy_product_gin_tonic_maps_to_vega():
     """Legacy product name 'Gin-Tonic' should map to VEGA."""
-    result = _parse_enum(Product, "Gin-Tonic")
+    result, err = _parse_enum(Product, "Gin-Tonic")
     assert result == Product.VEGA, (
         f"Legacy name 'Gin-Tonic' should map to VEGA, got {result}"
     )
+    assert err is None
 
 
 def test_legacy_product_gin_tonic_underscore_maps_to_vega():
     """Legacy product name 'Gin_Tonic' (underscore variant) should map to VEGA."""
-    result = _parse_enum(Product, "Gin_Tonic")
+    result, err = _parse_enum(Product, "Gin_Tonic")
     assert result == Product.VEGA, (
         f"Legacy name 'Gin_Tonic' should map to VEGA, got {result}"
     )
+    assert err is None
 
 
 def test_current_product_names_still_work():
     """Current product names (ATLAS, ORION, VEGA) should still parse correctly."""
-    assert _parse_enum(Product, "ATLAS") == Product.ATLAS
-    assert _parse_enum(Product, "ORION") == Product.ORION
-    assert _parse_enum(Product, "VEGA") == Product.VEGA
-    assert _parse_enum(Product, "OVERALL") == Product.OVERALL
+    assert _parse_enum(Product, "ATLAS")[0] == Product.ATLAS
+    assert _parse_enum(Product, "ORION")[0] == Product.ORION
+    assert _parse_enum(Product, "VEGA")[0] == Product.VEGA
+    assert _parse_enum(Product, "OVERALL")[0] == Product.OVERALL
 
 
 # ---------------------------------------------------------------------------

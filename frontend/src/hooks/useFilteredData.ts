@@ -3,6 +3,17 @@ import type { FilterState } from './useFilterState';
 import type { Department, WorkArea, CostItem } from '../types/budget';
 import { useBudgetData } from '../context/BudgetDataContext';
 
+function normalizeSearchText(value: string): string {
+  return value
+    .toLocaleLowerCase('de-DE')
+    .replace(/\u00e4/g, 'ae')
+    .replace(/\u00f6/g, 'oe')
+    .replace(/\u00fc/g, 'ue')
+    .replace(/\u00df/g, 'ss')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -36,12 +47,30 @@ export function useFilteredData(filters: FilterState): FilteredData {
     budgetAdjustments,
   } = useBudgetData();
 
+  const searchIndex = useMemo(() => {
+    const index = new Map<number, string>();
+    for (const ci of allCostItems) {
+      index.set(
+        ci.id,
+        normalizeSearchText(`${ci.description} ${ci.assumptions ?? ''} ${ci.comments ?? ''}`),
+      );
+    }
+    return index;
+  }, [allCostItems]);
+
   return useMemo(() => {
     // ---- Step 1: Determine which departments are in scope ----
     const departments =
       filters.departments.length > 0
         ? allDepartments.filter((d) => filters.departments.includes(d.id))
         : allDepartments;
+
+    const hasItemLevelFilters =
+      filters.phases.length > 0 ||
+      filters.products.length > 0 ||
+      filters.statuses.length > 0 ||
+      filters.search.trim().length > 0 ||
+      filters.overBudget;
 
     const departmentIds = new Set(departments.map((d) => d.id));
 
@@ -70,28 +99,50 @@ export function useFilteredData(filters: FilterState): FilteredData {
     }
 
     if (filters.search.trim()) {
-      const q = filters.search.trim().toLowerCase();
+      const q = normalizeSearchText(filters.search.trim());
       items = items.filter(
-        (ci) =>
-          ci.description.toLowerCase().includes(q) ||
-          ci.assumptions.toLowerCase().includes(q) ||
-          ci.comments.toLowerCase().includes(q),
+        (ci) => (searchIndex.get(ci.id) ?? '').includes(q),
       );
     }
 
     // ---- Step 4: Filter work areas to those that still have items ----
     const itemWorkAreaIds = new Set(items.map((ci) => ci.work_area_id));
-    const filteredWorkAreas = workAreasInDepts.filter((wa) =>
-      itemWorkAreaIds.has(wa.id),
-    );
+    let filteredWorkAreas = hasItemLevelFilters
+      ? workAreasInDepts.filter((wa) => itemWorkAreaIds.has(wa.id))
+      : workAreasInDepts;
 
     // ---- Step 5: Filter departments to those that still have work areas ----
     const filteredWaDeptIds = new Set(
       filteredWorkAreas.map((wa) => wa.department_id),
     );
-    const filteredDepartments = departments.filter((d) =>
-      filteredWaDeptIds.has(d.id),
-    );
+    let filteredDepartments = hasItemLevelFilters
+      ? departments.filter((d) => filteredWaDeptIds.has(d.id))
+      : departments;
+
+    // ---- Step 5b: Apply overBudget filter ----
+    if (filters.overBudget) {
+      const overBudgetDeptIds = new Set<number>();
+      for (const dept of filteredDepartments) {
+        const deptWAs = workAreasInDepts.filter((wa) => wa.department_id === dept.id);
+        const deptWAIds = new Set(deptWAs.map((wa) => wa.id));
+        const deptTotal = items
+          .filter((ci) => deptWAIds.has(ci.work_area_id))
+          .reduce((s, ci) => s + ci.current_amount, 0);
+        const deptAdjustments = budgetAdjustments
+          .filter((adj) => adj.department_id === dept.id)
+          .reduce((sum, adj) => sum + adj.amount, 0);
+        const deptBudget = dept.budget_total + deptAdjustments;
+        if (deptTotal > deptBudget) {
+          overBudgetDeptIds.add(dept.id);
+        }
+      }
+      filteredDepartments = filteredDepartments.filter((d) => overBudgetDeptIds.has(d.id));
+      // Also restrict work areas and items to matching departments
+      const obd = new Set(filteredDepartments.map((d) => d.id));
+      filteredWorkAreas = filteredWorkAreas.filter((wa) => obd.has(wa.department_id));
+      const obWAIds = new Set(filteredWorkAreas.map((wa) => wa.id));
+      items = items.filter((ci) => obWAIds.has(ci.work_area_id));
+    }
 
     // ---- Step 6: Compute summary ----
 
@@ -143,5 +194,12 @@ export function useFilteredData(filters: FilterState): FilteredData {
         totalItemCount: allCostItems.length,
       },
     };
-  }, [filters, allDepartments, allWorkAreas, allCostItems, budgetAdjustments]);
+  }, [
+    filters,
+    allDepartments,
+    allWorkAreas,
+    allCostItems,
+    budgetAdjustments,
+    searchIndex,
+  ]);
 }

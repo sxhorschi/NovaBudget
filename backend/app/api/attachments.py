@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -21,6 +22,7 @@ from app.services.file_storage import (
 )
 
 router = APIRouter(prefix="/api/v1/attachments", tags=["attachments"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/upload", response_model=AttachmentRead, status_code=201)
@@ -56,7 +58,10 @@ async def upload_attachment(
         raise HTTPException(status_code=400, detail=str(exc))
 
     # Save to disk
-    storage_path, stored_name = await save_file(filename, content)
+    try:
+        storage_path, stored_name = await save_file(filename, content)
+    except FileStorageError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     # Create DB record
     attachment = Attachment(
@@ -116,7 +121,11 @@ async def download_attachment(
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
 
-    file_path = get_file_path(attachment.storage_path)
+    try:
+        file_path = get_file_path(attachment.storage_path)
+    except FileStorageError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
@@ -137,9 +146,13 @@ async def delete_attachment(
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
 
-    # Delete file from disk
-    delete_file(attachment.storage_path)
+    storage_path = attachment.storage_path
 
-    # Delete DB record
+    # Delete DB record first so DB state is committed even if file removal fails.
     await session.delete(attachment)
     await session.commit()
+
+    try:
+        delete_file(storage_path)
+    except Exception:
+        logger.exception("Failed to delete attachment file from disk: %s", storage_path)

@@ -6,6 +6,20 @@ import client from '../../api/client';
 import { exportStandard, exportFinance, exportSteeringCommittee } from '../../services/clientExport';
 import { useToast } from '../common/ToastProvider';
 
+const LS_FINANCE_EXPORT_FACTOR = 'settings_finance_export_factor';
+
+function getFinanceExportFactor(): number {
+  const raw = localStorage.getItem(LS_FINANCE_EXPORT_FACTOR)
+    ?? localStorage.getItem('settings_factor_085')
+    ?? '0.85';
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    return 0.85;
+  }
+  return Math.min(Math.max(parsed, 0), 1);
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -42,7 +56,7 @@ const EXPORT_OPTIONS: {
 // Helper: build export URL from current filter params
 // ---------------------------------------------------------------------------
 
-function buildExportPath(type: ExportType): string {
+function buildExportPath(type: ExportType, budgetFactor?: number): string {
   const base = `/export/${type}`;
   const params = new URLSearchParams(window.location.search);
 
@@ -57,6 +71,10 @@ function buildExportPath(type: ExportType): string {
     if (dept) exportParams.set('dept', dept);
     const phase = params.get('phase');
     if (phase) exportParams.set('phase', phase);
+  }
+
+  if (type === 'finance' && typeof budgetFactor === 'number') {
+    exportParams.set('budget_factor', budgetFactor.toString());
   }
 
   return `${base}?${exportParams.toString()}`;
@@ -113,7 +131,7 @@ const ExportMenu: React.FC = () => {
               exportStandard(departments, workAreas, items);
               break;
             case 'finance':
-              exportFinance(departments, workAreas, items);
+              exportFinance(departments, workAreas, items, getFinanceExportFactor());
               break;
             case 'steering-committee': {
               const approved = items.filter(i => i.approval_status === 'approved');
@@ -146,7 +164,8 @@ const ExportMenu: React.FC = () => {
 
       setLoading(type);
       try {
-        const path = buildExportPath(type);
+        const factor = type === 'finance' ? getFinanceExportFactor() : undefined;
+        const path = buildExportPath(type, factor);
         const response = await client.get(path, { responseType: 'blob' });
 
         // Extract filename from Content-Disposition or use default

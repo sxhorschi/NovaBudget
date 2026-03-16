@@ -1,6 +1,7 @@
 import React from 'react';
 import ProgressMicro from './ProgressMicro';
 import HelpTooltip from '../help/HelpTooltip';
+import { useAmountFormatter } from '../costbook/AmountCell';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -15,18 +16,8 @@ interface SummaryStripProps {
 }
 
 // ---------------------------------------------------------------------------
-// Formatters
+// Formatters (now handled by useAmountFormatter hook)
 // ---------------------------------------------------------------------------
-
-const eurFormatter = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-  maximumFractionDigits: 0,
-});
-
-function formatEur(value: number): string {
-  return eurFormatter.format(value);
-}
 
 // ---------------------------------------------------------------------------
 // Color helpers
@@ -87,6 +78,7 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
   itemCount,
 }) => {
   const remColor = remainingColor(remaining, budget);
+  const format = useAmountFormatter();
 
   return (
     <div className="bg-white/80 border-t border-gray-100 px-6 py-3">
@@ -94,7 +86,7 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
         {/* Budget */}
         <KPICard
           label="Budget"
-          value={formatEur(budget)}
+          value={format(budget)}
           textColor="text-indigo-700"
           barValue={budget}
           barMax={budget}
@@ -105,7 +97,7 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
         {/* Committed */}
         <KPICard
           label="Committed"
-          value={formatEur(committed)}
+          value={format(committed)}
           textColor="text-green-700"
           barValue={committed}
           barMax={budget || 1}
@@ -116,7 +108,7 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
         {/* Forecast */}
         <KPICard
           label="Forecast"
-          value={formatEur(forecast)}
+          value={format(forecast)}
           textColor="text-orange-700"
           barValue={forecast}
           barMax={budget || 1}
@@ -127,7 +119,7 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
         {/* Remaining */}
         <KPICard
           label="Remaining"
-          value={formatEur(remaining)}
+          value={format(remaining)}
           textColor={
             remColor === 'green'
               ? 'text-green-700'

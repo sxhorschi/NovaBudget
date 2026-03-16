@@ -353,7 +353,7 @@ async def get_dashboard(
                         AuditLog.created_at,
                     )
                     .where(
-                        AuditLog.entity_type == "CostItem",
+                        AuditLog.entity_type == "cost_item",
                         AuditLog.entity_id.in_(ci_ids),
                     )
                     .order_by(AuditLog.created_at.desc())

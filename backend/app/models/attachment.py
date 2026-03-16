@@ -6,7 +6,7 @@ import enum
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, ForeignKey, String, Text
+from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, String, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -39,6 +39,14 @@ AttachmentTypeColumn = SAEnum(
 
 class Attachment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "attachments"
+    __table_args__ = (
+        CheckConstraint(
+            "((cost_item_id IS NOT NULL AND work_area_id IS NULL AND department_id IS NULL) "
+            "OR (cost_item_id IS NULL AND work_area_id IS NOT NULL AND department_id IS NULL) "
+            "OR (cost_item_id IS NULL AND work_area_id IS NULL AND department_id IS NOT NULL))",
+            name="ck_attachment_exactly_one_parent",
+        ),
+    )
 
     # Polymorphic parent — exactly ONE of these must be set
     cost_item_id: Mapped[uuid.UUID | None] = mapped_column(

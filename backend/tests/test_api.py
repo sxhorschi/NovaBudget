@@ -6,7 +6,6 @@ from decimal import Decimal
 from uuid import UUID
 
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 
 
@@ -137,8 +136,8 @@ async def test_create_cost_item(client: AsyncClient):
 
 
 async def test_filter_by_status(client: AsyncClient):
-    """GET /api/v1/cost-items?approval_status=OPEN should only return OPEN items."""
-    _, wa_id = await _create_facility_and_work_area(client)
+    """GET /api/v1/cost-items?status=OPEN should only return OPEN items."""
+    fac_id, wa_id = await _create_facility_and_work_area(client)
 
     # Create OPEN item
     await client.post("/api/v1/cost-items/", json={
@@ -167,10 +166,13 @@ async def test_filter_by_status(client: AsyncClient):
     })
 
     # Filter by OPEN
-    resp = await client.get("/api/v1/cost-items/", params={"approval_status": "OPEN"})
+    resp = await client.get(
+        "/api/v1/cost-items/",
+        params={"facility_id": fac_id, "status": "OPEN"},
+    )
 
     assert resp.status_code == 200
-    items = resp.json()
+    items = resp.json()["items"]
     assert all(i["approval_status"] == "OPEN" for i in items), (
         f"All items should be OPEN, got statuses: {[i['approval_status'] for i in items]}"
     )
@@ -207,6 +209,63 @@ async def test_update_cost_item(client: AsyncClient):
     body = update_resp.json()
     assert body["description"] == "Updated description"
     assert Decimal(body["current_amount"]) == Decimal("15000")
+
+
+async def test_create_cost_item_invalid_work_area_returns_404(client: AsyncClient):
+    """POST /api/v1/cost-items with unknown work_area_id should return 404."""
+    payload = {
+        "work_area_id": "00000000-0000-0000-0000-000000000000",
+        "description": "Test equipment purchase",
+        "original_amount": "50000.00",
+        "current_amount": "50000.00",
+        "cost_basis": "COST_ESTIMATION",
+        "cost_driver": "INITIAL_SETUP",
+        "approval_status": "OPEN",
+        "project_phase": "PHASE_1",
+        "product": "ATLAS",
+    }
+
+    resp = await client.post("/api/v1/cost-items/", json=payload)
+
+    assert resp.status_code == 404, (
+        f"Invalid work_area_id should return 404, got {resp.status_code}: {resp.text}"
+    )
+
+
+async def test_create_cost_item_negative_amount_returns_422(client: AsyncClient):
+    """POST /api/v1/cost-items should reject negative amounts at schema level."""
+    _, wa_id = await _create_facility_and_work_area(client)
+    payload = {
+        "work_area_id": wa_id,
+        "description": "Invalid negative amount",
+        "original_amount": "-1.00",
+        "current_amount": "10.00",
+        "cost_basis": "COST_ESTIMATION",
+        "cost_driver": "INITIAL_SETUP",
+        "approval_status": "OPEN",
+        "project_phase": "PHASE_1",
+        "product": "ATLAS",
+    }
+
+    resp = await client.post("/api/v1/cost-items/", json=payload)
+
+    assert resp.status_code == 422, (
+        f"Negative amounts should return 422, got {resp.status_code}: {resp.text}"
+    )
+
+
+async def test_list_cost_items_invalid_status_returns_422(client: AsyncClient):
+    """GET /api/v1/cost-items should return 422 for invalid enum query values."""
+    fac_id, _ = await _create_facility_and_work_area(client)
+
+    resp = await client.get(
+        "/api/v1/cost-items/",
+        params={"facility_id": fac_id, "status": "NOT_A_STATUS"},
+    )
+
+    assert resp.status_code == 422, (
+        f"Invalid status filter should return 422, got {resp.status_code}: {resp.text}"
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -6,20 +6,23 @@ import CashOutPage from './pages/CashOutPage';
 import ImportPage from './pages/ImportPage';
 import ToastProvider from './components/common/ToastProvider';
 import { BudgetDataProvider } from './context/BudgetDataContext';
+import { DisplaySettingsProvider } from './context/DisplaySettingsContext';
 
 const App: React.FC = () => {
   return (
     <BrowserRouter>
       <BudgetDataProvider>
-        <ToastProvider>
-          <AppLayout>
-            <Routes>
-              <Route path="/" element={<CostbookPage />} />
-              <Route path="/cashout" element={<CashOutPage />} />
-              <Route path="/import" element={<ImportPage />} />
-            </Routes>
-          </AppLayout>
-        </ToastProvider>
+        <DisplaySettingsProvider>
+          <ToastProvider>
+            <AppLayout>
+              <Routes>
+                <Route path="/" element={<CostbookPage />} />
+                <Route path="/cashout" element={<CashOutPage />} />
+                <Route path="/import" element={<ImportPage />} />
+              </Routes>
+            </AppLayout>
+          </ToastProvider>
+        </DisplaySettingsProvider>
       </BudgetDataProvider>
     </BrowserRouter>
   );

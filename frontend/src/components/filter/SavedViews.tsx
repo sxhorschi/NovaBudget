@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, X as XIcon, Bookmark } from 'lucide-react';
+import { Plus, X as XIcon, Bookmark, RotateCcw } from 'lucide-react';
 import type { FilterState } from '../../hooks/useFilterState';
 import { EMPTY_FILTER } from '../../hooks/useFilterState';
 import type { ApprovalStatus, ProjectPhase } from '../../types/budget';
@@ -21,7 +21,8 @@ interface SavedViewsProps {
 }
 
 // ---------------------------------------------------------------------------
-// Predefined views
+// Predefined views  (no hardcoded department IDs — department filters use
+// the Department chip instead)
 // ---------------------------------------------------------------------------
 
 const PREDEFINED_VIEWS: SavedView[] = [
@@ -42,7 +43,7 @@ const PREDEFINED_VIEWS: SavedView[] = [
   },
   {
     id: 'phase-1',
-    label: 'Phase 1 — Bryan Start',
+    label: 'Phase 1',
     filters: {
       ...EMPTY_FILTER,
       phases: ['phase_1'] as ProjectPhase[],
@@ -51,7 +52,7 @@ const PREDEFINED_VIEWS: SavedView[] = [
   },
   {
     id: 'phase-2',
-    label: 'Phase 2 — Günther Ramp-Up',
+    label: 'Phase 2',
     filters: {
       ...EMPTY_FILTER,
       phases: ['phase_2'] as ProjectPhase[],
@@ -61,24 +62,9 @@ const PREDEFINED_VIEWS: SavedView[] = [
   {
     id: 'over-budget',
     label: 'Über Budget',
-    filters: { ...EMPTY_FILTER },
-    isCustom: false,
-  },
-  {
-    id: 'assembly',
-    label: 'Assembly Equipment',
     filters: {
       ...EMPTY_FILTER,
-      departments: [1],
-    },
-    isCustom: false,
-  },
-  {
-    id: 'testing',
-    label: 'Testing',
-    filters: {
-      ...EMPTY_FILTER,
-      departments: [2],
+      overBudget: true,
     },
     isCustom: false,
   },
@@ -89,6 +75,8 @@ const PREDEFINED_VIEWS: SavedView[] = [
 // ---------------------------------------------------------------------------
 
 const STORAGE_KEY = 'budget-tool-custom-views';
+
+const HIDDEN_VIEWS_KEY = 'budget-tool-hidden-views';
 
 function loadCustomViews(): SavedView[] {
   try {
@@ -104,6 +92,20 @@ function persistCustomViews(views: SavedView[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(views));
 }
 
+function loadHiddenViewIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(HIDDEN_VIEWS_KEY);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw) as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function persistHiddenViewIds(ids: Set<string>): void {
+  localStorage.setItem(HIDDEN_VIEWS_KEY, JSON.stringify([...ids]));
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -114,7 +116,8 @@ function filtersMatch(a: FilterState, b: FilterState): boolean {
     arraysEqual(a.phases, b.phases) &&
     arraysEqual(a.products, b.products) &&
     arraysEqual(a.statuses, b.statuses) &&
-    a.search === b.search
+    a.search === b.search &&
+    a.overBudget === b.overBudget
   );
 }
 
@@ -131,6 +134,8 @@ function arraysEqual<T>(a: T[], b: T[]): boolean {
 
 const SavedViews: React.FC<SavedViewsProps> = ({ currentFilters, onApplyView }) => {
   const [customViews, setCustomViews] = useState<SavedView[]>(loadCustomViews);
+  const [hiddenViewIds, setHiddenViewIds] = useState<Set<string>>(loadHiddenViewIds);
+  const [selectedViewId, setSelectedViewId] = useState<string | null>(null);
   const [showNameInput, setShowNameInput] = useState(false);
   const [newViewName, setNewViewName] = useState('');
 
@@ -139,24 +144,36 @@ const SavedViews: React.FC<SavedViewsProps> = ({ currentFilters, onApplyView }) 
     persistCustomViews(customViews);
   }, [customViews]);
 
-  const allViews = [...PREDEFINED_VIEWS, ...customViews];
+  useEffect(() => {
+    persistHiddenViewIds(hiddenViewIds);
+  }, [hiddenViewIds]);
 
-  // Determine active view: find the first view whose filters match current
-  const activeViewId = allViews.find((v) => {
-    // Special handling: "Über Budget" is a virtual filter — it has no URL-representable filter
-    if (v.id === 'over-budget') return false;
-    return filtersMatch(v.filters, currentFilters);
-  })?.id ?? null;
+  const visiblePredefined = PREDEFINED_VIEWS.filter((v) => !hiddenViewIds.has(v.id));
+  const allViews = [...visiblePredefined, ...customViews];
+
+  // If the selected view no longer exists (deleted/hidden), clear selection.
+  useEffect(() => {
+    if (selectedViewId == null) return;
+    const stillExists = allViews.some((v) => v.id === selectedViewId);
+    if (!stillExists) {
+      setSelectedViewId(null);
+    }
+  }, [selectedViewId, allViews]);
+
+  // Determine active view with preference for the explicitly selected view.
+  const activeViewId = (() => {
+    if (selectedViewId) {
+      const selectedView = allViews.find((v) => v.id === selectedViewId);
+      if (selectedView && filtersMatch(selectedView.filters, currentFilters)) {
+        return selectedView.id;
+      }
+    }
+    return allViews.find((v) => filtersMatch(v.filters, currentFilters))?.id ?? null;
+  })();
 
   const handleApply = useCallback(
     (view: SavedView) => {
-      // "Über Budget" is a special view — we signal it through search to hint the table
-      // In practice this sets empty filters since it relies on item-level comparison
-      // The parent page can check for this special tag
-      if (view.id === 'over-budget') {
-        onApplyView({ ...EMPTY_FILTER, search: '__over_budget__' });
-        return;
-      }
+      setSelectedViewId(view.id);
       onApplyView(view.filters);
     },
     [onApplyView],
@@ -179,7 +196,28 @@ const SavedViews: React.FC<SavedViewsProps> = ({ currentFilters, onApplyView }) 
   }, [newViewName, currentFilters]);
 
   const handleRemoveCustomView = useCallback((id: string) => {
+    setSelectedViewId((prev) => (prev === id ? null : prev));
     setCustomViews((prev) => prev.filter((v) => v.id !== id));
+  }, []);
+
+  const handleHidePredefinedView = useCallback(
+    (id: string) => {
+      setHiddenViewIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      setSelectedViewId((prev) => (prev === id ? null : prev));
+      // If the hidden view was active, reset to all
+      if (activeViewId === id) {
+        onApplyView({ ...EMPTY_FILTER });
+      }
+    },
+    [activeViewId, onApplyView],
+  );
+
+  const handleRestoreViews = useCallback(() => {
+    setHiddenViewIds(new Set());
   }, []);
 
   const handleKeyDown = useCallback(
@@ -220,20 +258,22 @@ const SavedViews: React.FC<SavedViewsProps> = ({ currentFilters, onApplyView }) 
                     e.stopPropagation();
                     if (view.isCustom) {
                       handleRemoveCustomView(view.id);
+                    } else {
+                      handleHidePredefinedView(view.id);
                     }
-                    // Reset to "Alle Positionen" (empty filters)
-                    onApplyView({ ...EMPTY_FILTER });
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.stopPropagation();
                       if (view.isCustom) {
                         handleRemoveCustomView(view.id);
+                      } else {
+                        handleHidePredefinedView(view.id);
                       }
-                      onApplyView({ ...EMPTY_FILTER });
                     }
                   }}
-                  className="ml-1 rounded-full hover:bg-gray-300 p-0.5"
+                  className={`ml-1 rounded-full p-0.5 ${view.isCustom ? 'hover:bg-red-200' : 'hover:bg-gray-300'}`}
+                  title={view.isCustom ? 'Ansicht löschen' : 'Ansicht ausblenden'}
                 >
                   <XIcon size={10} />
                 </span>
@@ -243,6 +283,20 @@ const SavedViews: React.FC<SavedViewsProps> = ({ currentFilters, onApplyView }) 
         })}
 
         {/* Save current view */}
+        {showNameInput ? (
+          null
+        ) : hiddenViewIds.size > 0 ? (
+          <button
+            onClick={handleRestoreViews}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-amber-50 text-amber-600 hover:bg-amber-100 border border-dashed border-amber-300 transition-colors flex-shrink-0"
+            title={`${hiddenViewIds.size} ausgeblendete Ansicht(en) wiederherstellen`}
+          >
+            <RotateCcw size={12} />
+            {hiddenViewIds.size} wiederherstellen
+          </button>
+        ) : null}
+
+        {/* New view name input inline */}
         {showNameInput ? (
           <div className="inline-flex items-center gap-1.5 flex-shrink-0">
             <input

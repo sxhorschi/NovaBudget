@@ -29,13 +29,39 @@ router = APIRouter(prefix="/api/v1/cost-items", tags=["cost-items"])
 def _parse_uuids(raw: str | None) -> list[UUID]:
     if not raw:
         return []
-    return [UUID(v.strip()) for v in raw.split(",") if v.strip()]
+
+    values: list[UUID] = []
+    for token in raw.split(","):
+        cleaned = token.strip()
+        if not cleaned:
+            continue
+        try:
+            values.append(UUID(cleaned))
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid UUID value: {cleaned}",
+            ) from exc
+    return values
 
 
 def _parse_enums(raw: str | None, enum_cls: type) -> list:
     if not raw:
         return []
-    return [enum_cls(v.strip()) for v in raw.split(",") if v.strip()]
+
+    values: list = []
+    for token in raw.split(","):
+        cleaned = token.strip()
+        if not cleaned:
+            continue
+        try:
+            values.append(enum_cls(cleaned))
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid {enum_cls.__name__} value: {cleaned}",
+            ) from exc
+    return values
 
 
 # ── Search / List ────────────────────────────────────────────────────────
@@ -95,11 +121,16 @@ async def get_cost_item(item_id: UUID, session: AsyncSession = Depends(get_sessi
 
 @router.post("/", response_model=CostItemRead, status_code=201)
 async def create_cost_item(data: CostItemCreate, session: AsyncSession = Depends(get_session)):
+    work_area = await session.get(WorkArea, data.work_area_id)
+    if not work_area:
+        raise HTTPException(status_code=404, detail="Work area not found")
+
     item = CostItem(**data.model_dump())
     session.add(item)
+    await session.flush()
+    await log_change(session, "cost_item", item.id, "created")
     await session.commit()
     await session.refresh(item)
-    await log_change(session, "cost_item", item.id, "created")
     return item
 
 
@@ -125,11 +156,11 @@ async def update_cost_item(
     old_values = {k: getattr(item, k) for k in update_data}
     for key, value in update_data.items():
         setattr(item, key, value)
-    await session.commit()
-    await session.refresh(item)
     changes = build_changes(old_values, update_data)
     if changes:
         await log_change(session, "cost_item", item.id, "updated", changes=changes)
+    await session.commit()
+    await session.refresh(item)
     return item
 
 
@@ -140,8 +171,8 @@ async def delete_cost_item(item_id: UUID, session: AsyncSession = Depends(get_se
         raise HTTPException(status_code=404, detail="Cost item not found")
     item_id_copy = item.id
     await session.delete(item)
-    await session.commit()
     await log_change(session, "cost_item", item_id_copy, "deleted")
+    await session.commit()
 
 
 # ── Approval Workflow ────────────────────────────────────────────────────

@@ -6,12 +6,11 @@ und bestimmt anhand des Betrags die erforderliche Freigabestufe.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit_log import AuditLog
@@ -24,6 +23,8 @@ from app.models.enums import ApprovalStatus
 ALLOWED_TRANSITIONS: dict[ApprovalStatus, set[ApprovalStatus]] = {
     ApprovalStatus.OPEN: {
         ApprovalStatus.SUBMITTED_FOR_APPROVAL,
+        ApprovalStatus.ON_HOLD,
+        ApprovalStatus.OBSOLETE,
     },
     ApprovalStatus.SUBMITTED_FOR_APPROVAL: {
         ApprovalStatus.APPROVED,
@@ -31,30 +32,34 @@ ALLOWED_TRANSITIONS: dict[ApprovalStatus, set[ApprovalStatus]] = {
         ApprovalStatus.ON_HOLD,
         ApprovalStatus.PENDING_SUPPLIER_NEGOTIATION,
         ApprovalStatus.PENDING_TECHNICAL_CLARIFICATION,
+        ApprovalStatus.OBSOLETE,
     },
-    ApprovalStatus.APPROVED: set(),  # Endstatus im MVP
+    ApprovalStatus.APPROVED: {
+        ApprovalStatus.ON_HOLD,
+        ApprovalStatus.OBSOLETE,
+    },
     ApprovalStatus.REJECTED: {
-        ApprovalStatus.OPEN,  # Kann nochmal eingereicht werden
+        ApprovalStatus.OPEN,
+        ApprovalStatus.SUBMITTED_FOR_APPROVAL,
+        ApprovalStatus.OBSOLETE,
     },
     ApprovalStatus.ON_HOLD: {
-        ApprovalStatus.SUBMITTED_FOR_APPROVAL,
         ApprovalStatus.OPEN,
+        ApprovalStatus.SUBMITTED_FOR_APPROVAL,
+        ApprovalStatus.OBSOLETE,
     },
     ApprovalStatus.PENDING_SUPPLIER_NEGOTIATION: {
         ApprovalStatus.SUBMITTED_FOR_APPROVAL,
-        ApprovalStatus.OPEN,
+        ApprovalStatus.ON_HOLD,
+        ApprovalStatus.OBSOLETE,
     },
     ApprovalStatus.PENDING_TECHNICAL_CLARIFICATION: {
         ApprovalStatus.SUBMITTED_FOR_APPROVAL,
-        ApprovalStatus.OPEN,
+        ApprovalStatus.ON_HOLD,
+        ApprovalStatus.OBSOLETE,
     },
-    ApprovalStatus.OBSOLETE: set(),  # Endstatus, kein Rückweg
+    ApprovalStatus.OBSOLETE: set(),
 }
-
-# Jeder Status kann jederzeit auf OBSOLETE gesetzt werden (außer OBSOLETE selbst)
-for _status in ApprovalStatus:
-    if _status != ApprovalStatus.OBSOLETE:
-        ALLOWED_TRANSITIONS.setdefault(_status, set()).add(ApprovalStatus.OBSOLETE)
 
 
 # ── Status-Labels auf Deutsch (für Fehlermeldungen) ─────────────────────
@@ -105,6 +110,11 @@ def _allowed_targets_label(status: ApprovalStatus) -> str:
     return ", ".join(sorted(_label(t) for t in targets))
 
 
+def is_transition_allowed(from_status: ApprovalStatus, to_status: ApprovalStatus) -> bool:
+    """Prueft, ob ein Statusuebergang gemaess Workflow-Regeln erlaubt ist."""
+    return to_status in ALLOWED_TRANSITIONS.get(from_status, set())
+
+
 # ── Kernfunktion: Status ändern ─────────────────────────────────────────
 
 async def change_status(
@@ -142,19 +152,18 @@ async def change_status(
         raise HTTPException(
             status_code=409,
             detail=(
-                f"Cost Item hat bereits den Status „{_label(current_status)}". "
+                f"Cost Item hat bereits den Status '{_label(current_status)}'. "
                 f"Kein Übergang notwendig."
             ),
         )
 
     # 2. Prüfen ob Übergang erlaubt
-    allowed = ALLOWED_TRANSITIONS.get(current_status, set())
-    if new_status not in allowed:
+    if not is_transition_allowed(current_status, new_status):
         raise HTTPException(
             status_code=409,
             detail=(
-                f"Statusübergang von „{_label(current_status)}" nach "
-                f"„{_label(new_status)}" ist nicht erlaubt. "
+                f"Statusuebergang von '{_label(current_status)}' nach "
+                f"'{_label(new_status)}' ist nicht erlaubt. "
                 f"Erlaubte Zielstatus: {_allowed_targets_label(current_status)}."
             ),
         )
@@ -165,6 +174,8 @@ async def change_status(
     # 3. Wenn APPROVED: approval_date setzen
     if new_status == ApprovalStatus.APPROVED:
         item.approval_date = date.today()
+    else:
+        item.approval_date = None
 
     # 4. Status ändern
     previous_status = current_status

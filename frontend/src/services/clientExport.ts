@@ -36,6 +36,67 @@ function dateStr(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function parseMonthKey(value: string): string | null {
+  const directMatch = value.match(/^(\d{4})-(\d{2})/);
+  if (directMatch) {
+    return `${directMatch[1]}-${directMatch[2]}`;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function getPlanningStartMonth(items: CostItem[]): Date {
+  const now = new Date();
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const futureDates: Date[] = [];
+
+  for (const item of items) {
+    const key = parseMonthKey(item.expected_cash_out);
+    if (!key) continue;
+
+    const [year, month] = key.split('-').map(Number);
+    const candidate = new Date(year, month - 1, 1);
+    if (candidate.getTime() >= currentMonthStart.getTime()) {
+      futureDates.push(candidate);
+    }
+  }
+
+  if (futureDates.length === 0) {
+    return currentMonthStart;
+  }
+
+  futureDates.sort((a, b) => a.getTime() - b.getTime());
+  return futureDates[0];
+}
+
+function buildPlanningMonths(startMonth: Date, count: number): { label: string; key: string }[] {
+  const months: { label: string; key: string }[] = [];
+
+  for (let offset = 0; offset < count; offset++) {
+    const date = new Date(startMonth.getFullYear(), startMonth.getMonth() + offset, 1);
+    months.push({
+      label: date.toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }),
+      key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+    });
+  }
+
+  return months;
+}
+
+function quarterTotals(monthValues: number[]): [number, number, number, number] {
+  return [
+    monthValues.slice(0, 3).reduce((sum, value) => sum + value, 0),
+    monthValues.slice(3, 6).reduce((sum, value) => sum + value, 0),
+    monthValues.slice(6, 9).reduce((sum, value) => sum + value, 0),
+    monthValues.slice(9, 12).reduce((sum, value) => sum + value, 0),
+  ];
+}
+
 /** Build a lookup map: id -> entity */
 function indexById<T extends { id: number }>(items: T[]): Map<number, T> {
   return new Map(items.map((i) => [i.id, i]));
@@ -175,101 +236,213 @@ export function exportFinance(
   const waMap = indexById(workAreas);
   const deptMap = indexById(departments);
 
-  // Generate month columns: Feb 2026 - Jan 2027
-  const months: { label: string; key: string }[] = [];
-  for (let m = 1; m <= 12; m++) {
-    // Feb 2026 (m=1) -> month 2, ..., Jan 2027 (m=12) -> month 1
-    const year = m <= 11 ? 2026 : 2027;
-    const monthNum = m <= 11 ? m + 1 : 1;
-    const d = new Date(year, monthNum - 1, 1);
-    const label = d.toLocaleDateString('de-DE', { month: 'short', year: 'numeric' });
-    const key = `${year}-${String(monthNum).padStart(2, '0')}`;
-    months.push({ label, key });
-  }
+  const months = buildPlanningMonths(getPlanningStartMonth(items), 12);
+  const monthIndexByKey = new Map(months.map((m, idx) => [m.key, idx]));
+  const planningRange = `${months[0].label} - ${months[months.length - 1].label}`;
 
-  // Headers
-  const headerRow = [
-    'Description',
-    'Department',
-    'Work Area',
-    'Unit Cost (€)',
-    'Date',
-    ...months.map((m) => m.label),
-    'Q1 Total',
-    'Q2 Total',
-    'Q3 Total',
-    'Q4 Total',
-    'Yearly Total',
+  const sortedItems = [...items].sort((a, b) => {
+    const waA = waMap.get(a.work_area_id);
+    const waB = waMap.get(b.work_area_id);
+    const deptA = waA ? deptMap.get(waA.department_id) : undefined;
+    const deptB = waB ? deptMap.get(waB.department_id) : undefined;
+
+    const deptCmp = (deptA?.name ?? '').localeCompare(deptB?.name ?? '', 'de-DE');
+    if (deptCmp !== 0) return deptCmp;
+
+    const waCmp = (waA?.name ?? '').localeCompare(waB?.name ?? '', 'de-DE');
+    if (waCmp !== 0) return waCmp;
+
+    return a.description.localeCompare(b.description, 'de-DE');
+  });
+
+  const monthlyTotals = months.map(() => 0);
+  const monthlyCounts = months.map(() => 0);
+  const quarterTotalSums = [0, 0, 0, 0];
+  let totalOriginal = 0;
+  let totalBudget = 0;
+  let totalOutsidePeriod = 0;
+
+  const departmentSummary = new Map<string, { count: number; original: number; budget: number; outside: number }>();
+
+  const detailRows: (string | number)[][] = [
+    ['CAPEX Finance Template'],
+    ['Exportdatum', dateStr()],
+    ['Planungszeitraum', planningRange],
+    ['Budget-Faktor', budgetFactor],
+    [],
+    [
+      'Abteilung',
+      'Kategorie',
+      'Beschreibung',
+      'Phase',
+      'Produkt',
+      'Status',
+      'Cash-Out',
+      'Originalbetrag (€)',
+      'Budgetwert (€)',
+      ...months.map((m) => m.label),
+      'Außerhalb 12M (€)',
+      'Q1',
+      'Q2',
+      'Q3',
+      'Q4',
+      'Gesamt Budget (€)',
+    ],
   ];
 
-  const rows: (string | number)[][] = [headerRow];
-
-  for (const item of items) {
+  for (const item of sortedItems) {
     const wa = waMap.get(item.work_area_id);
     const dept = wa ? deptMap.get(wa.department_id) : undefined;
 
-    // Parse cash-out month from expected_cash_out (format: "YYYY-MM" or "YYYY-MM-DD")
-    const cashOutKey = item.expected_cash_out.slice(0, 7); // "YYYY-MM"
+    const originalAmount = item.current_amount;
+    const budgetAmount = item.current_amount * budgetFactor;
+    const monthValues = months.map(() => 0);
 
-    const monthValues: number[] = months.map((m) =>
-      m.key === cashOutKey ? fmt(item.current_amount * budgetFactor) : 0,
-    );
+    let outsidePeriodAmount = budgetAmount;
+    const cashOutKey = parseMonthKey(item.expected_cash_out);
+    const monthIdx = cashOutKey ? monthIndexByKey.get(cashOutKey) : undefined;
 
-    // Quarterly totals (3 months each)
-    const q1 = monthValues.slice(0, 3).reduce((a, b) => a + b, 0);
-    const q2 = monthValues.slice(3, 6).reduce((a, b) => a + b, 0);
-    const q3 = monthValues.slice(6, 9).reduce((a, b) => a + b, 0);
-    const q4 = monthValues.slice(9, 12).reduce((a, b) => a + b, 0);
-    const yearly = q1 + q2 + q3 + q4;
+    if (typeof monthIdx === 'number') {
+      monthValues[monthIdx] = budgetAmount;
+      outsidePeriodAmount = 0;
+      monthlyTotals[monthIdx] += budgetAmount;
+      monthlyCounts[monthIdx] += 1;
+    }
 
-    rows.push([
+    const [q1, q2, q3, q4] = quarterTotals(monthValues);
+
+    totalOriginal += originalAmount;
+    totalBudget += budgetAmount;
+    totalOutsidePeriod += outsidePeriodAmount;
+    quarterTotalSums[0] += q1;
+    quarterTotalSums[1] += q2;
+    quarterTotalSums[2] += q3;
+    quarterTotalSums[3] += q4;
+
+    const deptName = dept?.name ?? 'Ohne Abteilung';
+    const summaryEntry = departmentSummary.get(deptName) ?? { count: 0, original: 0, budget: 0, outside: 0 };
+    summaryEntry.count += 1;
+    summaryEntry.original += originalAmount;
+    summaryEntry.budget += budgetAmount;
+    summaryEntry.outside += outsidePeriodAmount;
+    departmentSummary.set(deptName, summaryEntry);
+
+    detailRows.push([
+      deptName,
+      wa?.name ?? 'Ohne Kategorie',
       item.description,
-      dept?.name ?? '',
-      wa?.name ?? '',
-      fmt(item.current_amount),
+      PHASE_LABELS[item.project_phase],
+      PRODUCT_LABELS[item.product],
+      STATUS_LABELS[item.approval_status],
       item.expected_cash_out,
-      ...monthValues,
+      fmt(originalAmount),
+      fmt(budgetAmount),
+      ...monthValues.map(fmt),
+      fmt(outsidePeriodAmount),
       fmt(q1),
       fmt(q2),
       fmt(q3),
       fmt(q4),
-      fmt(yearly),
+      fmt(budgetAmount),
     ]);
   }
 
-  // Totals row
-  if (items.length > 0) {
-    const totalsRow: (string | number)[] = ['TOTAL', '', '', '', ''];
-    for (let col = 0; col < months.length + 5; col++) {
-      let sum = 0;
-      for (let r = 1; r < rows.length; r++) {
-        const val = rows[r][col + 5];
-        if (typeof val === 'number') sum += val;
-      }
-      totalsRow.push(fmt(sum));
-    }
-    rows.push([]);
-    rows.push(totalsRow);
+  if (sortedItems.length > 0) {
+    detailRows.push([]);
+    detailRows.push([
+      'GESAMT',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      fmt(totalOriginal),
+      fmt(totalBudget),
+      ...monthlyTotals.map(fmt),
+      fmt(totalOutsidePeriod),
+      fmt(quarterTotalSums[0]),
+      fmt(quarterTotalSums[1]),
+      fmt(quarterTotalSums[2]),
+      fmt(quarterTotalSums[3]),
+      fmt(totalBudget),
+    ]);
   }
 
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-
-  // Column widths
-  ws['!cols'] = [
-    { wch: 40 }, // Description
-    { wch: 22 }, // Department
-    { wch: 25 }, // Work Area
-    { wch: 14 }, // Unit Cost
-    { wch: 12 }, // Date
+  const detailSheet = XLSX.utils.aoa_to_sheet(detailRows);
+  detailSheet['!cols'] = [
+    { wch: 24 }, // Abteilung
+    { wch: 24 }, // Kategorie
+    { wch: 42 }, // Beschreibung
+    { wch: 12 }, // Phase
+    { wch: 12 }, // Produkt
+    { wch: 14 }, // Status
+    { wch: 14 }, // Cash-Out
+    { wch: 18 }, // Originalbetrag
+    { wch: 18 }, // Budgetwert
     ...months.map(() => ({ wch: 14 })),
-    { wch: 14 }, // Q1
-    { wch: 14 }, // Q2
-    { wch: 14 }, // Q3
-    { wch: 14 }, // Q4
-    { wch: 14 }, // Yearly
+    { wch: 18 }, // Außerhalb 12M
+    { wch: 12 }, // Q1
+    { wch: 12 }, // Q2
+    { wch: 12 }, // Q3
+    { wch: 12 }, // Q4
+    { wch: 18 }, // Gesamt Budget
   ];
 
-  XLSX.utils.book_append_sheet(wb, ws, 'BudgetTemplate');
+  const summaryRows: (string | number)[][] = [
+    ['CAPEX Finance Summary'],
+    ['Exportdatum', dateStr()],
+    ['Planungszeitraum', planningRange],
+    ['Budget-Faktor', budgetFactor],
+    [],
+    ['Abteilung', 'Positionen', 'Originalsumme (€)', 'Budgetsumme (€)', 'Außerhalb 12M (€)'],
+  ];
+
+  const sortedDepartmentSummary = [...departmentSummary.entries()].sort(([a], [b]) =>
+    a.localeCompare(b, 'de-DE'),
+  );
+
+  for (const [deptName, entry] of sortedDepartmentSummary) {
+    summaryRows.push([
+      deptName,
+      entry.count,
+      fmt(entry.original),
+      fmt(entry.budget),
+      fmt(entry.outside),
+    ]);
+  }
+
+  summaryRows.push([]);
+  summaryRows.push(['Monat', 'Positionen', 'Cash-Out Budget (€)']);
+
+  for (let i = 0; i < months.length; i++) {
+    summaryRows.push([
+      months[i].label,
+      monthlyCounts[i],
+      fmt(monthlyTotals[i]),
+    ]);
+  }
+
+  summaryRows.push([]);
+  summaryRows.push([
+    'GESAMT',
+    sortedItems.length,
+    fmt(totalOriginal),
+    fmt(totalBudget),
+    fmt(totalOutsidePeriod),
+  ]);
+
+  const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+  summarySheet['!cols'] = [
+    { wch: 28 },
+    { wch: 12 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 18 },
+  ];
+
+  XLSX.utils.book_append_sheet(wb, detailSheet, 'BudgetTemplate');
+  XLSX.utils.book_append_sheet(wb, summarySheet, 'Finance_Summary');
   triggerDownload(wb, `CAPEX_Finance_Template_${dateStr()}.xlsx`);
 }
 

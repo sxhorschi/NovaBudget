@@ -1,4 +1,4 @@
-import { formatEUR } from './AmountCell';
+import { useAmountFormatter } from './AmountCell';
 
 // ---------------------------------------------------------------------------
 // TableFooter — Grand total row at the bottom of CostbookTable
@@ -10,6 +10,7 @@ interface TableFooterProps {
 }
 
 export default function TableFooter({ totalAmount, itemCount }: TableFooterProps) {
+  const format = useAmountFormatter();
   return (
     <tfoot>
       <tr
@@ -17,15 +18,15 @@ export default function TableFooter({ totalAmount, itemCount }: TableFooterProps
         style={{ borderColor: 'var(--border-strong)' }}
       >
         <td
-          colSpan={6}
+          colSpan={5}
           className="px-4 py-3 text-sm font-semibold text-slate-900 uppercase tracking-wide"
         >
           Gesamt ({itemCount} {itemCount === 1 ? 'Position' : 'Positionen'})
         </td>
         <td className="px-4 py-3 text-right font-mono tabular-nums text-sm font-bold text-slate-900">
-          {formatEUR(totalAmount)}
+          {format(totalAmount)}
         </td>
-        <td />
+        <td className="px-4 py-3" />
       </tr>
     </tfoot>
   );

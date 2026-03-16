@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ArrowUp, ArrowDown, SearchX, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import type { Department, WorkArea, CostItem, ApprovalStatus } from '../../types/budget';
 import DepartmentRow from './DepartmentRow';
@@ -67,12 +67,12 @@ interface ColumnDef {
 }
 
 const COLUMNS: ColumnDef[] = [
-  { key: 'description', label: 'Description', width: '',     align: 'left',  sortable: true },
-  { key: 'amount',      label: 'Amount',      width: '140px', align: 'right', sortable: true },
-  { key: 'phase',       label: 'Phase',       width: '90px',  align: 'left',  sortable: true },
-  { key: 'product',     label: 'Product',     width: '100px', align: 'left',  sortable: true },
-  { key: 'status',      label: 'Status',      width: '150px', align: 'left',  sortable: true },
-  { key: 'cashout',     label: 'Cash-Out',    width: '90px',  align: 'left',  sortable: true },
+  { key: 'description', label: 'Beschreibung', width: '',      align: 'left',  sortable: true },
+  { key: 'phase',       label: 'Phase',        width: '96px',  align: 'left',  sortable: true },
+  { key: 'product',     label: 'Produkt',      width: '110px', align: 'left',  sortable: true },
+  { key: 'status',      label: 'Status',       width: '160px', align: 'left',  sortable: true },
+  { key: 'cashout',     label: 'Cash-Out',     width: '110px', align: 'left',  sortable: true },
+  { key: 'amount',      label: 'Betrag',       width: '160px', align: 'right', sortable: true },
 ];
 
 // ---------------------------------------------------------------------------
@@ -82,10 +82,13 @@ const COLUMNS: ColumnDef[] = [
 export interface CostbookTableProps {
   departments: Department[];
   workAreas: WorkArea[];
+  departmentCommittedTotals?: Record<number, number>;
   onSelectItem: (item: CostItem) => void;
   selectedItemId: number | null;
   onStatusChange: (item: CostItem, newStatus: ApprovalStatus) => void;
   onDeleteItem: (item: CostItem) => void;
+  onOpenDepartmentContext?: (departmentId: number) => void;
+  onOpenWorkAreaContext?: (workAreaId: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -95,10 +98,13 @@ export interface CostbookTableProps {
 export default function CostbookTable({
   departments,
   workAreas,
+  departmentCommittedTotals,
   onSelectItem,
   selectedItemId,
   onStatusChange,
   onDeleteItem,
+  onOpenDepartmentContext,
+  onOpenWorkAreaContext,
 }: CostbookTableProps) {
   // -- Expansion state: all expanded by default --------------------------------
   const [expandedDepts, setExpandedDepts] = useState<Set<number>>(
@@ -107,6 +113,34 @@ export default function CostbookTable({
   const [expandedWAs, setExpandedWAs] = useState<Set<number>>(
     () => new Set(workAreas.map((wa) => wa.id)),
   );
+
+  useEffect(() => {
+    setExpandedDepts((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const d of departments) {
+        if (!next.has(d.id)) {
+          next.add(d.id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [departments]);
+
+  useEffect(() => {
+    setExpandedWAs((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const wa of workAreas) {
+        if (!next.has(wa.id)) {
+          next.add(wa.id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [workAreas]);
 
   // -- Sorting state -----------------------------------------------------------
   const [sort, setSort] = useState<SortState>({ field: 'description', dir: 'asc' });
@@ -252,7 +286,7 @@ export default function CostbookTable({
             {/* Actions column header */}
             <th
               className="px-4 py-3"
-              style={{ width: '70px', color: 'var(--text-tertiary)' }}
+              style={{ width: '110px', color: 'var(--text-tertiary)' }}
             />
           </tr>
         </thead>
@@ -267,7 +301,8 @@ export default function CostbookTable({
             for (const wa of deptWAs) {
               if (wa.cost_items) deptItems.push(...wa.cost_items);
             }
-            const committed = deptItems.reduce((s, ci) => s + ci.current_amount, 0);
+            const visibleCommitted = deptItems.reduce((s, ci) => s + ci.current_amount, 0);
+            const committed = departmentCommittedTotals?.[dept.id] ?? visibleCommitted;
             const isDeptExpanded = expandedDepts.has(dept.id);
             const color = getDeptColor(dept.id);
 
@@ -281,6 +316,11 @@ export default function CostbookTable({
                   itemCount={deptItems.length}
                   expanded={isDeptExpanded}
                   onToggle={() => toggleDept(dept.id)}
+                  onOpenContext={
+                    onOpenDepartmentContext
+                      ? () => onOpenDepartmentContext(dept.id)
+                      : undefined
+                  }
                   accentColor={color}
                 />
 
@@ -288,7 +328,6 @@ export default function CostbookTable({
                 {isDeptExpanded &&
                   deptWAs.map((wa) => {
                     const items = wa.cost_items ?? [];
-                    if (items.length === 0) return null;
                     const waTotal = items.reduce((s, ci) => s + ci.current_amount, 0);
                     const isWAExpanded = expandedWAs.has(wa.id);
                     const sortedItems = [...items].sort((a, b) => compareCostItems(a, b, sort));
@@ -301,6 +340,11 @@ export default function CostbookTable({
                           itemCount={items.length}
                           expanded={isWAExpanded}
                           onToggle={() => toggleWA(wa.id)}
+                          onOpenContext={
+                            onOpenWorkAreaContext
+                              ? () => onOpenWorkAreaContext(wa.id)
+                              : undefined
+                          }
                           accentColor={color}
                         />
 

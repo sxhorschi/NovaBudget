@@ -47,8 +47,11 @@ async def log_change(
     Each changed field produces its own audit row so the history is
     granular and easy to query.
 
-    The writes happen in a **separate session** via asyncio.create_task
-    so the caller is not blocked (fire-and-forget).
+        Behavior:
+        - If ``session`` is provided: audit rows are added to that session and
+            flushed, so they commit/rollback together with the caller transaction.
+        - If ``session`` is None: writes happen in a separate background session
+            (fire-and-forget fallback).
     """
     entries: list[AuditLog] = []
 
@@ -75,7 +78,12 @@ async def log_change(
             )
         )
 
-    # Fire-and-forget: write in background task with its own session
+    if session is not None:
+        session.add_all(entries)
+        await session.flush()
+        return
+
+    # Fire-and-forget fallback for callers that do not pass a session.
     asyncio.create_task(_write_audit_entries(entries))
 
 

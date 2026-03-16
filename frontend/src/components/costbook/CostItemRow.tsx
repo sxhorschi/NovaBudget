@@ -9,7 +9,7 @@ import StatusBadge from './StatusBadge';
 // ---------------------------------------------------------------------------
 
 function relativeTime(isoDate: string): string {
-  const now = new Date('2026-03-16T12:00:00Z'); // currentDate from context
+  const now = new Date();
   const then = new Date(isoDate);
   const diffMs = now.getTime() - then.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -64,11 +64,6 @@ export default function CostItemRow({
         )}
       </td>
 
-      {/* Amount */}
-      <td className="px-4 py-2.5 text-right whitespace-nowrap">
-        <AmountCell original={item.original_amount} current={item.current_amount} />
-      </td>
-
       {/* Phase */}
       <td className="px-4 py-2.5 whitespace-nowrap">
         <span className="inline-block rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
@@ -89,6 +84,11 @@ export default function CostItemRow({
       {/* Cash-Out */}
       <td className="px-4 py-2.5 text-sm font-mono tabular-nums text-slate-500 whitespace-nowrap">
         {item.expected_cash_out}
+      </td>
+
+      {/* Amount */}
+      <td className="px-4 py-2.5 text-right whitespace-nowrap">
+        <AmountCell original={item.original_amount} current={item.current_amount} />
       </td>
 
       {/* Actions */}

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -15,47 +14,10 @@ from app.db import get_session
 from app.models import CostItem, WorkArea
 from app.models.enums import ApprovalStatus
 from app.schemas.cost_item import CostItemRead
+from app.services.approval import is_transition_allowed
 from app.services.audit import build_changes, log_change
 
 router = APIRouter(prefix="/api/v1/cost-items", tags=["bulk-operations"])
-
-# ── Allowed approval status transitions ─────────────────────────────────
-
-ALLOWED_TRANSITIONS: dict[ApprovalStatus, set[ApprovalStatus]] = {
-    ApprovalStatus.OPEN: {
-        ApprovalStatus.SUBMITTED_FOR_APPROVAL,
-        ApprovalStatus.OBSOLETE,
-    },
-    ApprovalStatus.SUBMITTED_FOR_APPROVAL: {
-        ApprovalStatus.APPROVED,
-        ApprovalStatus.REJECTED,
-        ApprovalStatus.ON_HOLD,
-        ApprovalStatus.PENDING_SUPPLIER_NEGOTIATION,
-        ApprovalStatus.PENDING_TECHNICAL_CLARIFICATION,
-    },
-    ApprovalStatus.APPROVED: {
-        ApprovalStatus.ON_HOLD,
-        ApprovalStatus.OBSOLETE,
-    },
-    ApprovalStatus.REJECTED: {
-        ApprovalStatus.OPEN,
-        ApprovalStatus.OBSOLETE,
-    },
-    ApprovalStatus.ON_HOLD: {
-        ApprovalStatus.OPEN,
-        ApprovalStatus.SUBMITTED_FOR_APPROVAL,
-        ApprovalStatus.OBSOLETE,
-    },
-    ApprovalStatus.PENDING_SUPPLIER_NEGOTIATION: {
-        ApprovalStatus.SUBMITTED_FOR_APPROVAL,
-        ApprovalStatus.OPEN,
-    },
-    ApprovalStatus.PENDING_TECHNICAL_CLARIFICATION: {
-        ApprovalStatus.SUBMITTED_FOR_APPROVAL,
-        ApprovalStatus.OPEN,
-    },
-    ApprovalStatus.OBSOLETE: set(),
-}
 
 
 # ── Request / Response schemas ──────────────────────────────────────────
@@ -151,6 +113,15 @@ async def bulk_update(
             detail=f"Invalid update fields: {', '.join(sorted(invalid_keys))}",
         )
 
+    if "approval_status" in body.updates or "approval_date" in body.updates:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Approval status/date cannot be changed via bulk-update. "
+                "Use /api/v1/cost-items/bulk-status for workflow transitions."
+            ),
+        )
+
     items_map, missing = await _fetch_items(session, body.item_ids)
     if missing:
         raise HTTPException(
@@ -176,7 +147,7 @@ async def bulk_update(
             changes = build_changes(old_values, new_values)
             if changes:
                 await log_change(
-                    session=None,
+                    session=session,
                     entity_type="cost_item",
                     entity_id=uid,
                     action="updated",
@@ -222,8 +193,7 @@ async def bulk_status(
     # Pre-validate all transitions before changing anything
     for uid in body.item_ids:
         item = items_map[uid]
-        allowed = ALLOWED_TRANSITIONS.get(item.approval_status, set())
-        if body.new_status not in allowed:
+        if not is_transition_allowed(item.approval_status, body.new_status):
             raise HTTPException(
                 status_code=409,
                 detail=(
@@ -242,9 +212,11 @@ async def bulk_status(
             item.approval_status = body.new_status
             if body.new_status == ApprovalStatus.APPROVED:
                 item.approval_date = date.today()
+            else:
+                item.approval_date = None
 
             await log_change(
-                session=None,
+                session=session,
                 entity_type="cost_item",
                 entity_id=uid,
                 action="updated",
@@ -297,7 +269,7 @@ async def bulk_delete(
             await session.delete(item)
 
             await log_change(
-                session=None,
+                session=session,
                 entity_type="cost_item",
                 entity_id=uid,
                 action="deleted",
@@ -354,7 +326,7 @@ async def bulk_move(
             item.work_area_id = body.target_work_area_id
 
             await log_change(
-                session=None,
+                session=session,
                 entity_type="cost_item",
                 entity_id=uid,
                 action="updated",
@@ -430,11 +402,10 @@ async def duplicate_cost_item(
             comments=source.comments,
         )
         session.add(new_item)
-        await session.commit()
-        await session.refresh(new_item)
+        await session.flush()
 
         await log_change(
-            session=None,
+            session=session,
             entity_type="cost_item",
             entity_id=new_item.id,
             action="created",
@@ -445,6 +416,9 @@ async def duplicate_cost_item(
                 }
             },
         )
+
+        await session.commit()
+        await session.refresh(new_item)
 
         return new_item
     except Exception:
