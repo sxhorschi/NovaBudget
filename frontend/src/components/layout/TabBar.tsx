@@ -18,7 +18,7 @@ const tabs: TabDef[] = [
 
 const TabBar: React.FC = () => {
   return (
-    <nav className="flex h-10 items-end gap-1 border-b border-gray-200 bg-white px-4">
+    <nav className="sticky top-14 z-30 flex h-10 items-end gap-1 border-b border-gray-200 bg-white px-4">
       {tabs.map((tab) => (
         <NavLink
           key={tab.to}

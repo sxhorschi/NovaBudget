@@ -492,7 +492,7 @@ const CostbookPage: React.FC = () => {
   return (
     <>
       {/* ---- Sticky container: SavedViews + FilterBar + SummaryStrip ---- */}
-      <div className="sticky top-[56px] z-20 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+      <div className="sticky top-[96px] z-20 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
         {/* ---- Saved Views ---- */}
         <SavedViews currentFilters={filters} onApplyView={setAllFilters} />
 

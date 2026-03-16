@@ -17,7 +17,6 @@ import {
   ChevronUp,
   TrendingUp,
   Calendar,
-  Zap,
   ArrowUpRight,
   ArrowUpDown,
   BarChart3,
@@ -25,7 +24,7 @@ import {
 } from 'lucide-react';
 import HelpTooltip from '../components/help/HelpTooltip';
 import EmptyState from '../components/common/EmptyState';
-import type { ProjectPhase, CostItem, Department } from '../types/budget';
+import type { CostItem, Department } from '../types/budget';
 import { STATUS_LABELS, STATUS_COLORS } from '../types/budget';
 import { useBudgetData } from '../context/BudgetDataContext';
 import { useFilterState } from '../hooks/useFilterState';
@@ -92,23 +91,6 @@ function fmtCompact(n: number): string {
   if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
   return eurFormatter.format(n);
 }
-
-// ---------------------------------------------------------------------------
-// Phase config
-// ---------------------------------------------------------------------------
-
-interface PhaseConfig {
-  key: ProjectPhase;
-  label: string;
-  subtitle: string;
-}
-
-const PHASES: PhaseConfig[] = [
-  { key: 'phase_1', label: 'Phase 1', subtitle: 'Bryan Start' },
-  { key: 'phase_2', label: 'Phase 2', subtitle: 'Guenther Ramp-Up' },
-  { key: 'phase_3', label: 'Phase 3', subtitle: 'Optimization' },
-  { key: 'phase_4', label: 'Phase 4', subtitle: 'Automation' },
-];
 
 // ---------------------------------------------------------------------------
 // Sort types for detail table
@@ -319,30 +301,6 @@ const CashOutPage: React.FC = () => {
     });
   }, [filteredItems, summary.budget]);
 
-  // ---- Phase progress data ----
-  const phaseData = useMemo(() => {
-    const totalCommitted = filteredItems.reduce((s, i) => s + i.current_amount, 0);
-    const byPhase: Record<ProjectPhase, number> = {
-      phase_1: 0,
-      phase_2: 0,
-      phase_3: 0,
-      phase_4: 0,
-    };
-    filteredItems.forEach((item) => {
-      byPhase[item.project_phase] += item.current_amount;
-    });
-
-    return PHASES.map((config) => {
-      const committed = byPhase[config.key];
-      const phaseBudget =
-        totalCommitted > 0
-          ? Math.round((committed / totalCommitted) * summary.budget)
-          : Math.round(summary.budget / 4);
-      const percent = phaseBudget > 0 ? Math.round((committed / phaseBudget) * 100) : 0;
-      return { config, committed, phaseBudget, percent };
-    });
-  }, [filteredItems, summary.budget]);
-
   // ---- Detail items sorted ----
   const detailItems = useMemo(() => {
     const items = [...filteredItems];
@@ -420,19 +378,6 @@ const CashOutPage: React.FC = () => {
     params.set('dept', String(deptId));
     params.set('cashout', month);
     navigate(`/?${params.toString()}`);
-  }
-
-  // ---- Progress bar colors ----
-  function progressBarColor(pct: number): string {
-    if (pct <= 60) return 'bg-emerald-500';
-    if (pct <= 85) return 'bg-amber-500';
-    return 'bg-red-500';
-  }
-
-  function progressTextColor(pct: number): string {
-    if (pct <= 60) return 'text-emerald-700';
-    if (pct <= 85) return 'text-amber-700';
-    return 'text-red-700';
   }
 
   // ---- Legend click handler ----
@@ -982,47 +927,6 @@ const CashOutPage: React.FC = () => {
                     Keine Daten vorhanden
                   </div>
                 )}
-              </div>
-
-              {/* Phase Progress */}
-              <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Zap className="w-4 h-4 text-amber-500" />
-                  <h4 className="text-sm font-semibold text-gray-900">Phasen-Fortschritt</h4>
-                </div>
-                <div className="space-y-3">
-                  {phaseData.map(({ config, committed, phaseBudget, percent }) => (
-                    <div key={config.key}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-xs font-semibold text-gray-800">
-                            {config.label}
-                          </span>
-                          <span className="text-[10px] text-gray-400">{config.subtitle}</span>
-                        </div>
-                        <span
-                          className={`text-xs font-bold tabular-nums ${progressTextColor(percent)}`}
-                        >
-                          {percent}%
-                        </span>
-                      </div>
-                      <div className="relative h-2.5 rounded-full bg-gray-100 overflow-hidden">
-                        <div
-                          className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ${progressBarColor(percent)}`}
-                          style={{ width: `${Math.min(percent, 100)}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between mt-0.5">
-                        <span className="text-[10px] tabular-nums text-gray-400">
-                          {formatEur(committed)}
-                        </span>
-                        <span className="text-[10px] tabular-nums text-gray-400">
-                          {formatEur(phaseBudget)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </section>
