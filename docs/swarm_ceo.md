@@ -1,7 +1,7 @@
 # Swarm: CEO Perspective
 
 **Persona:** CEO eines EV-Startups, 50 Mitarbeiter, 20M EUR Series-A, erste Fabrik im Bau
-**Prioritaet:** Kapital schuetzen, Board/Investoren Transparenz geben, schnelle Entscheidungen treffen
+**Priorität:** Kapital schuetzen, Board/Investoren Transparenz geben, schnelle Entscheidungen treffen
 
 ---
 
@@ -14,7 +14,7 @@
       "id": 1,
       "name": "Dashboard mit Budget/Committed/Remaining pro Department",
       "score": 10,
-      "reason": "Das ist mein taeglicher Pulscheck - ich muss auf einen Blick sehen, wo meine 20M stehen und welches Department wie viel verbrannt hat."
+      "reason": "Das ist mein täglicher Pulscheck - ich muss auf einen Blick sehen, wo meine 20M stehen und welches Department wie viel verbrannt hat."
     },
     {
       "id": 2,
@@ -32,25 +32,25 @@
       "id": 4,
       "name": "Sankey Diagram (Budget-Flow Visualisierung)",
       "score": 4,
-      "reason": "Huebsch für Investoren-Decks, aber ich treffe damit keine einzige operative Entscheidung."
+      "reason": "Hübsch für Investoren-Decks, aber ich treffe damit keine einzige operative Entscheidung."
     },
     {
       "id": 5,
       "name": "Side Panel zum Editieren von Items",
       "score": 7,
-      "reason": "Mein Team muss Daten effizient pflegen koennen, sonst veraltet das Tool in zwei Wochen und keiner nutzt es mehr."
+      "reason": "Mein Team muss Daten effizient pflegen können, sonst veraltet das Tool in zwei Wochen und keiner nutzt es mehr."
     },
     {
       "id": 6,
-      "name": "Excel Import (bestehende Daten uebernehmen)",
+      "name": "Excel Import (bestehende Daten übernehmen)",
       "score": 10,
-      "reason": "Wir haben 6 Monate Planungsdaten in Excel - wenn die nicht rein koennen, starten wir bei Null und das Tool ist am ersten Tag tot."
+      "reason": "Wir haben 6 Monate Planungsdaten in Excel - wenn die nicht rein können, starten wir bei Null und das Tool ist am ersten Tag tot."
     },
     {
       "id": 7,
       "name": "Finance Export (BudgetTemplate Format)",
       "score": 9,
-      "reason": "Mein CFO und die Buchhaltung arbeiten in ihrem Format - wenn die Daten nicht in ihr Template fliessen, fuehren wir doppelte Buecher."
+      "reason": "Mein CFO und die Buchhaltung arbeiten in ihrem Format - wenn die Daten nicht in ihr Template fließen, fuehren wir doppelte Bücher."
     },
     {
       "id": 8,
@@ -62,7 +62,7 @@
       "id": 9,
       "name": "Cash-Out Timeline (monatlicher Geldabfluss)",
       "score": 10,
-      "reason": "Mit 20M auf dem Konto und 18 Monaten Runway ist Cash-Timing existenziell - ich muss wissen, wann welche Zahlung faellig wird, sonst sind wir ploetzlich illiquid."
+      "reason": "Mit 20M auf dem Konto und 18 Monaten Runway ist Cash-Timing existenziell - ich muss wissen, wann welche Zahlung fällig wird, sonst sind wir plötzlich illiquid."
     },
     {
       "id": 10,
@@ -98,13 +98,13 @@
       "id": 15,
       "name": "Keyboard Shortcuts",
       "score": 1,
-      "reason": "Absolut irrelevant für mich - ich klicke dreimal und will Zahlen sehen, keine Tastenkuerzel lernen."
+      "reason": "Absolut irrelevant für mich - ich klicke dreimal und will Zahlen sehen, keine Tastenkürzel lernen."
     },
     {
       "id": 16,
       "name": "Datei-Anhaenge an Positionen (PDFs, Angebote)",
       "score": 8,
-      "reason": "Wenn ich im Steering Committee frage 'Wo ist das Angebot für die Schweissanlage?' muss mein IE sofort draufklicken koennen statt in E-Mails zu suchen."
+      "reason": "Wenn ich im Steering Committee frage 'Wo ist das Angebot für die Schweißanlage?' muss mein IE sofort draufklicken können statt in E-Mails zu suchen."
     },
     {
       "id": 17,
@@ -116,7 +116,7 @@
       "id": 18,
       "name": "Decision Log (warum wurde was entschieden)",
       "score": 6,
-      "reason": "In 6 Monaten fragt der Investor warum wir Anbieter X gewaehlt haben - ohne Log rekonstruieren wir das aus dem Gedaechtnis."
+      "reason": "In 6 Monaten fragt der Investor warum wir Anbieter X gewählt haben - ohne Log rekonstruieren wir das aus dem Gedächtnis."
     },
     {
       "id": 19,
@@ -128,7 +128,7 @@
       "id": 20,
       "name": "Zielanpassung (Budget-wirksam Flag mit Historie)",
       "score": 7,
-      "reason": "Budgets aendern sich - wenn wir Phase 2 schieben, muss ich das sauber tracken koennen ohne die Vergleichbarkeit zu verlieren."
+      "reason": "Budgets aendern sich - wenn wir Phase 2 schieben, muss ich das sauber tracken können ohne die Vergleichbarkeit zu verlieren."
     },
     {
       "id": 21,
@@ -140,7 +140,7 @@
       "id": 22,
       "name": "Approval Workflow (automatisches Routing)",
       "score": 3,
-      "reason": "Bei 50 Leuten laufe ich zum CFO rueber und sage 'genehmigt' - automatisiertes Routing ist Enterprise-Overkill für uns."
+      "reason": "Bei 50 Leuten laufe ich zum CFO rüber und sage 'genehmigt' - automatisiertes Routing ist Enterprise-Overkill für uns."
     },
     {
       "id": 23,
@@ -158,7 +158,7 @@
       "id": 25,
       "name": "Facility-Vergleich (3k vs 5k Factory)",
       "score": 8,
-      "reason": "DAS ist die strategische Frage die mich nachts wach haelt - soll ich kleiner starten und spaeter skalieren oder gleich gross bauen?"
+      "reason": "DAS ist die strategische Frage die mich nachts wach haelt - soll ich kleiner starten und später skalieren oder gleich gross bauen?"
     }
   ]
 }
@@ -176,7 +176,7 @@
 | 4 | 9 | Cash-Out Timeline | 10 |
 | 5 | 19 | Status-Workflow | 9 |
 
-**Zusammenfassung:** Ich brauche Transparenz ueber mein Kapital (Dashboard, Cash-Out), muss bestehende Daten uebernehmen koennen (Excel Import), Investoren bedienen (SteerCo Export), und den Status jeder Position kennen (Workflow). Ohne diese fuenf Features investiere ich keinen Euro mehr in dieses Tool.
+**Zusammenfassung:** Ich brauche Transparenz über mein Kapital (Dashboard, Cash-Out), muss bestehende Daten übernehmen können (Excel Import), Investoren bedienen (SteerCo Export), und den Status jeder Position kennen (Workflow). Ohne diese fuenf Features investiere ich keinen Euro mehr in dieses Tool.
 
 ## Bottom 5 (Nice-to-Have oder irrelevant)
 
@@ -188,4 +188,4 @@
 | 24 | 4 | Sankey Diagram | 4 |
 | 25 | 23 | Multi-User mit Rollen | 4 |
 
-**Zusammenfassung:** Keyboard Shortcuts und Command Palette sind Developer-Komfort, nicht CEO-relevant. Approval Workflow und Rollen-Management sind Enterprise-Features die bei 50 Mitarbeitern Overkill sind. Das Sankey Diagram ist huebsch aber liefert keinen Entscheidungswert.
+**Zusammenfassung:** Keyboard Shortcuts und Command Palette sind Developer-Komfort, nicht CEO-relevant. Approval Workflow und Rollen-Management sind Enterprise-Features die bei 50 Mitarbeitern Overkill sind. Das Sankey Diagram ist hübsch aber liefert keinen Entscheidungswert.
