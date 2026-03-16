@@ -89,8 +89,15 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 z-60 w-64 bg-white border border-gray-200 rounded-lg shadow-lg"
+      style={{ animation: 'filterDropdownFadeIn 150ms ease-out' }}
+      className="absolute top-full left-0 mt-1 z-60 w-64 rounded-2xl border border-gray-100 shadow-xl bg-white overflow-hidden"
     >
+      <style>{`
+        @keyframes filterDropdownFadeIn {
+          from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
       {/* Search */}
       {options.length > 5 && (
         <div className="p-2 border-b border-gray-100">
@@ -101,7 +108,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Suchen..."
+              placeholder="Search..."
               className="w-full pl-8 pr-8 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
             />
             {query && (
@@ -122,13 +129,13 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
           onClick={selectAll}
           className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
         >
-          Alle auswählen
+          Select all
         </button>
         <button
           onClick={clearAll}
           className="text-xs text-gray-500 hover:text-gray-700 font-medium"
         >
-          Auswahl aufheben
+          Clear selection
         </button>
       </div>
 
@@ -136,7 +143,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
       <div className="max-h-56 overflow-y-auto py-1">
         {filtered.length === 0 && (
           <div className="px-3 py-2 text-sm text-gray-400">
-            Keine Ergebnisse
+            No results
           </div>
         )}
         {filtered.map((option) => {

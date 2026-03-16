@@ -1,6 +1,8 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { X as XIcon, Plus, Layers, FolderPlus, Building2 } from 'lucide-react';
 import HelpTooltip from '../components/help/HelpTooltip';
+import { useOnboarding } from '../hooks/useOnboarding';
+import OnboardingModal from '../components/onboarding/OnboardingModal';
 import type {
   CostItem,
   ApprovalStatus,
@@ -20,13 +22,75 @@ import { useFilteredData } from '../hooks/useFilteredData';
 import FilterChip from '../components/filter/FilterChip';
 import SearchInput from '../components/filter/SearchInput';
 import SavedViews from '../components/filter/SavedViews';
-import SummaryStrip from '../components/summary/SummaryStrip';
+import BudgetDashboard from '../components/summary/BudgetDashboard';
 import CostbookTable from '../components/costbook/CostbookTable';
 import DepartmentContextPanel from '../components/costbook/DepartmentContextPanel';
 import WorkAreaContextPanel from '../components/costbook/WorkAreaContextPanel';
 import SidePanel from '../components/sidepanel/SidePanel';
 import DeleteConfirmDialog from '../components/costbook/DeleteConfirmDialog';
 import { useToast } from '../components/common/ToastProvider';
+
+// ---------------------------------------------------------------------------
+// Helpers for formatted EUR amount input in modals
+// ---------------------------------------------------------------------------
+
+function formatModalThousands(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (digits === '') return '';
+  return Number(digits).toLocaleString('de-DE');
+}
+
+function parseModalGermanNumber(formatted: string): number {
+  const digits = formatted.replace(/\D/g, '');
+  return digits === '' ? 0 : Number(digits);
+}
+
+interface ModalAmountInputProps {
+  value: string; // raw string state (numeric string like "125000")
+  onChange: (rawNumericString: string) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+/** Formatted EUR amount input for modals — shows German thousand separators and EUR prefix. */
+const ModalAmountInput: React.FC<ModalAmountInputProps> = ({ value, onChange, placeholder, className }) => {
+  const [display, setDisplay] = useState(() => formatModalThousands(value));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync display when value changes externally (e.g. reset)
+  useEffect(() => {
+    setDisplay(formatModalThousands(value));
+  }, [value]);
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/[^\d.]/g, '');
+    const formatted = formatModalThousands(raw);
+    setDisplay(formatted);
+    onChange(String(parseModalGermanNumber(formatted)));
+  }, [onChange]);
+
+  const handleBlur = useCallback(() => {
+    setDisplay(formatModalThousands(value));
+  }, [value]);
+
+  return (
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium pointer-events-none select-none">
+        EUR
+      </span>
+      <input
+        ref={inputRef}
+        type="text"
+        inputMode="numeric"
+        className={`pl-12 ${className ?? ''}`}
+        value={display}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Filter options (static from enum labels)
@@ -52,6 +116,7 @@ const statusOptions = (Object.keys(STATUS_LABELS) as ApprovalStatus[]).map((s) =
 // ---------------------------------------------------------------------------
 
 const CostbookPage: React.FC = () => {
+  const { showOnboarding, currentStep, setCurrentStep, completeOnboarding, resetOnboarding: _resetOnboarding } = useOnboarding();
   const {
     departments,
     workAreas,
@@ -196,14 +261,14 @@ const CostbookPage: React.FC = () => {
       totals[dept.id] = 0;
     }
 
-    for (const item of costItems) {
+    for (const item of filteredItems) {
       const departmentId = workAreaToDepartment.get(item.work_area_id);
       if (departmentId == null) continue;
       totals[departmentId] = (totals[departmentId] ?? 0) + item.current_amount;
     }
 
     return totals;
-  }, [workAreas, departments, costItems]);
+  }, [workAreas, departments, filteredItems]);
 
   // -- Handlers --
 
@@ -218,7 +283,7 @@ const CostbookPage: React.FC = () => {
       if (!data.id) return;
       updateCostItem(data.id, data);
       setSelectedItem(null);
-      toast.success('Position gespeichert');
+      toast.success('Item saved');
     },
     [updateCostItem, toast],
   );
@@ -241,7 +306,7 @@ const CostbookPage: React.FC = () => {
       setSelectedItem(null);
     }
     setDeleteTarget(null);
-    toast.success('Position gelöscht');
+    toast.success('Item deleted');
   }, [deleteTarget, selectedItem, deleteCostItem, toast]);
 
   const handleDeleteFromPanel = useCallback(() => {
@@ -265,14 +330,14 @@ const CostbookPage: React.FC = () => {
   const handleDepartmentContextSave = useCallback(
     (departmentId: number, data: { name: string; budget_total: number }) => {
       if (!data.name.trim()) {
-        toast.error('Abteilungsname darf nicht leer sein.');
+        toast.error('Department name must not be empty.');
         return;
       }
       updateDepartment(departmentId, {
         name: data.name,
         budget_total: data.budget_total,
       });
-      toast.success('Abteilung gespeichert');
+      toast.success('Department saved');
     },
     [updateDepartment, toast],
   );
@@ -288,7 +353,7 @@ const CostbookPage: React.FC = () => {
       deleteDepartment(departmentId);
       setSelectedDepartmentContextId(null);
       setSelectedWorkAreaContextId(null);
-      toast.success('Abteilung gelöscht');
+      toast.success('Department deleted');
     },
     [selectedItem, workAreas, deleteDepartment, toast],
   );
@@ -296,13 +361,13 @@ const CostbookPage: React.FC = () => {
   const handleWorkAreaContextSave = useCallback(
     (workAreaId: number, data: { name: string }) => {
       if (!data.name.trim()) {
-        toast.error('Kategoriename darf nicht leer sein.');
+        toast.error('Category name must not be empty.');
         return;
       }
       updateWorkArea(workAreaId, {
         name: data.name,
       });
-      toast.success('Kategorie gespeichert');
+      toast.success('Category saved');
     },
     [updateWorkArea, toast],
   );
@@ -314,7 +379,7 @@ const CostbookPage: React.FC = () => {
       }
       deleteWorkArea(workAreaId);
       setSelectedWorkAreaContextId(null);
-      toast.success('Kategorie gelöscht');
+      toast.success('Category deleted');
     },
     [selectedItem, deleteWorkArea, toast],
   );
@@ -322,7 +387,7 @@ const CostbookPage: React.FC = () => {
   const handleDuplicate = useCallback(
     (itemToDuplicate: CostItem) => {
       const newItem = createCostItem(itemToDuplicate.work_area_id, {
-        description: `${itemToDuplicate.description} (Kopie)`,
+        description: `${itemToDuplicate.description} (Copy)`,
         original_amount: itemToDuplicate.original_amount,
         current_amount: itemToDuplicate.current_amount,
         expected_cash_out: itemToDuplicate.expected_cash_out,
@@ -338,7 +403,7 @@ const CostbookPage: React.FC = () => {
         approval_status: 'open',
       });
       setSelectedItem(newItem);
-      toast.success('Position dupliziert');
+      toast.success('Item duplicated');
     },
     [createCostItem, toast],
   );
@@ -384,17 +449,17 @@ const CostbookPage: React.FC = () => {
 
   const handleCreateItem = useCallback(() => {
     if (!newItemDescription.trim()) {
-      toast.error('Bitte Beschreibung für die neue Position eingeben.');
+      toast.error('Please enter a description for the new item.');
       return;
     }
     if (newItemWorkAreaId == null) {
-      toast.error('Bitte zuerst eine Kategorie (Work Area) auswählen oder anlegen.');
+      toast.error('Please select or create a category (work area) first.');
       return;
     }
 
     const amount = Math.max(0, Number(newItemAmount) || 0);
     if (amount <= 0) {
-      toast.error('Betrag muss größer als 0 sein.');
+      toast.error('Amount must be greater than 0.');
       return;
     }
 
@@ -423,7 +488,7 @@ const CostbookPage: React.FC = () => {
       setAllFilters({ ...EMPTY_FILTER, departments: [newItemDeptId] });
     }
     closeCreate();
-    toast.success('Neue Position angelegt.');
+    toast.success('New item created.');
   }, [
     newItemDescription,
     newItemWorkAreaId,
@@ -439,12 +504,12 @@ const CostbookPage: React.FC = () => {
 
   const handleCreateWorkArea = useCallback(() => {
     if (newWADeptId == null) {
-      toast.error('Bitte eine Abteilung wählen.');
+      toast.error('Please select a department.');
       return;
     }
     const created = createWorkArea(newWADeptId, newWAName);
     if (!created) {
-      toast.error('Kategorie konnte nicht erstellt werden (Name leer oder bereits vorhanden).');
+      toast.error('Category could not be created (name empty or already exists).');
       return;
     }
 
@@ -452,14 +517,14 @@ const CostbookPage: React.FC = () => {
     setNewItemWorkAreaId(created.id);
     setAllFilters({ ...EMPTY_FILTER, departments: [newWADeptId] });
     closeCreate();
-    toast.success('Neue Kategorie angelegt.');
+    toast.success('New category created.');
   }, [newWADeptId, newWAName, createWorkArea, setAllFilters, closeCreate, toast]);
 
   const handleCreateDepartment = useCallback(() => {
     const budget = Math.max(0, Number(newDeptBudget) || 0);
     const created = createDepartment(newDeptName, budget);
     if (!created) {
-      toast.error('Abteilung konnte nicht erstellt werden (Name leer oder bereits vorhanden).');
+      toast.error('Department could not be created (name empty or already exists).');
       return;
     }
 
@@ -467,7 +532,7 @@ const CostbookPage: React.FC = () => {
     setNewItemDeptId(created.id);
     setNewWADeptId(created.id);
     closeCreate();
-    toast.success('Neue Abteilung angelegt.');
+    toast.success('New department created.');
   }, [newDeptBudget, createDepartment, newDeptName, setAllFilters, closeCreate, toast]);
 
   useEffect(() => {
@@ -500,7 +565,7 @@ const CostbookPage: React.FC = () => {
         <div className="px-6 py-2">
           <div className="flex flex-wrap items-center gap-2">
             <FilterChip
-              label="Abteilung"
+              label="Department"
               options={departmentOptions}
               selected={filters.departments.map(String)}
               onChange={(vals) =>
@@ -516,7 +581,7 @@ const CostbookPage: React.FC = () => {
               }
             />
             <FilterChip
-              label="Produkt"
+              label="Product"
               options={productOptions}
               selected={filters.products}
               onChange={(vals) =>
@@ -535,22 +600,22 @@ const CostbookPage: React.FC = () => {
               <button
                 onClick={() => openCreate('item')}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
-                title="Neue Position"
+                title="New Item"
               >
                 <Plus size={12} />
-                Neu
+                New
               </button>
               <button
                 onClick={() => openCreate('work-area')}
                 className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
-                title="Neue Kategorie"
+                title="New Category"
               >
                 <FolderPlus size={12} />
               </button>
               <button
                 onClick={() => openCreate('department')}
                 className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
-                title="Neue Abteilung"
+                title="New Department"
               >
                 <Building2 size={12} />
               </button>
@@ -558,7 +623,7 @@ const CostbookPage: React.FC = () => {
             <SearchInput
               value={filters.search}
               onChange={(v) => setFilter('search', v)}
-              placeholder="Suche..."
+              placeholder="Search..."
             />
             {hasActiveFilters && (
               <span className="inline-flex items-center gap-1.5">
@@ -567,28 +632,30 @@ const CostbookPage: React.FC = () => {
                   className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-200 transition-colors"
                 >
                   <XIcon size={12} />
-                  Alle Filter zurücksetzen
+                  Reset all filters
                 </button>
-                <HelpTooltip text="Setzt alle Filter zurück und zeigt alle Positionen" />
+                <HelpTooltip text="Resets all filters and shows all items" />
               </span>
             )}
 
             {/* Filter counter */}
             <span className="ml-auto text-xs text-gray-400 tabular-nums whitespace-nowrap">
               {summary.itemCount === summary.totalItemCount
-                ? `${summary.totalItemCount} Positionen`
-                : `${summary.itemCount} von ${summary.totalItemCount} Positionen`}
+                ? `${summary.totalItemCount} items`
+                : `${summary.itemCount} of ${summary.totalItemCount} items`}
             </span>
           </div>
         </div>
 
-        {/* ---- SummaryStrip (inside sticky container) ---- */}
-        <SummaryStrip
+        {/* ---- BudgetDashboard (inside sticky container) ---- */}
+        <BudgetDashboard
+          key={`dashboard-${summary.budget}-${summary.forecast}-${filteredItems.length}`}
           budget={summary.budget}
           committed={summary.committed}
           forecast={summary.forecast}
           remaining={summary.remaining}
           itemCount={summary.itemCount}
+          items={filteredItems}
         />
       </div>
 
@@ -604,12 +671,12 @@ const CostbookPage: React.FC = () => {
             <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
               <h3 className="text-base font-semibold text-gray-900 inline-flex items-center gap-2">
                 <Layers size={16} className="text-indigo-600" />
-                Neu Anlegen
+                Create New
               </h3>
               <button
                 onClick={closeCreate}
                 className="rounded-md p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                aria-label="Schließen"
+                aria-label="Close"
               >
                 <XIcon size={16} />
               </button>
@@ -623,7 +690,7 @@ const CostbookPage: React.FC = () => {
                     createMode === 'item' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Position
+                  Item
                 </button>
                 <button
                   onClick={() => setCreateMode('work-area')}
@@ -631,7 +698,7 @@ const CostbookPage: React.FC = () => {
                     createMode === 'work-area' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Kategorie
+                  Category
                 </button>
                 <button
                   onClick={() => setCreateMode('department')}
@@ -639,7 +706,7 @@ const CostbookPage: React.FC = () => {
                     createMode === 'department' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Abteilung
+                  Department
                 </button>
               </div>
             </div>
@@ -648,7 +715,7 @@ const CostbookPage: React.FC = () => {
               {createMode === 'item' && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Abteilung</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Department</label>
                     <select
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                       value={newItemDeptId ?? ''}
@@ -660,14 +727,14 @@ const CostbookPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Kategorie (Work Area)</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Category (Work Area)</label>
                     <select
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                       value={newItemWorkAreaId ?? ''}
                       onChange={(e) => setNewItemWorkAreaId(Number(e.target.value))}
                     >
                       {workAreasForSelectedDept.length === 0 ? (
-                        <option value="">Keine Kategorie vorhanden</option>
+                        <option value="">No category available</option>
                       ) : (
                         workAreasForSelectedDept.map((wa) => (
                           <option key={wa.id} value={wa.id}>{wa.name}</option>
@@ -676,23 +743,21 @@ const CostbookPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Beschreibung</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
                     <input
                       value={newItemDescription}
                       onChange={(e) => setNewItemDescription(e.target.value)}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                      placeholder="z. B. Roboterzelle Montage"
+                      placeholder="e.g. Robot Cell Assembly"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Betrag (EUR)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      step="1"
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Amount (EUR)</label>
+                    <ModalAmountInput
                       value={newItemAmount}
-                      onChange={(e) => setNewItemAmount(e.target.value)}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      onChange={setNewItemAmount}
+                      placeholder="e.g. 125,000"
+                      className="w-full rounded-md border border-gray-300 py-2 text-sm tabular-nums"
                     />
                   </div>
                 </>
@@ -701,7 +766,7 @@ const CostbookPage: React.FC = () => {
               {createMode === 'work-area' && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Abteilung</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Department</label>
                     <select
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                       value={newWADeptId ?? ''}
@@ -713,12 +778,12 @@ const CostbookPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Name der Kategorie</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Category Name</label>
                     <input
                       value={newWAName}
                       onChange={(e) => setNewWAName(e.target.value)}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                      placeholder="z. B. Lackierstraße"
+                      placeholder="e.g. Paint Line"
                     />
                   </div>
                 </>
@@ -727,23 +792,21 @@ const CostbookPage: React.FC = () => {
               {createMode === 'department' && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Abteilungsname</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Department Name</label>
                     <input
                       value={newDeptName}
                       onChange={(e) => setNewDeptName(e.target.value)}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                      placeholder="z. B. Lackiererei"
+                      placeholder="e.g. Painting Department"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Startbudget (EUR)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      step="1000"
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Initial Budget (EUR)</label>
+                    <ModalAmountInput
                       value={newDeptBudget}
-                      onChange={(e) => setNewDeptBudget(e.target.value)}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      onChange={setNewDeptBudget}
+                      placeholder="e.g. 500,000"
+                      className="w-full rounded-md border border-gray-300 py-2 text-sm tabular-nums"
                     />
                   </div>
                 </>
@@ -755,7 +818,7 @@ const CostbookPage: React.FC = () => {
                 onClick={closeCreate}
                 className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
               >
-                Abbrechen
+                Cancel
               </button>
 
               {createMode === 'item' && (
@@ -764,7 +827,7 @@ const CostbookPage: React.FC = () => {
                   className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
                 >
                   <Plus size={14} />
-                  Position anlegen
+                  Create Item
                 </button>
               )}
 
@@ -774,7 +837,7 @@ const CostbookPage: React.FC = () => {
                   className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
                 >
                   <FolderPlus size={14} />
-                  Kategorie anlegen
+                  Create Category
                 </button>
               )}
 
@@ -784,7 +847,7 @@ const CostbookPage: React.FC = () => {
                   className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
                 >
                   <Building2 size={14} />
-                  Abteilung anlegen
+                  Create Department
                 </button>
               )}
             </div>
@@ -854,6 +917,16 @@ const CostbookPage: React.FC = () => {
           itemDescription={deleteTarget.description}
           onConfirm={handleDeleteConfirm}
           onClose={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {/* ---- Onboarding Modal ---- */}
+      {showOnboarding && (
+        <OnboardingModal
+          currentStep={currentStep}
+          onStepChange={setCurrentStep}
+          onComplete={completeOnboarding}
+          onSkip={completeOnboarding}
         />
       )}
     </>

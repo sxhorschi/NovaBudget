@@ -1,7 +1,65 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X, Save, Building2, ChevronDown, ChevronRight } from 'lucide-react';
 import type { CostItem, Department, WorkArea } from '../../types/budget';
 import { useAmountFormatter } from './AmountCell';
+
+// ---------------------------------------------------------------------------
+// Formatted EUR input for budget field
+// ---------------------------------------------------------------------------
+
+function formatBudgetThousands(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (digits === '') return '';
+  return Number(digits).toLocaleString('de-DE');
+}
+
+function parseBudgetGermanNumber(formatted: string): number {
+  const digits = formatted.replace(/\D/g, '');
+  return digits === '' ? 0 : Number(digits);
+}
+
+interface BudgetAmountInputProps {
+  value: string; // raw numeric string, e.g. "500000"
+  onChange: (rawNumericString: string) => void;
+  className?: string;
+}
+
+const BudgetAmountInput: React.FC<BudgetAmountInputProps> = ({ value, onChange, className }) => {
+  const [display, setDisplay] = useState(() => formatBudgetThousands(value));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setDisplay(formatBudgetThousands(value));
+  }, [value]);
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/[^\d.]/g, '');
+    const formatted = formatBudgetThousands(raw);
+    setDisplay(formatted);
+    onChange(String(parseBudgetGermanNumber(formatted)));
+  }, [onChange]);
+
+  const handleBlur = useCallback(() => {
+    setDisplay(formatBudgetThousands(value));
+  }, [value]);
+
+  return (
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium pointer-events-none select-none">
+        EUR
+      </span>
+      <input
+        ref={inputRef}
+        type="text"
+        inputMode="numeric"
+        className={`pl-12 ${className ?? ''}`}
+        value={display}
+        onChange={handleChange}
+        onBlur={handleBlur}
+      />
+    </div>
+  );
+};
 
 interface SectionProps {
   title: string;
@@ -110,14 +168,14 @@ export default function DepartmentContextPanel({
           <div className="min-w-0 flex-1">
             <div className="inline-flex items-center gap-2 text-[11px] tracking-wider text-indigo-600 font-semibold uppercase">
               <Building2 size={13} />
-              Abteilung
+              Department
             </div>
             <h2 className="text-lg font-semibold text-gray-900 mt-1 truncate">{department.name}</h2>
           </div>
           <button
             onClick={onClose}
             className="rounded-md p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-            aria-label="Schließen"
+            aria-label="Close"
           >
             <X size={18} />
           </button>
@@ -125,7 +183,7 @@ export default function DepartmentContextPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
-        <Section title="Stammdaten" defaultOpen={true}>
+        <Section title="Master Data" defaultOpen={true}>
           <div className="space-y-3">
             <div>
               <label className={labelClass}>Name</label>
@@ -137,19 +195,16 @@ export default function DepartmentContextPanel({
             </div>
             <div>
               <label className={labelClass}>Budget (EUR)</label>
-              <input
-                type="number"
-                min={0}
-                step="1000"
+              <BudgetAmountInput
                 value={budgetDraft}
-                onChange={(e) => setBudgetDraft(e.target.value)}
-                className={inputClass}
+                onChange={setBudgetDraft}
+                className={`${inputClass} tabular-nums`}
               />
             </div>
           </div>
         </Section>
 
-        <Section title="Übersicht" defaultOpen={true}>
+        <Section title="Overview" defaultOpen={true}>
           <div className="rounded-lg border border-gray-200 overflow-hidden">
             <div className="px-3 py-2.5 flex items-center justify-between gap-3 border-b border-gray-100">
               <p className="text-sm text-gray-600">Budget</p>
@@ -171,14 +226,14 @@ export default function DepartmentContextPanel({
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            {deptWorkAreas.length} Kategorien, {deptItems.length} Positionen
+            {deptWorkAreas.length} categories, {deptItems.length} items
           </p>
         </Section>
 
-        <Section title="Kategorien" defaultOpen={true}>
+        <Section title="Categories" defaultOpen={true}>
           <div className="rounded-lg border border-gray-200 overflow-hidden">
             {deptWorkAreas.length === 0 ? (
-              <p className="px-3 py-3 text-sm text-gray-500">Keine Kategorien vorhanden.</p>
+              <p className="px-3 py-3 text-sm text-gray-500">No categories found.</p>
             ) : (
               <div className="divide-y divide-gray-100">
                 {deptWorkAreas.map((wa) => {
@@ -188,7 +243,7 @@ export default function DepartmentContextPanel({
                     <div key={wa.id} className="px-3 py-2.5 flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{wa.name}</p>
-                        <p className="text-xs text-gray-500">{waItems.length} Positionen</p>
+                        <p className="text-xs text-gray-500">{waItems.length} items</p>
                       </div>
                       <p className="text-sm font-mono text-gray-700 whitespace-nowrap">{format(waTotal)}</p>
                     </div>
@@ -204,7 +259,7 @@ export default function DepartmentContextPanel({
         {hasChanges && (
           <p className="text-xs text-amber-600 font-medium mb-2 flex items-center gap-1">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
-            Ungespeicherte Änderungen
+            Unsaved changes
           </p>
         )}
         <div className="flex items-center justify-between">
@@ -212,7 +267,7 @@ export default function DepartmentContextPanel({
             onClick={() => {
               if (
                 window.confirm(
-                  `Abteilung "${department.name}" wirklich löschen? Alle enthaltenen Kategorien und Positionen werden entfernt.`,
+                  `Really delete department "${department.name}"? All contained categories and items will be removed.`,
                 )
               ) {
                 onDelete(department.id);
@@ -220,7 +275,7 @@ export default function DepartmentContextPanel({
             }}
             className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors duration-150"
           >
-            Löschen
+            Delete
           </button>
 
           <div className="flex items-center gap-2">
@@ -228,7 +283,7 @@ export default function DepartmentContextPanel({
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all duration-150"
             >
-              Abbrechen
+              Cancel
             </button>
             <button
               onClick={() => onSave(department.id, { name: nameDraft.trim(), budget_total: budget })}
@@ -240,7 +295,7 @@ export default function DepartmentContextPanel({
               }`}
             >
               <Save size={14} />
-              Speichern
+              Save
             </button>
           </div>
         </div>

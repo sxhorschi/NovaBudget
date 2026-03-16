@@ -100,17 +100,17 @@ export default function WorkAreaContextPanel({
           <div className="min-w-0 flex-1">
             <div className="inline-flex items-center gap-2 text-[11px] tracking-wider text-indigo-600 font-semibold uppercase">
               <FolderOpen size={13} />
-              Kategorie
+              Category
             </div>
             <h2 className="text-lg font-semibold text-gray-900 mt-1 truncate">{workArea.name}</h2>
             {departmentName && (
-              <p className="text-xs text-gray-500 mt-1">Abteilung: {departmentName}</p>
+              <p className="text-xs text-gray-500 mt-1">Department: {departmentName}</p>
             )}
           </div>
           <button
             onClick={onClose}
             className="rounded-md p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-            aria-label="Schließen"
+            aria-label="Close"
           >
             <X size={18} />
           </button>
@@ -118,7 +118,7 @@ export default function WorkAreaContextPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
-        <Section title="Stammdaten" defaultOpen={true}>
+        <Section title="Master Data" defaultOpen={true}>
           <div>
             <label className={labelClass}>Name</label>
             <input
@@ -129,23 +129,23 @@ export default function WorkAreaContextPanel({
           </div>
         </Section>
 
-        <Section title="Übersicht" defaultOpen={true}>
+        <Section title="Overview" defaultOpen={true}>
           <div className="rounded-lg border border-gray-200 overflow-hidden">
             <div className="px-3 py-2.5 flex items-center justify-between gap-3 border-b border-gray-100">
-              <p className="text-sm text-gray-600">Gesamt</p>
+              <p className="text-sm text-gray-600">Total</p>
               <p className="text-sm font-mono font-semibold text-gray-800">{format(waTotal)}</p>
             </div>
             <div className="px-3 py-2.5 flex items-center justify-between gap-3">
-              <p className="text-sm text-gray-600">Positionen</p>
+              <p className="text-sm text-gray-600">Items</p>
               <p className="text-sm font-mono font-semibold text-gray-800">{waItems.length}</p>
             </div>
           </div>
         </Section>
 
-        <Section title="Statusverteilung" defaultOpen={true}>
+        <Section title="Status Distribution" defaultOpen={true}>
           <div className="rounded-lg border border-gray-200 overflow-hidden">
             {statusCounts.size === 0 ? (
-              <p className="px-3 py-3 text-sm text-gray-500">Keine Statusdaten.</p>
+              <p className="px-3 py-3 text-sm text-gray-500">No status data.</p>
             ) : (
               <div className="divide-y divide-gray-100">
                 {[...statusCounts.entries()].map(([status, count]) => (
@@ -159,10 +159,10 @@ export default function WorkAreaContextPanel({
           </div>
         </Section>
 
-        <Section title="Positionen" defaultOpen={true}>
+        <Section title="Items" defaultOpen={true}>
           <div className="rounded-lg border border-gray-200 overflow-hidden">
             {waItems.length === 0 ? (
-              <p className="px-3 py-3 text-sm text-gray-500">Keine Positionen vorhanden.</p>
+              <p className="px-3 py-3 text-sm text-gray-500">No items found.</p>
             ) : (
               <div className="divide-y divide-gray-100 max-h-72 overflow-auto">
                 {[...waItems]
@@ -186,7 +186,7 @@ export default function WorkAreaContextPanel({
         {hasChanges && (
           <p className="text-xs text-amber-600 font-medium mb-2 flex items-center gap-1">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
-            Ungespeicherte Änderungen
+            Unsaved changes
           </p>
         )}
 
@@ -195,7 +195,7 @@ export default function WorkAreaContextPanel({
             onClick={() => {
               if (
                 window.confirm(
-                  `Kategorie "${workArea.name}" wirklich löschen? Alle enthaltenen Positionen werden entfernt.`,
+                  `Really delete category "${workArea.name}"? All contained items will be removed.`,
                 )
               ) {
                 onDelete(workArea.id);
@@ -203,7 +203,7 @@ export default function WorkAreaContextPanel({
             }}
             className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors duration-150"
           >
-            Löschen
+            Delete
           </button>
 
           <div className="flex items-center gap-2">
@@ -211,7 +211,7 @@ export default function WorkAreaContextPanel({
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all duration-150"
             >
-              Abbrechen
+              Cancel
             </button>
             <button
               onClick={() => onSave(workArea.id, { name: nameDraft.trim() })}
@@ -223,7 +223,7 @@ export default function WorkAreaContextPanel({
               }`}
             >
               <Save size={14} />
-              Speichern
+              Save
             </button>
           </div>
         </div>

@@ -14,12 +14,12 @@ function relativeTime(isoDate: string): string {
   const diffMs = now.getTime() - then.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   if (diffDays < 0) return '';
-  if (diffDays === 0) return 'heute';
-  if (diffDays === 1) return 'gestern';
-  if (diffDays < 7) return `vor ${diffDays} Tagen`;
-  if (diffDays < 30) return `vor ${Math.floor(diffDays / 7)} Wo.`;
-  if (diffDays < 365) return `vor ${Math.floor(diffDays / 30)} Mon.`;
-  return `vor ${Math.floor(diffDays / 365)} J.`;
+  if (diffDays === 0) return 'today';
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} wk ago`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)} mo ago`;
+  return `${Math.floor(diffDays / 365)} yr ago`;
 }
 
 // ---------------------------------------------------------------------------
@@ -47,16 +47,16 @@ export default function CostItemRow({
       className={[
         'group cursor-pointer border-b transition-all duration-150 ease-out',
         selected
-          ? 'bg-indigo-50/80 border-l-[3px] border-l-indigo-500'
-          : 'hover:bg-indigo-50/30 border-l-[3px] border-l-transparent hover:border-l-indigo-200',
+          ? 'bg-indigo-50 border-l-4 border-l-indigo-500'
+          : 'border-l-4 border-l-transparent hover:bg-indigo-50/30 hover:shadow-sm hover:border-l-indigo-200',
       ].join(' ')}
       style={{
         borderBottomColor: 'var(--border-default)',
       }}
     >
       {/* Description + last edited */}
-      <td className="pl-14 pr-4 py-2.5 text-sm text-slate-800 max-w-0 overflow-hidden">
-        <span className="truncate block">{item.description}</span>
+      <td className="pl-14 pr-4 py-2.5 max-w-0 overflow-hidden">
+        <span className="truncate block font-medium text-gray-800 text-sm">{item.description}</span>
         {item.updated_at && (
           <span className="text-[10px] text-gray-400 block mt-0.5" title={item.updated_at}>
             {relativeTime(item.updated_at)}
@@ -88,7 +88,7 @@ export default function CostItemRow({
 
       {/* Amount */}
       <td className="px-4 py-2.5 text-right whitespace-nowrap">
-        <AmountCell original={item.original_amount} current={item.current_amount} />
+        <AmountCell original={item.original_amount} current={item.current_amount} cashOutDate={item.expected_cash_out} />
       </td>
 
       {/* Actions */}

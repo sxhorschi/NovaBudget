@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Building2, Calculator, Eye, PlayCircle, Info, Keyboard } from 'lucide-react';
+import { X, Building2, Calculator, Eye, PlayCircle, Info, TrendingUp } from 'lucide-react';
 import { useDisplaySettings } from '../../context/DisplaySettingsContext';
 import { useBudgetData } from '../../context/BudgetDataContext';
 
 // ---------------------------------------------------------------------------
-// localStorage keys  (factors only — display toggle lives in DisplaySettingsContext)
+// localStorage keys
 // ---------------------------------------------------------------------------
 
-const LS_FINANCE_EXPORT_FACTOR = 'settings_finance_export_factor';
 const LS_HIGHLIGHT_ZA = 'settings_highlight_zielanpassung';
-const LS_ONBOARDING = 'onboarding_completed';
+const LS_ONBOARDING = 'capex-planner:onboarding-completed';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -24,10 +23,15 @@ interface SettingsPanelProps {
 // Small reusable pieces
 // ---------------------------------------------------------------------------
 
-const SectionTitle: React.FC<{ icon: React.ReactNode; title: string }> = ({ icon, title }) => (
+const SectionTitle: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  badge?: React.ReactNode;
+}> = ({ icon, title, badge }) => (
   <div className="flex items-center gap-2 mb-3">
     <span className="text-indigo-500">{icon}</span>
     <h3 className="text-sm font-semibold text-gray-900 tracking-tight">{title}</h3>
+    {badge}
   </div>
 );
 
@@ -60,15 +64,6 @@ const Toggle: React.FC<{
   </label>
 );
 
-const ShortcutRow: React.FC<{ keys: string; description: string }> = ({ keys, description }) => (
-  <div className="flex items-center justify-between py-1">
-    <span className="text-sm text-gray-600">{description}</span>
-    <kbd className="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[11px] font-mono text-gray-500">
-      {keys}
-    </kbd>
-  </div>
-);
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -81,26 +76,33 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
     setHeaderTitle,
     headerSubtitle,
     setHeaderSubtitle,
+    financeBudgetFactor,
+    setFinanceBudgetFactor,
+    inflationEnabled,
+    setInflationEnabled,
+    inflationRate,
+    setInflationRate,
   } = useDisplaySettings();
   const { facility } = useBudgetData();
   const [isVisible, setIsVisible] = useState(false);
 
-  // --- Finance Export Faktor ---
-  const [financeExportFactor, setFinanceExportFactor] = useState(() => {
-    const current = localStorage.getItem(LS_FINANCE_EXPORT_FACTOR);
-    if (current) return current;
-
-    // Backward compatibility with legacy key.
-    return localStorage.getItem('settings_factor_085') ?? '0.85';
-  });
-
-  // --- Anzeige ---
+  // --- Display prefs ---
   const [highlightZA, setHighlightZA] = useState(() =>
     localStorage.getItem(LS_HIGHLIGHT_ZA) !== 'false',
   );
 
   // --- Onboarding reset feedback ---
   const [onboardingReset, setOnboardingReset] = useState(false);
+
+  // --- Local string state for finance factor number input to allow typing decimals ---
+  const [factorInputStr, setFactorInputStr] = useState(() =>
+    financeBudgetFactor.toFixed(2),
+  );
+
+  // Keep local string in sync if context value changes
+  useEffect(() => {
+    setFactorInputStr(financeBudgetFactor.toFixed(2));
+  }, [financeBudgetFactor]);
 
   // Slide-in animation
   useEffect(() => {
@@ -121,11 +123,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
     return () => document.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  // Persist finance export factor
-  useEffect(() => {
-    localStorage.setItem(LS_FINANCE_EXPORT_FACTOR, financeExportFactor);
-  }, [financeExportFactor]);
-
   // Persist display prefs
   useEffect(() => {
     localStorage.setItem(LS_HIGHLIGHT_ZA, String(highlightZA));
@@ -134,8 +131,49 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
   const handleResetOnboarding = useCallback(() => {
     localStorage.removeItem(LS_ONBOARDING);
     setOnboardingReset(true);
-    setTimeout(() => setOnboardingReset(false), 2500);
+    // Reload the page so onboarding triggers on next mount
+    setTimeout(() => window.location.reload(), 600);
   }, []);
+
+  // --- Finance factor helpers ---
+  const factorPct = Math.round(financeBudgetFactor * 100);
+  const factorColor =
+    financeBudgetFactor > 1.0
+      ? 'text-red-600'
+      : financeBudgetFactor < 1.0
+      ? 'text-green-600'
+      : 'text-gray-700';
+
+  const handleFactorSlider = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value);
+    if (Number.isFinite(v)) {
+      setFinanceBudgetFactor(v);
+    }
+  };
+
+  const handleFactorInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFactorInputStr(e.target.value);
+    const v = parseFloat(e.target.value);
+    if (Number.isFinite(v) && v >= 0.5 && v <= 1.5) {
+      setFinanceBudgetFactor(v);
+    }
+  };
+
+  const handleFactorInputBlur = () => {
+    const v = parseFloat(factorInputStr);
+    if (!Number.isFinite(v)) {
+      setFactorInputStr(financeBudgetFactor.toFixed(2));
+    } else {
+      const clamped = Math.min(Math.max(v, 0.5), 1.5);
+      setFinanceBudgetFactor(clamped);
+      setFactorInputStr(clamped.toFixed(2));
+    }
+  };
+
+  // --- Inflation example ---
+  const exampleAmount = 100;
+  const exampleYears = 2;
+  const exampleInflated = exampleAmount * Math.pow(1 + inflationRate / 100, exampleYears);
 
   if (!open) return null;
 
@@ -165,11 +203,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
         {/* Header */}
         <div className="flex-shrink-0 border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Einstellungen</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Settings</h2>
             <button
               onClick={onClose}
               className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-150"
-              aria-label="Schließen"
+              aria-label="Close"
             >
               <X size={18} />
             </button>
@@ -179,11 +217,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
 
-          {/* ============ 1. Kontext ============ */}
-          <SectionTitle icon={<Building2 size={16} />} title="Kontext / Kopfzeile" />
+          {/* ============ 1. Context ============ */}
+          <SectionTitle icon={<Building2 size={16} />} title="Context / Header" />
           <div className="space-y-2">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Titel (frei wählbar)</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Title (custom)</label>
               <input
                 type="text"
                 value={headerTitle}
@@ -193,17 +231,17 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Untertitel (optional)</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Subtitle (optional)</label>
               <input
                 type="text"
                 value={headerSubtitle}
                 onChange={(e) => setHeaderSubtitle(e.target.value)}
-                placeholder={facility?.location ?? 'z. B. Standort oder Team'}
+                placeholder={facility?.location ?? 'e.g. Location or Team'}
                 className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
               />
             </div>
             <p className="text-xs text-gray-400">
-              Diese Angaben sind global für die Oberfläche und müssen nicht an eine Facility gebunden sein.
+              These settings are global for the interface and do not need to be tied to a facility.
             </p>
           </div>
 
@@ -213,36 +251,107 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
           <SectionTitle icon={<Calculator size={16} />} title="Finance Export" />
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
-                Budgetfaktor für Finance Template (Regelwert: 0.85)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                max="1"
-                value={financeExportFactor}
-                onChange={(e) => setFinanceExportFactor(e.target.value)}
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-              />
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-medium text-gray-500">Budget Factor</label>
+                <span className={`text-sm font-semibold tabular-nums ${factorColor}`}>
+                  {factorPct}%
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="0.50"
+                  max="1.50"
+                  step="0.05"
+                  value={financeBudgetFactor}
+                  onChange={handleFactorSlider}
+                  className="flex-1 h-2 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.50"
+                  max="1.50"
+                  value={factorInputStr}
+                  onChange={handleFactorInput}
+                  onBlur={handleFactorInputBlur}
+                  className="w-20 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 text-center focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5">
+                Multiplier applied to all amounts in the Finance Template export.
+                0.85 = 85% of estimated costs.
+              </p>
+              {financeBudgetFactor > 1.0 && (
+                <p className="text-xs text-red-500 mt-1 font-medium">
+                  Factor &gt; 1.0: budgeting above estimated costs (over-budget scenario).
+                </p>
+              )}
             </div>
-            <p className="text-xs text-gray-400">
-              Gilt aktuell für den Finance-Template Export.
-            </p>
           </div>
 
           <Divider />
 
-          {/* ============ 3. Anzeige ============ */}
-          <SectionTitle icon={<Eye size={16} />} title="Anzeige" />
+          {/* ============ 3. Inflation ============ */}
+          <SectionTitle
+            icon={<TrendingUp size={16} />}
+            title="Inflation"
+            badge={
+              inflationEnabled ? (
+                <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                  INFLATION ON
+                </span>
+              ) : undefined
+            }
+          />
           <div className="space-y-3">
             <Toggle
-              label="Beträge in Tausend (k€) anzeigen"
+              label="Apply Inflation to Future Cash-Outs"
+              checked={inflationEnabled}
+              onChange={setInflationEnabled}
+            />
+
+            {inflationEnabled && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-gray-600">Annual Rate</label>
+                    <span className="text-sm font-semibold tabular-nums text-amber-700">
+                      {inflationRate.toFixed(1)}% per year
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    step="0.5"
+                    value={inflationRate}
+                    onChange={(e) => setInflationRate(parseFloat(e.target.value))}
+                    className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  Future cash-outs are multiplied by (1 + rate)<sup>years</sup>. Applies to display and exports.
+                </p>
+                <p className="text-xs text-amber-700 font-medium">
+                  e.g., €{exampleAmount}k in {exampleYears} years at {inflationRate.toFixed(1)}% = €{exampleInflated.toFixed(2)}k
+                </p>
+              </div>
+            )}
+          </div>
+
+          <Divider />
+
+          {/* ============ 4. Display ============ */}
+          <SectionTitle icon={<Eye size={16} />} title="Display" />
+          <div className="space-y-3">
+            <Toggle
+              label="Show amounts in thousands (k€)"
               checked={showThousands}
               onChange={setShowThousands}
             />
             <Toggle
-              label="Zielanpassungen hervorheben"
+              label="Highlight target adjustments"
               checked={highlightZA}
               onChange={setHighlightZA}
             />
@@ -250,47 +359,22 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
 
           <Divider />
 
-          {/* ============ 4. Onboarding ============ */}
+          {/* ============ 5. Onboarding ============ */}
           <SectionTitle icon={<PlayCircle size={16} />} title="Onboarding" />
           <button
             onClick={handleResetOnboarding}
             className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
-            {onboardingReset ? 'Wird beim nächsten Laden gestartet' : 'Einführung nochmal starten'}
+            {onboardingReset ? 'Will start on next load' : 'Restart introduction'}
           </button>
 
           <Divider />
 
-          {/* ============ 5. Über ============ */}
-          <SectionTitle icon={<Info size={16} />} title="Über" />
+          {/* ============ 6. About ============ */}
+          <SectionTitle icon={<Info size={16} />} title="About" />
           <div className="space-y-1 text-sm text-gray-600">
-            <p><span className="font-medium text-gray-700">Version:</span> 0.1.0 MVP</p>
+            <p><span className="font-medium text-gray-700">Version:</span> 2.0</p>
             <p><span className="font-medium text-gray-700">Stack:</span> React 19, TypeScript, Vite 8, TailwindCSS 4</p>
-            <p>
-              <span className="font-medium text-gray-700">Docs:</span>{' '}
-              <a
-                href="https://docs.novadrive.internal/budget-tool"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-indigo-600 hover:text-indigo-700 underline underline-offset-2"
-              >
-                docs.novadrive.internal
-              </a>
-            </p>
-          </div>
-
-          <Divider />
-
-          {/* ============ 6. Tastenkürzel ============ */}
-          <SectionTitle icon={<Keyboard size={16} />} title="Tastenkürzel" />
-          <div className="space-y-0.5">
-            <ShortcutRow keys="⌘ K" description="Command Palette öffnen" />
-            <ShortcutRow keys="Esc" description="Panel / Palette schließen" />
-            <ShortcutRow keys="N" description="Neues Item" />
-            <ShortcutRow keys="J / K" description="Nächste / Vorherige Zeile" />
-            <ShortcutRow keys="Enter" description="Side Panel öffnen" />
-            <ShortcutRow keys="⌘ Enter" description="Speichern im Side Panel" />
-            <ShortcutRow keys="1 / 2 / 3" description="Tab wechseln" />
           </div>
         </div>
       </div>

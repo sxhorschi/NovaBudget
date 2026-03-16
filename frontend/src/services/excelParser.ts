@@ -362,7 +362,7 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
       warnings.push({
         sheet: sheetName,
         row: HEADER_ROW,
-        message: `Header nicht gefunden für: ${missingRequired.join(', ')}. Es wird auf Standard-Spalten zurückgefallen.`,
+        message: `Header not found for: ${missingRequired.join(', ')}. Falling back to default columns.`,
         severity: 'warning',
       });
     }

@@ -29,28 +29,34 @@ export default function DepartmentRow({
   onOpenContext,
   accentColor,
 }: DepartmentRowProps) {
-  const pct = budget > 0 ? Math.min((committed / budget) * 100, 100) : 0;
+  const pct = budget > 0 ? (committed / budget) * 100 : 0;
   const format = useAmountFormatter();
+
+  const progressColor =
+    pct < 80 ? '#22c55e' : pct <= 100 ? '#f59e0b' : '#ef4444';
 
   return (
     <tr
       onClick={onToggle}
       className="group cursor-pointer transition-colors duration-150 border-b hover:brightness-[0.97]"
       style={{
-        backgroundColor: 'rgba(241, 245, 249, 0.9)',
+        background: 'linear-gradient(to right, rgba(238,242,255,0.8), rgba(238,242,255,0.4), transparent)',
         borderBottomColor: 'var(--border-default)',
         borderLeft: `4px solid ${accentColor}`,
       }}
     >
       {/* Department name + chevron */}
       <td colSpan={5} className="pl-4 pr-4 py-3.5">
-        <span className="inline-flex items-center gap-2.5 text-[15px] font-bold text-slate-900 tracking-tight">
+        <span className="inline-flex items-center gap-2.5 tracking-tight">
           <ChevronRight
             size={18}
-            className="text-slate-500 shrink-0 transition-transform duration-200 ease-out"
-            style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+            className="shrink-0 transition-transform duration-200 ease-out"
+            style={{
+              color: accentColor,
+              transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+            }}
           />
-          {name}
+          <span className="font-bold text-indigo-900 text-sm">{name}</span>
           <span className="text-xs font-normal text-slate-400 ml-1 tabular-nums">
             ({itemCount})
           </span>
@@ -60,23 +66,19 @@ export default function DepartmentRow({
       {/* Committed / Budget */}
       <td className="px-4 py-3.5 text-right whitespace-nowrap">
         <div className="inline-flex flex-col items-end gap-1.5">
-          <span className="font-mono tabular-nums text-sm text-slate-700">
-            <span className="font-bold">{format(committed)}</span>
-            <span className="text-slate-400"> / {format(budget)}</span>
-          </span>
-          <span className="inline-block w-[132px]">
+          <div className="inline-flex items-baseline gap-1 font-mono tabular-nums text-sm">
+            <span className="font-bold text-slate-800">{format(committed)}</span>
+            <span className="text-slate-400 text-xs">/ {format(budget)}</span>
+          </div>
+          {/* Inline progress pill */}
+          <span className="inline-block w-24 h-1.5 rounded-full bg-gray-200 overflow-hidden">
             <span
-              className="block h-2 rounded-full overflow-hidden"
-              style={{ backgroundColor: `${accentColor}15` }}
-            >
-              <span
-                className="block h-full rounded-full transition-all duration-500 ease-out"
-                style={{
-                  width: `${pct}%`,
-                  backgroundColor: accentColor,
-                }}
-              />
-            </span>
+              className="block h-full rounded-full transition-all duration-500 ease-out"
+              style={{
+                width: `${Math.min(pct, 100)}%`,
+                backgroundColor: progressColor,
+              }}
+            />
           </span>
         </div>
       </td>
@@ -84,7 +86,10 @@ export default function DepartmentRow({
       {/* Actions */}
       <td className="px-4 py-3.5 whitespace-nowrap">
         <div className="inline-flex w-full items-center justify-end gap-2">
-          <span className="w-[52px] text-right font-mono tabular-nums text-xs font-semibold text-slate-600">
+          <span
+            className="w-[52px] text-right font-mono tabular-nums text-xs font-semibold"
+            style={{ color: progressColor }}
+          >
             {pct.toFixed(1)}%
           </span>
 
@@ -96,8 +101,8 @@ export default function DepartmentRow({
                 onOpenContext();
               }}
               className={contextActionButtonClass}
-              title="Abteilung bearbeiten"
-              aria-label="Abteilung bearbeiten"
+              title="Edit department"
+              aria-label="Edit department"
             >
               <Pencil size={14} />
             </button>

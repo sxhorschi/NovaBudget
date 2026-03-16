@@ -30,7 +30,7 @@ type ImportStep = 'upload' | 'preview' | 'importing' | 'success' | 'error';
 
 const STEPS = [
   { key: 'upload' as const, label: '1. Upload', activeSteps: ['upload'] },
-  { key: 'preview' as const, label: '2. Vorschau', activeSteps: ['preview'] },
+  { key: 'preview' as const, label: '2. Preview', activeSteps: ['preview'] },
   { key: 'import' as const, label: '3. Import', activeSteps: ['importing', 'success'] },
 ];
 
@@ -109,7 +109,7 @@ const PreviewTable: React.FC<{ rows: Record<string, unknown>[] }> = ({ rows }) =
                 </td>
                 {columns.map(col => (
                   <td key={col} className="px-3 py-1.5 text-gray-700 whitespace-nowrap max-w-[200px] truncate">
-                    {col === 'Betrag'
+                    {col === 'Amount'
                       ? formatAmount(row[col] as number)
                       : String(row[col] ?? '')}
                   </td>
@@ -140,19 +140,19 @@ const WarningsList: React.FC<{ warnings: ParseWarning[] }> = ({ warnings }) => {
           <div className="flex items-center gap-2 mb-1">
             <AlertCircle size={14} className="text-red-600" />
             <span className="text-sm font-medium text-red-800">
-              {errors.length} {errors.length === 1 ? 'Fehler' : 'Fehler'}
+              {errors.length} {errors.length === 1 ? 'error' : 'errors'}
             </span>
           </div>
           <ul className="text-xs text-red-700 space-y-0.5 ml-5">
             {errors.slice(0, 10).map((e, i) => (
               <li key={i}>
                 {e.sheet !== '-' && `[${e.sheet}] `}
-                {e.row > 0 && `Zeile ${e.row}: `}
+                {e.row > 0 && `Row ${e.row}: `}
                 {e.message}
               </li>
             ))}
             {errors.length > 10 && (
-              <li className="italic">...und {errors.length - 10} weitere</li>
+              <li className="italic">...and {errors.length - 10} more</li>
             )}
           </ul>
         </div>
@@ -162,17 +162,17 @@ const WarningsList: React.FC<{ warnings: ParseWarning[] }> = ({ warnings }) => {
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle size={14} className="text-amber-600" />
             <span className="text-sm font-medium text-amber-800">
-              {warns.length} {warns.length === 1 ? 'Warnung' : 'Warnungen'}
+              {warns.length} {warns.length === 1 ? 'warning' : 'warnings'}
             </span>
           </div>
           <ul className="text-xs text-amber-700 space-y-0.5 ml-5">
             {warns.slice(0, 10).map((w, i) => (
               <li key={i}>
-                [{w.sheet}] Zeile {w.row}: {w.message}
+                [{w.sheet}] Row {w.row}: {w.message}
               </li>
             ))}
             {warns.length > 10 && (
-              <li className="italic">...und {warns.length - 10} weitere</li>
+              <li className="italic">...and {warns.length - 10} more</li>
             )}
           </ul>
         </div>
@@ -188,7 +188,7 @@ const WarningsList: React.FC<{ warnings: ParseWarning[] }> = ({ warnings }) => {
 const ColumnMappingDisplay: React.FC<{ mappings: ColumnMapping[] }> = ({ mappings }) => (
   <details className="rounded-lg border border-gray-200 bg-gray-50">
     <summary className="px-4 py-2 text-sm font-medium text-gray-700 cursor-pointer hover:text-gray-900">
-      Spalten-Zuordnung anzeigen
+      Show column mapping
     </summary>
     <div className="px-4 pb-3 pt-1">
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1">
@@ -245,7 +245,7 @@ const ImportPage: React.FC = () => {
   // --- File handling ---
   const handleFile = useCallback(async (file: File) => {
     if (!file.name.endsWith('.xlsx')) {
-      toast.error('Nur .xlsx-Dateien werden unterstuetzt.');
+      toast.error('Only .xlsx files are supported.');
       return;
     }
 
@@ -262,7 +262,7 @@ const ImportPage: React.FC = () => {
 
         if (result.costItems.length === 0) {
           setStep('error');
-          setErrorMessage('Keine importierbaren Daten gefunden. Pruefen Sie das Dateiformat.');
+          setErrorMessage('No importable data found. Please check the file format.');
         } else {
           setStep('preview');
         }
@@ -270,8 +270,8 @@ const ImportPage: React.FC = () => {
         setStep('error');
         setErrorMessage(
           err instanceof Error
-            ? `Fehler beim Lesen der Datei: ${err.message}`
-            : 'Unbekannter Fehler beim Lesen der Datei.',
+            ? `Error reading file: ${err.message}`
+            : 'Unknown error reading file.',
         );
       }
     } else {
@@ -283,7 +283,7 @@ const ImportPage: React.FC = () => {
 
         if (result.costItems.length === 0) {
           setStep('error');
-          setErrorMessage('Keine importierbaren Daten gefunden. Pruefen Sie das Dateiformat.');
+          setErrorMessage('No importable data found. Please check the file format.');
         } else {
           setStep('preview');
         }
@@ -291,8 +291,8 @@ const ImportPage: React.FC = () => {
         setStep('error');
         setErrorMessage(
           err instanceof Error
-            ? `Fehler beim Lesen der Datei: ${err.message}`
-            : 'Unbekannter Fehler beim Lesen der Datei.',
+            ? `Error reading file: ${err.message}`
+            : 'Unknown error reading file.',
         );
       }
     }
@@ -328,7 +328,7 @@ const ImportPage: React.FC = () => {
         });
       } else {
         // Real API upload
-        if (!rawFile) throw new Error('Datei nicht verfuegbar.');
+        if (!rawFile) throw new Error('File not available.');
         const formData = new FormData();
         formData.append('file', rawFile);
         const facilityId = '00000000-0000-0000-0000-000000000001';
@@ -345,7 +345,7 @@ const ImportPage: React.FC = () => {
 
       setStep('success');
       setProgress(100);
-      toast.success('Import erfolgreich abgeschlossen');
+      toast.success('Import completed successfully');
     } catch (err: unknown) {
       setStep('error');
       setProgress(0);
@@ -353,7 +353,7 @@ const ImportPage: React.FC = () => {
       setErrorMessage(
         axiosError?.response?.data?.detail ||
           axiosError?.message ||
-          'Import fehlgeschlagen. Bitte erneut versuchen.',
+          'Import failed. Please try again.',
       );
     }
   }, [parseResult, rawFile, bulkImport, toast]);
@@ -399,9 +399,9 @@ const ImportPage: React.FC = () => {
       <div className="w-full max-w-4xl">
         {/* Header */}
         <div className="mb-2">
-          <h2 className="text-2xl font-bold text-gray-900">Daten importieren</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Import Data</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Laden Sie eine Excel-Datei hoch, um Budget-Daten zu importieren.
+            Upload an Excel file to import budget data.
           </p>
         </div>
 
@@ -443,10 +443,10 @@ const ImportPage: React.FC = () => {
             </div>
             <div className="text-center">
               <p className="text-gray-700 font-medium">
-                Excel-Datei hierher ziehen
+                Drop Excel file here
               </p>
               <p className="text-sm text-gray-400 mt-1">
-                oder klicken zum Auswaehlen
+                or click to select
               </p>
             </div>
             <div className="flex items-center gap-3 mt-2">
@@ -456,7 +456,7 @@ const ImportPage: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-gray-400 mt-1">
-              Erwartetes Format: Header in Zeile 5, Daten ab Zeile 6. Ein Sheet pro Abteilung.
+              Expected format: header in row 5, data from row 6. One sheet per department.
             </p>
             <input
               ref={fileInputRef}
@@ -484,7 +484,7 @@ const ImportPage: React.FC = () => {
                 onClick={reset}
                 className="text-xs text-gray-400 hover:text-gray-600 underline"
               >
-                Andere Datei
+                Different file
               </button>
             </div>
 
@@ -494,25 +494,25 @@ const ImportPage: React.FC = () => {
                 <p className="text-2xl font-bold text-gray-900 tabular-nums">
                   {parseResult.costItems.length}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">Positionen erkannt</p>
+                <p className="text-xs text-gray-500 mt-0.5">Items detected</p>
               </div>
               <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-center">
                 <p className="text-2xl font-bold text-gray-900 tabular-nums">
                   {parseResult.departments.length}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">Abteilungen</p>
+                <p className="text-xs text-gray-500 mt-0.5">Departments</p>
               </div>
               <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-center">
                 <p className="text-2xl font-bold text-gray-900 tabular-nums">
                   {uniqueWorkAreaCount}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">Arbeitsbereiche</p>
+                <p className="text-xs text-gray-500 mt-0.5">Work areas</p>
               </div>
             </div>
 
             {/* Detected sheets */}
             <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-              <p className="text-sm font-medium text-gray-700 mb-2">Erkannte Abteilungen (Sheets)</p>
+              <p className="text-sm font-medium text-gray-700 mb-2">Detected departments (sheets)</p>
               <div className="flex flex-wrap gap-2">
                 {parseResult.departments.map(dept => {
                   const deptItems = parseResult.costItems.filter(ci =>
@@ -544,7 +544,7 @@ const ImportPage: React.FC = () => {
               <div className="flex items-center gap-2 mb-2">
                 <Eye size={14} className="text-gray-400" />
                 <p className="text-sm font-medium text-gray-700">
-                  Vorschau (erste {parseResult.previewRows.length} Zeilen)
+                  Preview (first {parseResult.previewRows.length} rows)
                 </p>
               </div>
               <PreviewTable rows={parseResult.previewRows} />
@@ -557,13 +557,13 @@ const ImportPage: React.FC = () => {
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 <ArrowLeft size={14} />
-                Zurueck
+                Back
               </button>
               <button
                 onClick={confirmImport}
                 className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"
               >
-                {parseResult.costItems.length} Positionen importieren
+                Import {parseResult.costItems.length} items
                 <ArrowRight size={14} />
               </button>
             </div>
@@ -579,10 +579,10 @@ const ImportPage: React.FC = () => {
               <Loader2 size={24} className="text-indigo-600 animate-spin" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900">
-                  Daten werden importiert...
+                  Importing data...
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {parseResult?.costItems.length ?? 0} Positionen in {parseResult?.departments.length ?? 0} Abteilungen
+                  {parseResult?.costItems.length ?? 0} items in {parseResult?.departments.length ?? 0} departments
                 </p>
               </div>
               <span className="text-sm font-mono text-indigo-600 tabular-nums">
@@ -609,10 +609,10 @@ const ImportPage: React.FC = () => {
               </div>
             </div>
             <h3 className="text-lg font-semibold text-green-900">
-              Import erfolgreich
+              Import successful
             </h3>
             <p className="text-sm text-green-700 mt-1">
-              {parseResult.costItems.length} Positionen aus {parseResult.departments.length} Abteilungen wurden importiert.
+              {parseResult.costItems.length} items from {parseResult.departments.length} departments were imported.
             </p>
 
             {/* Summary */}
@@ -630,13 +630,13 @@ const ImportPage: React.FC = () => {
                 onClick={reset}
                 className="px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                Weitere Datei importieren
+                Import another file
               </button>
               <button
                 onClick={() => navigate('/')}
                 className="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
               >
-                Im Costbook ansehen
+                View in Costbook
               </button>
             </div>
           </div>
@@ -653,7 +653,7 @@ const ImportPage: React.FC = () => {
               </div>
             </div>
             <h3 className="text-lg font-semibold text-red-900">
-              Import fehlgeschlagen
+              Import failed
             </h3>
             <p className="text-sm text-red-700 mt-1">{errorMessage}</p>
 
@@ -668,7 +668,7 @@ const ImportPage: React.FC = () => {
               onClick={reset}
               className="mt-6 px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              Erneut versuchen
+              Try again
             </button>
           </div>
         )}

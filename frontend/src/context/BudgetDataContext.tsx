@@ -183,7 +183,7 @@ export interface BudgetDataContextValue {
     costItems: CostItem[];
   }) => void;
 
-  // Loading state (fuer zukuenftigen API-Modus)
+  // Loading state (for future API mode)
   isLoading: boolean;
 }
 
@@ -197,14 +197,14 @@ export function useBudgetData(): BudgetDataContextValue {
   const ctx = useContext(BudgetDataContext);
   if (!ctx) {
     throw new Error(
-      'useBudgetData() muss innerhalb eines <BudgetDataProvider> verwendet werden.',
+      'useBudgetData() must be used within a <BudgetDataProvider>.',
     );
   }
   return ctx;
 }
 
 // ---------------------------------------------------------------------------
-// Provider (Mock-Modus — lokaler State)
+// Provider (Mock mode — local state)
 // ---------------------------------------------------------------------------
 
 export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({

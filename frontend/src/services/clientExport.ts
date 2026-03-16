@@ -80,7 +80,7 @@ function buildPlanningMonths(startMonth: Date, count: number): { label: string; 
   for (let offset = 0; offset < count; offset++) {
     const date = new Date(startMonth.getFullYear(), startMonth.getMonth() + offset, 1);
     months.push({
-      label: date.toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }),
+      label: date.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }),
       key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
     });
   }
@@ -103,7 +103,7 @@ function indexById<T extends { id: number }>(items: T[]): Map<number, T> {
 }
 
 // ---------------------------------------------------------------------------
-// 1) Standard Export — Ein Sheet pro Department
+// 1) Standard Export — One sheet per department
 // ---------------------------------------------------------------------------
 
 export function exportStandard(
@@ -141,7 +141,7 @@ export function exportStandard(
       .reduce((s, i) => s + i.current_amount, 0);
 
     rows.push([`Department: ${dept.name}`]);
-    rows.push([`Budget: ${fmt(dept.budget_total).toLocaleString('de-DE')} €`, '', `Committed: ${fmt(committed).toLocaleString('de-DE')} €`]);
+    rows.push([`Budget: ${fmt(dept.budget_total).toLocaleString('en-GB')} €`, '', `Committed: ${fmt(committed).toLocaleString('en-GB')} €`]);
     rows.push([]); // blank row
 
     // Column headers
@@ -149,12 +149,12 @@ export function exportStandard(
       'Work Area',
       'Phase',
       'Product',
-      'Beschreibung',
-      'Betrag (€)',
+      'Description',
+      'Amount (€)',
       'Cash-Out',
-      'Kostenbasis',
+      'Cost Basis',
       'Status',
-      'Zielanpassung',
+      'Target Adjustment',
     ]);
 
     const deptWorkAreas = waByDept.get(dept.id) ?? [];
@@ -188,7 +188,7 @@ export function exportStandard(
           item.expected_cash_out,
           COST_BASIS_LABELS[item.cost_basis],
           STATUS_LABELS[item.approval_status],
-          item.zielanpassung ? 'Ja' : 'Nein',
+          item.zielanpassung ? 'Yes' : 'No',
         ]);
       }
     }
@@ -202,12 +202,12 @@ export function exportStandard(
       { wch: 28 }, // Work Area
       { wch: 10 }, // Phase
       { wch: 10 }, // Product
-      { wch: 40 }, // Beschreibung
-      { wch: 15 }, // Betrag
+      { wch: 40 }, // Description
+      { wch: 15 }, // Amount
       { wch: 12 }, // Cash-Out
-      { wch: 22 }, // Kostenbasis
+      { wch: 22 }, // Cost Basis
       { wch: 18 }, // Status
-      { wch: 14 }, // Zielanpassung
+      { wch: 14 }, // Target Adjustment
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
@@ -215,8 +215,8 @@ export function exportStandard(
 
   // Fallback: if no departments, create empty sheet
   if (departments.length === 0) {
-    const ws = XLSX.utils.aoa_to_sheet([['Keine Daten vorhanden']]);
-    XLSX.utils.book_append_sheet(wb, ws, 'Leer');
+    const ws = XLSX.utils.aoa_to_sheet([['No data available']]);
+    XLSX.utils.book_append_sheet(wb, ws, 'Empty');
   }
 
   triggerDownload(wb, `CAPEX_Export_Standard_${dateStr()}.xlsx`);
@@ -246,13 +246,13 @@ export function exportFinance(
     const deptA = waA ? deptMap.get(waA.department_id) : undefined;
     const deptB = waB ? deptMap.get(waB.department_id) : undefined;
 
-    const deptCmp = (deptA?.name ?? '').localeCompare(deptB?.name ?? '', 'de-DE');
+    const deptCmp = (deptA?.name ?? '').localeCompare(deptB?.name ?? '', 'en-GB');
     if (deptCmp !== 0) return deptCmp;
 
-    const waCmp = (waA?.name ?? '').localeCompare(waB?.name ?? '', 'de-DE');
+    const waCmp = (waA?.name ?? '').localeCompare(waB?.name ?? '', 'en-GB');
     if (waCmp !== 0) return waCmp;
 
-    return a.description.localeCompare(b.description, 'de-DE');
+    return a.description.localeCompare(b.description, 'en-GB');
   });
 
   const monthlyTotals = months.map(() => 0);
@@ -266,27 +266,27 @@ export function exportFinance(
 
   const detailRows: (string | number)[][] = [
     ['CAPEX Finance Template'],
-    ['Exportdatum', dateStr()],
-    ['Planungszeitraum', planningRange],
-    ['Budget-Faktor', budgetFactor],
+    ['Export Date', dateStr()],
+    ['Planning Period', planningRange],
+    ['Budget Factor', budgetFactor],
     [],
     [
-      'Abteilung',
-      'Kategorie',
-      'Beschreibung',
+      'Department',
+      'Category',
+      'Description',
       'Phase',
-      'Produkt',
+      'Product',
       'Status',
       'Cash-Out',
-      'Originalbetrag (€)',
-      'Budgetwert (€)',
+      'Original Amount (€)',
+      'Budget Value (€)',
       ...months.map((m) => m.label),
-      'Außerhalb 12M (€)',
+      'Outside 12M (€)',
       'Q1',
       'Q2',
       'Q3',
       'Q4',
-      'Gesamt Budget (€)',
+      'Total Budget (€)',
     ],
   ];
 
@@ -319,7 +319,7 @@ export function exportFinance(
     quarterTotalSums[2] += q3;
     quarterTotalSums[3] += q4;
 
-    const deptName = dept?.name ?? 'Ohne Abteilung';
+    const deptName = dept?.name ?? 'No Department';
     const summaryEntry = departmentSummary.get(deptName) ?? { count: 0, original: 0, budget: 0, outside: 0 };
     summaryEntry.count += 1;
     summaryEntry.original += originalAmount;
@@ -329,7 +329,7 @@ export function exportFinance(
 
     detailRows.push([
       deptName,
-      wa?.name ?? 'Ohne Kategorie',
+      wa?.name ?? 'No Category',
       item.description,
       PHASE_LABELS[item.project_phase],
       PRODUCT_LABELS[item.product],
@@ -350,7 +350,7 @@ export function exportFinance(
   if (sortedItems.length > 0) {
     detailRows.push([]);
     detailRows.push([
-      'GESAMT',
+      'TOTAL',
       '',
       '',
       '',
@@ -371,35 +371,35 @@ export function exportFinance(
 
   const detailSheet = XLSX.utils.aoa_to_sheet(detailRows);
   detailSheet['!cols'] = [
-    { wch: 24 }, // Abteilung
-    { wch: 24 }, // Kategorie
-    { wch: 42 }, // Beschreibung
+    { wch: 24 }, // Department
+    { wch: 24 }, // Category
+    { wch: 42 }, // Description
     { wch: 12 }, // Phase
-    { wch: 12 }, // Produkt
+    { wch: 12 }, // Product
     { wch: 14 }, // Status
     { wch: 14 }, // Cash-Out
-    { wch: 18 }, // Originalbetrag
-    { wch: 18 }, // Budgetwert
+    { wch: 18 }, // Original Amount
+    { wch: 18 }, // Budget Value
     ...months.map(() => ({ wch: 14 })),
-    { wch: 18 }, // Außerhalb 12M
+    { wch: 18 }, // Outside 12M
     { wch: 12 }, // Q1
     { wch: 12 }, // Q2
     { wch: 12 }, // Q3
     { wch: 12 }, // Q4
-    { wch: 18 }, // Gesamt Budget
+    { wch: 18 }, // Total Budget
   ];
 
   const summaryRows: (string | number)[][] = [
     ['CAPEX Finance Summary'],
-    ['Exportdatum', dateStr()],
-    ['Planungszeitraum', planningRange],
-    ['Budget-Faktor', budgetFactor],
+    ['Export Date', dateStr()],
+    ['Planning Period', planningRange],
+    ['Budget Factor', budgetFactor],
     [],
-    ['Abteilung', 'Positionen', 'Originalsumme (€)', 'Budgetsumme (€)', 'Außerhalb 12M (€)'],
+    ['Department', 'Items', 'Original Total (€)', 'Budget Total (€)', 'Outside 12M (€)'],
   ];
 
   const sortedDepartmentSummary = [...departmentSummary.entries()].sort(([a], [b]) =>
-    a.localeCompare(b, 'de-DE'),
+    a.localeCompare(b, 'en-GB'),
   );
 
   for (const [deptName, entry] of sortedDepartmentSummary) {
@@ -413,7 +413,7 @@ export function exportFinance(
   }
 
   summaryRows.push([]);
-  summaryRows.push(['Monat', 'Positionen', 'Cash-Out Budget (€)']);
+  summaryRows.push(['Month', 'Items', 'Cash-Out Budget (€)']);
 
   for (let i = 0; i < months.length; i++) {
     summaryRows.push([
@@ -425,7 +425,7 @@ export function exportFinance(
 
   summaryRows.push([]);
   summaryRows.push([
-    'GESAMT',
+    'TOTAL',
     sortedItems.length,
     fmt(totalOriginal),
     fmt(totalBudget),
@@ -460,16 +460,16 @@ export function exportSteeringCommittee(
   const waMap = indexById(workAreas);
   const deptMap = indexById(departments);
 
-  // ---- Sheet 1: Zusammenfassung ----
+  // ---- Sheet 1: Summary ----
   const summaryRows: (string | number)[][] = [];
 
   summaryRows.push(['CAPEX Steering Committee Report']);
-  summaryRows.push([`Stand: ${dateStr()}`]);
+  summaryRows.push([`Date: ${dateStr()}`]);
   summaryRows.push([]);
 
-  // -- Budget vs Committed vs Remaining pro Department --
-  summaryRows.push(['Budget-Übersicht nach Department']);
-  summaryRows.push(['Department', 'Budget (€)', 'Committed (€)', 'Remaining (€)', 'Auslastung (%)']);
+  // -- Budget vs Committed vs Remaining per Department --
+  summaryRows.push(['Budget Overview by Department']);
+  summaryRows.push(['Department', 'Budget (€)', 'Committed (€)', 'Remaining (€)', 'Utilisation (%)']);
 
   for (const dept of departments) {
     const deptItems = items.filter((i) => {
@@ -491,7 +491,7 @@ export function exportSteeringCommittee(
 
   summaryRows.push([]);
   summaryRows.push([
-    'GESAMT',
+    'TOTAL',
     fmt(summary.budget),
     fmt(summary.committed),
     fmt(summary.remaining),
@@ -501,9 +501,9 @@ export function exportSteeringCommittee(
   summaryRows.push([]);
   summaryRows.push([]);
 
-  // -- Top 10 größte offene Positionen --
-  summaryRows.push(['Top 10 größte offene Positionen']);
-  summaryRows.push(['#', 'Beschreibung', 'Department', 'Work Area', 'Betrag (€)', 'Status']);
+  // -- Top 10 largest open items --
+  summaryRows.push(['Top 10 Largest Open Items']);
+  summaryRows.push(['#', 'Description', 'Department', 'Work Area', 'Amount (€)', 'Status']);
 
   const openItems = items
     .filter((i) => i.approval_status !== 'approved' && i.approval_status !== 'obsolete')
@@ -526,15 +526,15 @@ export function exportSteeringCommittee(
   summaryRows.push([]);
   summaryRows.push([]);
 
-  // -- Cash-Out nächste 3 Monate --
-  summaryRows.push(['Cash-Out nächste 3 Monate']);
-  summaryRows.push(['Monat', 'Betrag (€)', 'Anzahl Positionen']);
+  // -- Cash-Out next 3 months --
+  summaryRows.push(['Cash-Out Next 3 Months']);
+  summaryRows.push(['Month', 'Amount (€)', 'No. of Items']);
 
   const now = new Date();
   for (let offset = 0; offset < 3; offset++) {
     const targetDate = new Date(now.getFullYear(), now.getMonth() + offset, 1);
     const targetKey = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}`;
-    const monthLabel = targetDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+    const monthLabel = targetDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
     const monthItems = items.filter((i) => i.expected_cash_out.startsWith(targetKey));
     const monthTotal = monthItems.reduce((s, i) => s + i.current_amount, 0);
@@ -553,6 +553,6 @@ export function exportSteeringCommittee(
     { wch: 18 },
   ];
 
-  XLSX.utils.book_append_sheet(wb, ws, 'Zusammenfassung');
+  XLSX.utils.book_append_sheet(wb, ws, 'Summary');
   triggerDownload(wb, `CAPEX_Steering_Committee_${dateStr()}.xlsx`);
 }

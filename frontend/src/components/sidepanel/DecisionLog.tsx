@@ -27,7 +27,7 @@ function deriveDecisions(item: CostItem): DecisionEntry[] {
     date: item.created_at,
     icon: FileText,
     iconColor: 'text-gray-400',
-    text: 'Position angelegt',
+    text: 'Item created',
     detail: `Basis: ${COST_BASIS_LABELS[item.cost_basis]}`,
   });
 
@@ -39,8 +39,8 @@ function deriveDecisions(item: CostItem): DecisionEntry[] {
       date: item.updated_at,
       icon: DollarSign,
       iconColor: diff > 0 ? 'text-amber-500' : 'text-emerald-500',
-      text: `Betrag angepasst ${sign}${diff.toLocaleString('de-DE')} EUR`,
-      detail: item.zielanpassung ? `Zielanpassung: ${item.zielanpassung_reason}` : undefined,
+      text: `Amount adjusted ${sign}${diff.toLocaleString('de-DE')} EUR`,
+      detail: item.zielanpassung ? `Target adjustment: ${item.zielanpassung_reason}` : undefined,
     });
   }
 
@@ -50,14 +50,14 @@ function deriveDecisions(item: CostItem): DecisionEntry[] {
       date: item.approval_date,
       icon: CheckCircle2,
       iconColor: 'text-emerald-500',
-      text: 'Freigabe erteilt',
+      text: 'Approved',
     });
   } else if (item.approval_status === 'rejected' && item.approval_date) {
     entries.push({
       date: item.approval_date,
       icon: AlertTriangle,
       iconColor: 'text-red-500',
-      text: 'Abgelehnt',
+      text: 'Rejected',
       detail: item.comments || undefined,
     });
   } else if (item.approval_status === 'on_hold') {
@@ -65,7 +65,7 @@ function deriveDecisions(item: CostItem): DecisionEntry[] {
       date: item.updated_at,
       icon: Clock,
       iconColor: 'text-amber-500',
-      text: 'On Hold gesetzt',
+      text: 'Set to On Hold',
       detail: item.comments || undefined,
     });
   } else if (
@@ -84,7 +84,7 @@ function deriveDecisions(item: CostItem): DecisionEntry[] {
       date: item.updated_at,
       icon: FileText,
       iconColor: 'text-yellow-500',
-      text: 'Zur Freigabe eingereicht',
+      text: 'Submitted for approval',
       detail: item.comments || undefined,
     });
   }
@@ -115,7 +115,7 @@ const DecisionLog: React.FC<DecisionLogProps> = ({ item }) => {
   return (
     <div className="mt-6">
       <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">
-        Entscheidungs-Log
+        Decision Log
       </h4>
 
       <div className="relative pl-5">

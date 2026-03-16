@@ -11,10 +11,10 @@ const ExcelImport: React.FC = () => {
 
   const handleFile = useCallback(async (file: File) => {
     setStatus('uploading');
-    setMessage('Wird hochgeladen...');
+    setMessage('Uploading...');
     try {
       if (USE_MOCKS) {
-        // Mock-Modus: Upload simulieren
+        // Mock mode: simulate upload
         await new Promise((resolve) => setTimeout(resolve, 600));
       } else {
         const formData = new FormData();
@@ -26,11 +26,11 @@ const ExcelImport: React.FC = () => {
         });
       }
       setStatus('success');
-      setMessage(`"${file.name}" wurde erfolgreich importiert.`);
+      setMessage(`"${file.name}" was imported successfully.`);
     } catch (err: unknown) {
       setStatus('error');
       const axiosError = err as { response?: { data?: { detail?: string } } };
-      setMessage(axiosError?.response?.data?.detail || 'Upload fehlgeschlagen. Bitte erneut versuchen.');
+      setMessage(axiosError?.response?.data?.detail || 'Upload failed. Please try again.');
     }
   }, []);
 
@@ -67,8 +67,8 @@ const ExcelImport: React.FC = () => {
         }`}
       >
         <Upload size={40} className="text-gray-400" />
-        <p className="text-gray-600 font-medium">Excel-Datei hierher ziehen</p>
-        <p className="text-sm text-gray-400">oder klicken zum Auswaehlen</p>
+        <p className="text-gray-600 font-medium">Drop Excel file here</p>
+        <p className="text-sm text-gray-400">or click to select</p>
         <input
           ref={fileInputRef}
           type="file"

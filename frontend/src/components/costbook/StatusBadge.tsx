@@ -20,6 +20,26 @@ const STATUS_STYLE: Record<ApprovalStatus, { bg: string; text: string; dot: stri
   obsolete:                        { bg: '#e2e8f0', text: '#334155', dot: '#64748b' },
 };
 
+// Tailwind gradient badge classes per status
+const STATUS_BADGE_CLASS: Record<ApprovalStatus, string> = {
+  approved:
+    'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200',
+  open:
+    'bg-gradient-to-r from-gray-50 to-slate-50 text-gray-600 border border-gray-200',
+  rejected:
+    'bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border border-red-200',
+  submitted_for_approval:
+    'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200',
+  on_hold:
+    'bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 border border-amber-200',
+  pending_supplier_negotiation:
+    'bg-gradient-to-r from-violet-50 to-purple-50 text-violet-700 border border-violet-200',
+  pending_technical_clarification:
+    'bg-gradient-to-r from-violet-50 to-purple-50 text-violet-700 border border-violet-200',
+  obsolete:
+    'bg-gradient-to-r from-slate-50 to-gray-50 text-slate-500 border border-slate-200 opacity-70',
+};
+
 const ALL_STATUSES: ApprovalStatus[] = [
   'open',
   'submitted_for_approval',
@@ -101,12 +121,11 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
       <button
         type="button"
         onClick={handleClick}
-        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-        style={{
-          backgroundColor: style.bg,
-          color: style.text,
-          cursor: onChange ? 'pointer' : 'default',
-        }}
+        className={[
+          'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]',
+          STATUS_BADGE_CLASS[status],
+        ].join(' ')}
+        style={{ cursor: onChange ? 'pointer' : 'default' }}
       >
         <span
           className="h-1.5 w-1.5 shrink-0 rounded-full"
@@ -159,10 +178,10 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
           onClick={(e) => e.stopPropagation()}
         >
           <p className="text-sm font-medium text-gray-900 mb-1">
-            Status ändern?
+            Change status?
           </p>
           <p className="text-xs text-gray-500 mb-3">
-            Wirklich auf <span className="font-semibold">{STATUS_LABELS[pendingStatus]}</span> setzen?
+            Really set to <span className="font-semibold">{STATUS_LABELS[pendingStatus]}</span>?
           </p>
           <div className="flex items-center gap-2 justify-end">
             <button
@@ -170,14 +189,14 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
               onClick={(e) => { e.stopPropagation(); cancelPending(); }}
               className="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
             >
-              Abbrechen
+              Cancel
             </button>
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); confirmPending(); }}
               className="px-2.5 py-1 text-xs font-medium rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
             >
-              Bestätigen
+              Confirm
             </button>
           </div>
         </div>

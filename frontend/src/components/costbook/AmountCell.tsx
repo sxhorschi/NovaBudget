@@ -1,15 +1,20 @@
 import React, { useCallback } from 'react';
 import { useToast } from '../common/ToastProvider';
 import { useDisplaySettings } from '../../context/DisplaySettingsContext';
+import { useInflatedAmount } from '../../hooks/useInflatedAmount';
 
 // ---------------------------------------------------------------------------
 // AmountCell — Formatted EUR amount with optional delta indicator
 // Click on the amount copies the raw number to clipboard.
+// Optional cashOutDate enables inflation display when inflation is active.
 // ---------------------------------------------------------------------------
 
 interface AmountCellProps {
   original: number;
   current: number;
+  /** YYYY-MM formatted cash-out date. When provided and inflation is active,
+   *  the displayed value is inflated and a "~" prefix is shown. */
+  cashOutDate?: string;
 }
 
 /** Shared EUR formatter instance (avoid re-creating on every call). */
@@ -44,7 +49,11 @@ export function useAmountFormatter(): (value: number) => string {
   return showThousands ? formatKEUR : formatEUR;
 }
 
-export default function AmountCell({ original, current }: AmountCellProps) {
+export default function AmountCell({ original, current, cashOutDate }: AmountCellProps) {
+  const { inflationEnabled } = useDisplaySettings();
+  const displayAmount = useInflatedAmount(current, cashOutDate);
+  const isInflated = inflationEnabled && !!cashOutDate && displayAmount !== current;
+
   const delta = current - original;
   const hasDelta = delta !== 0;
   const toast = useToast();
@@ -54,7 +63,7 @@ export default function AmountCell({ original, current }: AmountCellProps) {
     (e: React.MouseEvent) => {
       e.stopPropagation();
       navigator.clipboard.writeText(String(current)).then(() => {
-        toast.info(`${format(current)} kopiert`);
+        toast.info(`${format(current)} copied`);
       });
     },
     [current, toast, format],
@@ -65,9 +74,15 @@ export default function AmountCell({ original, current }: AmountCellProps) {
       className="inline-flex flex-col items-end font-mono tabular-nums font-medium text-sm leading-tight cursor-copy"
       style={{ fontVariantNumeric: 'tabular-nums' }}
       onClick={handleCopy}
-      title="Klick zum Kopieren"
+      title={isInflated ? `Inflated value (raw: ${format(current)}) — click to copy raw` : 'Click to copy'}
     >
-      <span className="text-slate-900 hover:text-indigo-600 transition-colors duration-150">{format(current)}</span>
+      <span
+        className="hover:text-indigo-600 transition-colors duration-150"
+        style={{ color: isInflated ? '#d97706' : undefined }}
+      >
+        {isInflated && <span className="mr-0.5 opacity-70">~</span>}
+        <span className={isInflated ? '' : 'text-slate-900'}>{format(displayAmount)}</span>
+      </span>
       {hasDelta && (
         <span
           className="text-[11px] font-normal"

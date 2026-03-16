@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, X as XIcon, Bookmark, RotateCcw } from 'lucide-react';
+import { Plus, X as XIcon, Save, RotateCcw } from 'lucide-react';
 import type { FilterState } from '../../hooks/useFilterState';
 import { EMPTY_FILTER } from '../../hooks/useFilterState';
 import type { ApprovalStatus, ProjectPhase } from '../../types/budget';
@@ -28,13 +28,13 @@ interface SavedViewsProps {
 const PREDEFINED_VIEWS: SavedView[] = [
   {
     id: 'all',
-    label: 'Alle Positionen',
+    label: 'All Items',
     filters: { ...EMPTY_FILTER },
     isCustom: false,
   },
   {
     id: 'open-approvals',
-    label: 'Offene Freigaben',
+    label: 'Open Approvals',
     filters: {
       ...EMPTY_FILTER,
       statuses: ['open', 'submitted_for_approval'] as ApprovalStatus[],
@@ -61,7 +61,7 @@ const PREDEFINED_VIEWS: SavedView[] = [
   },
   {
     id: 'over-budget',
-    label: 'Über Budget',
+    label: 'Over Budget',
     filters: {
       ...EMPTY_FILTER,
       overBudget: true,
@@ -233,9 +233,8 @@ const SavedViews: React.FC<SavedViewsProps> = ({ currentFilters, onApplyView }) 
   );
 
   return (
-    <div className="px-6 pt-3 pb-2">
-      <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-        <Bookmark size={14} className="text-gray-400 flex-shrink-0" />
+    <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-6 py-1.5">
+      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
 
         {allViews.map((view) => {
           const isActive = view.id === activeViewId;
@@ -243,10 +242,10 @@ const SavedViews: React.FC<SavedViewsProps> = ({ currentFilters, onApplyView }) 
             <button
               key={view.id}
               onClick={() => handleApply(view)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
                 isActive
-                  ? 'bg-indigo-100 text-indigo-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
               }`}
             >
               {view.label}
@@ -272,8 +271,8 @@ const SavedViews: React.FC<SavedViewsProps> = ({ currentFilters, onApplyView }) 
                       }
                     }
                   }}
-                  className={`ml-1 rounded-full p-0.5 ${view.isCustom ? 'hover:bg-red-200' : 'hover:bg-gray-300'}`}
-                  title={view.isCustom ? 'Ansicht löschen' : 'Ansicht ausblenden'}
+                  className={`ml-0.5 rounded-full p-0.5 ${view.isCustom ? 'hover:bg-red-200' : 'hover:bg-indigo-100'}`}
+                  title={view.isCustom ? 'Delete view' : 'Hide view'}
                 >
                   <XIcon size={10} />
                 </span>
@@ -282,19 +281,17 @@ const SavedViews: React.FC<SavedViewsProps> = ({ currentFilters, onApplyView }) 
           );
         })}
 
-        {/* Save current view */}
-        {showNameInput ? (
-          null
-        ) : hiddenViewIds.size > 0 ? (
+        {/* Restore hidden views */}
+        {!showNameInput && hiddenViewIds.size > 0 && (
           <button
             onClick={handleRestoreViews}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-amber-50 text-amber-600 hover:bg-amber-100 border border-dashed border-amber-300 transition-colors flex-shrink-0"
-            title={`${hiddenViewIds.size} ausgeblendete Ansicht(en) wiederherstellen`}
+            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap bg-amber-50 text-amber-600 hover:bg-amber-100 border border-dashed border-amber-300 transition-colors flex-shrink-0"
+            title={`Restore ${hiddenViewIds.size} hidden view(s)`}
           >
-            <RotateCcw size={12} />
-            {hiddenViewIds.size} wiederherstellen
+            <RotateCcw size={11} />
+            {hiddenViewIds.size} restore
           </button>
-        ) : null}
+        )}
 
         {/* New view name input inline */}
         {showNameInput ? (
@@ -310,7 +307,7 @@ const SavedViews: React.FC<SavedViewsProps> = ({ currentFilters, onApplyView }) 
                   setShowNameInput(false);
                 }
               }}
-              placeholder="Name der Ansicht..."
+              placeholder="View name..."
               className="px-2 py-1 text-xs rounded-lg border border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-40"
             />
             <button
@@ -333,10 +330,10 @@ const SavedViews: React.FC<SavedViewsProps> = ({ currentFilters, onApplyView }) 
         ) : (
           <button
             onClick={() => setShowNameInput(true)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-gray-50 text-gray-500 hover:bg-gray-100 border border-dashed border-gray-300 transition-colors flex-shrink-0"
+            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 transition-colors flex-shrink-0"
           >
-            <Plus size={12} />
-            Ansicht speichern
+            <Save size={11} />
+            Save view
           </button>
         )}
       </div>

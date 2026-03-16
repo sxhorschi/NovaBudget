@@ -91,7 +91,7 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
           barValue={budget}
           barMax={budget}
           barColor="indigo"
-          tooltip="Genehmigtes Gesamtbudget aller sichtbaren Abteilungen, inkl. Zielanpassungen"
+          tooltip="Total approved budget of all visible departments, incl. target adjustments"
         />
 
         {/* Committed */}
@@ -102,7 +102,7 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
           barValue={committed}
           barMax={budget || 1}
           barColor="green"
-          tooltip="Summe aller freigegebenen (approved) Kostenpositionen"
+          tooltip="Sum of all approved cost items"
         />
 
         {/* Forecast */}
@@ -113,7 +113,7 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
           barValue={forecast}
           barMax={budget || 1}
           barColor="yellow"
-          tooltip="Erwartete Gesamtkosten: alle Positionen die nicht abgelehnt oder obsolet sind"
+          tooltip="Expected total costs: all items not rejected or obsolete"
         />
 
         {/* Remaining */}
@@ -130,12 +130,12 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
           barValue={Math.max(remaining, 0)}
           barMax={budget || 1}
           barColor={remColor}
-          tooltip="Verbleibendes Budget = Budget - Forecast"
+          tooltip="Remaining budget = Budget - Forecast"
         />
 
         {/* Items */}
         <KPICard
-          label="Positionen"
+          label="Items"
           value={String(itemCount)}
           textColor="text-gray-700"
           barValue={itemCount}

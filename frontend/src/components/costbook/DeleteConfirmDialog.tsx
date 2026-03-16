@@ -57,10 +57,10 @@ const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({ itemDescripti
             <AlertTriangle size={20} className="text-red-600" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-800">Position löschen?</h3>
+            <h3 className="text-lg font-semibold text-gray-800">Delete item?</h3>
             <p className="mt-2 text-sm text-gray-600">
-              Kostenposition <span className="font-medium">&ldquo;{itemDescription}&rdquo;</span> wirklich löschen?
-              Diese Aktion kann nicht rückgängig gemacht werden.
+              Really delete cost item <span className="font-medium">&ldquo;{itemDescription}&rdquo;</span>?
+              This action cannot be undone.
             </p>
           </div>
         </div>
@@ -70,13 +70,13 @@ const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({ itemDescripti
             onClick={handleClose}
             className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all duration-150"
           >
-            Abbrechen
+            Cancel
           </button>
           <button
             onClick={handleConfirm}
             className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-all duration-150 shadow-sm hover:shadow"
           >
-            Löschen
+            Delete
           </button>
         </div>
       </div>

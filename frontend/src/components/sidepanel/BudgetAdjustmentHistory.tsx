@@ -70,12 +70,12 @@ const NewAdjustmentForm: React.FC<NewAdjustmentFormProps> = ({ onSubmit, onCance
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-medium text-gray-500 block mb-1">
-            Betrag (EUR)
+            Amount (EUR)
           </label>
           <input
             type="number"
             className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-colors tabular-nums"
-            placeholder="+80000 oder -20000"
+            placeholder="+80000 or -20000"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             step={1000}
@@ -84,7 +84,7 @@ const NewAdjustmentForm: React.FC<NewAdjustmentFormProps> = ({ onSubmit, onCance
         </div>
         <div>
           <label className="text-xs font-medium text-gray-500 block mb-1">
-            Kategorie
+            Category
           </label>
           <select
             className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-colors appearance-none cursor-pointer"
@@ -102,12 +102,12 @@ const NewAdjustmentForm: React.FC<NewAdjustmentFormProps> = ({ onSubmit, onCance
 
       <div>
         <label className="text-xs font-medium text-gray-500 block mb-1">
-          Begruendung <span className="text-red-400">*</span>
+          Reason <span className="text-red-400">*</span>
         </label>
         <textarea
           className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-colors resize-none"
           rows={2}
-          placeholder="z.B. Produktaenderung CR-2026-042..."
+          placeholder="e.g. Product Change CR-2026-042..."
           value={reason}
           onChange={(e) => setReason(e.target.value)}
         />
@@ -119,7 +119,7 @@ const NewAdjustmentForm: React.FC<NewAdjustmentFormProps> = ({ onSubmit, onCance
           onClick={onCancel}
           className="px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
         >
-          Abbrechen
+          Cancel
         </button>
         <button
           type="submit"
@@ -130,7 +130,7 @@ const NewAdjustmentForm: React.FC<NewAdjustmentFormProps> = ({ onSubmit, onCance
               : 'bg-indigo-300 text-indigo-100 cursor-not-allowed'
           }`}
         >
-          Speichern
+          Save
         </button>
       </div>
     </form>
@@ -192,14 +192,14 @@ const BudgetAdjustmentHistory: React.FC<BudgetAdjustmentHistoryProps> = ({
       <div className="mt-6">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-            Zielanpassungen
+            Target Adjustments
           </h4>
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
           >
             <Plus size={12} />
-            Neue Anpassung
+            New Adjustment
           </button>
         </div>
         {showForm && (
@@ -208,7 +208,7 @@ const BudgetAdjustmentHistory: React.FC<BudgetAdjustmentHistoryProps> = ({
             onCancel={() => setShowForm(false)}
           />
         )}
-        <p className="text-xs text-gray-400 italic">Keine Zielanpassungen vorhanden.</p>
+        <p className="text-xs text-gray-400 italic">No target adjustments recorded.</p>
       </div>
     );
   }
@@ -221,7 +221,7 @@ const BudgetAdjustmentHistory: React.FC<BudgetAdjustmentHistoryProps> = ({
           onClick={() => setExpanded((prev) => !prev)}
           className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-700 transition-colors"
         >
-          Zielanpassungen
+          Target Adjustments
           {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         </button>
         <button
@@ -229,18 +229,18 @@ const BudgetAdjustmentHistory: React.FC<BudgetAdjustmentHistoryProps> = ({
           className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
         >
           <Plus size={12} />
-          Neue Anpassung
+          New Adjustment
         </button>
       </div>
 
       {/* Summary bar */}
       <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 mb-3">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-gray-500">Original Budget</span>
+          <span className="text-gray-500">Original budget</span>
           <span className="font-medium text-gray-700 tabular-nums">{formatEur(originalBudget)}</span>
         </div>
         <div className="flex items-center justify-between text-xs mt-1">
-          <span className="text-gray-500">Zielanpassungen gesamt</span>
+          <span className="text-gray-500">Total adjustments</span>
           <span
             className={`font-medium tabular-nums ${
               totalAdjustment > 0
@@ -255,7 +255,7 @@ const BudgetAdjustmentHistory: React.FC<BudgetAdjustmentHistoryProps> = ({
           </span>
         </div>
         <div className="border-t border-gray-200 mt-1.5 pt-1.5 flex items-center justify-between text-xs">
-          <span className="font-semibold text-gray-700">Aktuelles Budget</span>
+          <span className="font-semibold text-gray-700">Current budget</span>
           <span className="font-semibold text-gray-900 tabular-nums">{formatEur(currentBudget)}</span>
         </div>
       </div>
@@ -323,7 +323,7 @@ const BudgetAdjustmentHistory: React.FC<BudgetAdjustmentHistoryProps> = ({
                       </span>
                       {adj.created_by && (
                         <span className="text-[10px] text-gray-400">
-                          von {adj.created_by}
+                          by {adj.created_by}
                         </span>
                       )}
                     </div>

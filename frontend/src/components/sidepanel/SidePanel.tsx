@@ -52,7 +52,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-1.5 w-full text-left group"
+        className="flex items-center gap-1.5 w-full text-left group py-1 border-l-2 border-indigo-300 pl-2 hover:bg-gray-50 rounded-r transition-colors"
       >
         {isOpen ? (
           <ChevronDown size={14} className="text-gray-400 group-hover:text-gray-600 transition-colors flex-shrink-0" />
@@ -177,7 +177,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
 
   const safeClose = useCallback(() => {
     if (hasUnsavedChanges) {
-      if (window.confirm('Ungespeicherte \u00c4nderungen verwerfen?')) {
+      if (window.confirm('Discard unsaved changes?')) {
         onClose();
       }
     } else {
@@ -232,55 +232,52 @@ const SidePanel: React.FC<SidePanelProps> = ({
   return (
     <div
       ref={panelRef}
-      className="fixed right-0 top-0 h-full w-[480px] z-40 bg-white flex flex-col"
+      className="fixed right-0 top-0 h-full w-[480px] z-40 bg-white flex flex-col shadow-2xl"
       style={{
         borderLeft: '1px solid var(--border-default)',
-        boxShadow: isVisible
-          ? '-8px 0 30px -5px rgba(0, 0, 0, 0.1), -2px 0 8px -2px rgba(0, 0, 0, 0.04)'
-          : 'none',
         transform: isVisible ? 'translateX(0)' : 'translateX(100%)',
-        opacity: isVisible ? 1 : 0,
-        transition: 'transform 250ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease-out, box-shadow 250ms ease-out',
+        transition: 'transform 300ms ease-out',
       }}
     >
-      {/* ---- Header with department accent ---- */}
+      {/* ---- Header with gradient background ---- */}
       <div
-        className="flex-shrink-0 border-b border-gray-200 px-6 py-4"
+        className="flex-shrink-0 px-6 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700"
         style={{
           borderTop: `3px solid ${accentColor}`,
         }}
       >
         {/* Breadcrumb: Department > Work Area > Item */}
         {(departmentName || workAreaName) && (
-          <div className="flex items-center gap-1.5 text-[11px] text-gray-400 mb-2 overflow-hidden">
+          <div className="flex items-center gap-1.5 text-[11px] mb-2 overflow-hidden" style={{ color: 'rgba(255,255,255,0.6)' }}>
             {departmentName && (
               <button
                 type="button"
                 onClick={() => onFilterDepartment?.(departmentName)}
-                className="hover:text-indigo-600 transition-colors cursor-pointer font-medium flex-shrink-0"
-                style={{ color: accentColor }}
+                className="transition-colors cursor-pointer font-medium flex-shrink-0 hover:text-white"
+                style={{ color: 'rgba(255,255,255,0.6)' }}
                 title={`Filter: ${departmentName}`}
               >
                 {departmentName}
               </button>
             )}
             {departmentName && workAreaName && (
-              <ChevronRight size={11} className="text-gray-300 flex-shrink-0" />
+              <ChevronRight size={11} className="flex-shrink-0" style={{ color: 'rgba(255,255,255,0.4)' }} />
             )}
             {workAreaName && (
               <button
                 type="button"
                 onClick={() => onScrollToWorkArea?.(workAreaName)}
-                className="hover:text-gray-600 transition-colors cursor-pointer flex-shrink-0"
-                title={`Scroll zu: ${workAreaName}`}
+                className="transition-colors cursor-pointer flex-shrink-0 hover:text-white"
+                style={{ color: 'rgba(255,255,255,0.6)' }}
+                title={`Scroll to: ${workAreaName}`}
               >
                 {workAreaName}
               </button>
             )}
             {(departmentName || workAreaName) && draft?.description && (
               <>
-                <ChevronRight size={11} className="text-gray-300 flex-shrink-0" />
-                <span className="text-gray-500 truncate font-medium">{draft.description}</span>
+                <ChevronRight size={11} className="flex-shrink-0" style={{ color: 'rgba(255,255,255,0.4)' }} />
+                <span className="truncate font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>{draft.description}</span>
               </>
             )}
           </div>
@@ -288,7 +285,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
 
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold text-gray-900 truncate">
+            <h2 className="text-lg font-semibold text-white truncate">
               {draft?.description ?? item.description}
             </h2>
           </div>
@@ -298,9 +295,9 @@ const SidePanel: React.FC<SidePanelProps> = ({
             {onDuplicate && (
               <button
                 onClick={handleDuplicate}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-150"
-                aria-label="Duplizieren"
-                title="Duplizieren"
+                className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/20 transition-all duration-150"
+                aria-label="Duplicate"
+                title="Duplicate"
               >
                 <Copy size={16} />
               </button>
@@ -309,18 +306,18 @@ const SidePanel: React.FC<SidePanelProps> = ({
               onClick={handleCopyToClipboard}
               className={`p-1.5 rounded-lg transition-all duration-150 ${
                 copiedToClipboard
-                  ? 'text-green-600 bg-green-50'
-                  : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'
+                  ? 'text-green-300 bg-white/20'
+                  : 'text-white/70 hover:text-white hover:bg-white/20'
               }`}
-              aria-label="In Zwischenablage kopieren"
-              title={copiedToClipboard ? 'Kopiert!' : 'In Zwischenablage'}
+              aria-label="Copy to clipboard"
+              title={copiedToClipboard ? 'Copied!' : 'Copy to clipboard'}
             >
               <ClipboardCopy size={16} />
             </button>
             <button
               onClick={safeClose}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-150"
-              aria-label="Schlie\u00dfen"
+              className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/20 transition-all duration-150"
+              aria-label="Close"
             >
               <X size={18} />
             </button>
@@ -334,9 +331,9 @@ const SidePanel: React.FC<SidePanelProps> = ({
           <SidePanelForm item={draft} originalItem={item} onChange={handleFieldChange} />
         )}
 
-        {/* ---- Zielanpassung (collapsible, default closed unless active) ---- */}
+        {/* ---- Target Adjustment (collapsible, default closed unless active) ---- */}
         <CollapsibleSection
-          title="Zielanpassung"
+          title="Target Adjustment"
           defaultOpen={item.zielanpassung || (departmentId != null && departmentBudget != null)}
         >
           {departmentId != null && departmentBudget != null && (
@@ -347,10 +344,10 @@ const SidePanel: React.FC<SidePanelProps> = ({
           )}
         </CollapsibleSection>
 
-        {/* ---- Anh\u00e4nge (collapsible, default closed, shows count badge) ---- */}
+        {/* ---- Attachments (collapsible, default closed, shows count badge) ---- */}
         {item?.id && (
           <CollapsibleSection
-            title="Anh\u00e4nge"
+            title="Attachments"
             defaultOpen={false}
             badge={
               attachmentCount > 0 ? (
@@ -364,25 +361,25 @@ const SidePanel: React.FC<SidePanelProps> = ({
           </CollapsibleSection>
         )}
 
-        {/* ---- Historie (collapsible, default closed) ---- */}
-        <CollapsibleSection title="Historie" defaultOpen={false}>
+        {/* ---- History (collapsible, default closed) ---- */}
+        <CollapsibleSection title="History" defaultOpen={false}>
           <DecisionLog item={item} />
         </CollapsibleSection>
       </div>
 
       {/* ---- Sticky Footer ---- */}
-      <div className="flex-shrink-0 border-t border-gray-200 px-6 py-3 bg-white">
+      <div className="flex-shrink-0 border-t border-gray-100 px-6 py-3 bg-white">
         {/* Created / Updated timestamps */}
         <div className="text-[11px] text-gray-400 mb-2 flex items-center gap-3">
-          <span>Erstellt: {formatDateDE(item.created_at)}</span>
+          <span>Created: {formatDateDE(item.created_at)}</span>
           <span className="text-gray-300">|</span>
-          <span>Letzte \u00c4nderung: {formatDateDE(item.updated_at)}</span>
+          <span>Last modified: {formatDateDE(item.updated_at)}</span>
         </div>
 
         {_hasChanges && (
           <p className="text-xs text-amber-600 font-medium mb-2 flex items-center gap-1">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
-            Ungespeicherte \u00c4nderungen
+            Unsaved changes
           </p>
         )}
         <div className="flex items-center justify-between">
@@ -390,7 +387,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
             onClick={onDelete}
             className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors duration-150"
           >
-            L\u00f6schen
+            Delete
           </button>
 
           <div className="flex items-center gap-2">
@@ -398,22 +395,22 @@ const SidePanel: React.FC<SidePanelProps> = ({
               onClick={safeClose}
               className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all duration-150"
             >
-              Abbrechen
+              Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={!_hasChanges}
               className={`
-                px-4 py-2 text-sm font-medium rounded-lg transition-all duration-150
+                px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
                 ${
                   _hasChanges
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow'
+                    ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white shadow-md hover:shadow-lg'
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }
               `}
               title="Cmd+Enter"
             >
-              Speichern
+              Save
             </button>
           </div>
         </div>

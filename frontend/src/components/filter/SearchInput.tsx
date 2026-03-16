@@ -18,7 +18,7 @@ interface SearchInputProps {
 const SearchInput: React.FC<SearchInputProps> = ({
   value,
   onChange,
-  placeholder = 'Suchen... (Cmd+K)',
+  placeholder = 'Search...',
 }) => {
   const [local, setLocal] = useState(value);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -58,18 +58,31 @@ const SearchInput: React.FC<SearchInputProps> = ({
     inputRef.current?.focus();
   };
 
+  const [focused, setFocused] = useState(false);
+
   return (
-    <div className="relative w-64">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+    <div
+      className={`relative w-64 rounded-xl border bg-white shadow-sm transition-all duration-150 ${
+        focused
+          ? 'border-indigo-300 shadow'
+          : 'border-gray-200 hover:shadow'
+      }`}
+    >
+      <Search
+        className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors duration-150 ${
+          focused ? 'text-indigo-400' : 'text-gray-400'
+        }`}
+      />
       <input
         ref={inputRef}
         type="text"
         value={local}
         onChange={handleChange}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         placeholder={placeholder}
-        className="w-full pl-9 pr-8 py-1.5 text-sm border border-gray-200 rounded-lg bg-white
-          focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200
-          placeholder:text-gray-400 transition-colors duration-150"
+        className="w-full pl-9 pr-8 py-1.5 text-sm bg-transparent focus:outline-none
+          placeholder:text-gray-400"
       />
       {local && (
         <button

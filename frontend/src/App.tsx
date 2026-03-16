@@ -7,24 +7,30 @@ import ImportPage from './pages/ImportPage';
 import ToastProvider from './components/common/ToastProvider';
 import { BudgetDataProvider } from './context/BudgetDataContext';
 import { DisplaySettingsProvider } from './context/DisplaySettingsContext';
+import { AuthProvider } from './context/AuthContext';
+import AuthGuard from './components/auth/AuthGuard';
 
 const App: React.FC = () => {
   return (
-    <BrowserRouter>
-      <BudgetDataProvider>
-        <DisplaySettingsProvider>
-          <ToastProvider>
-            <AppLayout>
-              <Routes>
-                <Route path="/" element={<CostbookPage />} />
-                <Route path="/cashout" element={<CashOutPage />} />
-                <Route path="/import" element={<ImportPage />} />
-              </Routes>
-            </AppLayout>
-          </ToastProvider>
-        </DisplaySettingsProvider>
-      </BudgetDataProvider>
-    </BrowserRouter>
+    <AuthProvider>
+      <AuthGuard>
+        <BrowserRouter>
+          <BudgetDataProvider>
+            <DisplaySettingsProvider>
+              <ToastProvider>
+                <AppLayout>
+                  <Routes>
+                    <Route path="/" element={<CostbookPage />} />
+                    <Route path="/cashout" element={<CashOutPage />} />
+                    <Route path="/import" element={<ImportPage />} />
+                  </Routes>
+                </AppLayout>
+              </ToastProvider>
+            </DisplaySettingsProvider>
+          </BudgetDataProvider>
+        </BrowserRouter>
+      </AuthGuard>
+    </AuthProvider>
   );
 };
 

@@ -49,12 +49,12 @@ const FilterChip: React.FC<FilterChipProps> = ({
       <button
         onClick={() => setOpen((prev) => !prev)}
         className={`
-          inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
-          transition-colors duration-150 cursor-pointer select-none
+          inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium
+          transition-all duration-150 cursor-pointer select-none shadow-sm
           ${
             hasSelection
-              ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-              : 'bg-gray-100 text-gray-700 border border-transparent hover:bg-gray-200'
+              ? 'border border-indigo-300 bg-indigo-50 text-indigo-700 shadow-sm'
+              : 'border border-gray-200 bg-white text-gray-600 hover:shadow hover:border-gray-300'
           }
         `}
       >
@@ -62,7 +62,7 @@ const FilterChip: React.FC<FilterChipProps> = ({
 
         {/* Count badge */}
         {hasSelection && (
-          <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-indigo-600 text-white text-[10px] font-semibold leading-none">
+          <span className="bg-indigo-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center leading-none">
             {selected.length}
           </span>
         )}
@@ -81,7 +81,7 @@ const FilterChip: React.FC<FilterChipProps> = ({
               }
             }}
             className="inline-flex items-center justify-center rounded-full hover:bg-indigo-200 p-0.5 transition-colors duration-100"
-            aria-label={`${label} Filter zurücksetzen`}
+            aria-label={`Clear ${label} filter`}
           >
             <X className="h-3.5 w-3.5" />
           </span>

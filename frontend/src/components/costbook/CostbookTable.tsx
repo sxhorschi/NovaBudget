@@ -67,12 +67,12 @@ interface ColumnDef {
 }
 
 const COLUMNS: ColumnDef[] = [
-  { key: 'description', label: 'Beschreibung', width: '',      align: 'left',  sortable: true },
-  { key: 'phase',       label: 'Phase',        width: '96px',  align: 'left',  sortable: true },
-  { key: 'product',     label: 'Produkt',      width: '110px', align: 'left',  sortable: true },
-  { key: 'status',      label: 'Status',       width: '160px', align: 'left',  sortable: true },
-  { key: 'cashout',     label: 'Cash-Out',     width: '110px', align: 'left',  sortable: true },
-  { key: 'amount',      label: 'Betrag',       width: '160px', align: 'right', sortable: true },
+  { key: 'description', label: 'Description', width: '',      align: 'left',  sortable: true },
+  { key: 'phase',       label: 'Phase',       width: '96px',  align: 'left',  sortable: true },
+  { key: 'product',     label: 'Product',     width: '110px', align: 'left',  sortable: true },
+  { key: 'status',      label: 'Status',      width: '160px', align: 'left',  sortable: true },
+  { key: 'cashout',     label: 'Cash-Out',    width: '110px', align: 'left',  sortable: true },
+  { key: 'amount',      label: 'Amount',      width: '160px', align: 'right', sortable: true },
 ];
 
 // ---------------------------------------------------------------------------
@@ -239,33 +239,34 @@ export default function CostbookTable({
             {allExpanded ? (
               <>
                 <ChevronsDownUp size={14} />
-                Alle zuklappen
+                Collapse all
               </>
             ) : (
               <>
                 <ChevronsUpDown size={14} />
-                Alle aufklappen
+                Expand all
               </>
             )}
           </button>
         </div>
       )}
 
-    <div className="overflow-auto rounded-xl border shadow-sm scroll-smooth" style={{ borderColor: 'var(--border-default)' }}>
+    <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-white">
+      <div className="overflow-auto scroll-smooth">
       <table className="w-full border-collapse">
         {/* ------------------------------------------------------------------ */}
         {/* Table Header                                                        */}
         {/* ------------------------------------------------------------------ */}
         <thead>
-          <tr className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b shadow-[0_1px_3px_rgba(0,0,0,0.04)]" style={{ borderColor: 'var(--border-default)' }}>
+          <tr className="sticky top-0 z-10 bg-gradient-to-r from-gray-50 to-gray-50/80 border-b backdrop-blur-sm shadow-[0_1px_3px_rgba(0,0,0,0.04)]" style={{ borderColor: 'var(--border-default)' }}>
             {COLUMNS.map((col) => (
               <th
                 key={col.key}
                 onClick={col.sortable ? () => toggleSort(col.key) : undefined}
                 className={[
-                  'px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap select-none transition-colors duration-150',
+                  'px-4 py-3 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap select-none transition-colors duration-150',
                   col.align === 'right' ? 'text-right' : 'text-left',
-                  col.sortable ? 'cursor-pointer hover:text-slate-700 hover:bg-slate-50/50' : '',
+                  col.sortable ? 'cursor-pointer hover:text-gray-600 hover:bg-gray-100/60' : '',
                 ].join(' ')}
                 style={{
                   color: 'var(--text-tertiary)',
@@ -377,10 +378,10 @@ export default function CostbookTable({
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-500">
-                      Keine Kostenpositionen gefunden
+                      No cost items found
                     </p>
                     <p className="text-xs text-slate-400 mt-1">
-                      Passe die Filter an oder setze sie zurück, um Ergebnisse zu sehen.
+                      Adjust or reset the filters to see results.
                     </p>
                   </div>
                 </div>
@@ -394,6 +395,7 @@ export default function CostbookTable({
         {/* ------------------------------------------------------------------ */}
         <TableFooter totalAmount={grandTotal} itemCount={allItems.length} />
       </table>
+      </div>
     </div>
     </div>
   );

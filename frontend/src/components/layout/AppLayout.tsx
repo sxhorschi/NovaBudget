@@ -11,7 +11,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     <div className="flex min-h-screen flex-col bg-gray-50">
       <TopBar />
       <TabBar />
-      <main className="flex-1">{children}</main>
+      <main className="relative z-0 flex-1">{children}</main>
     </div>
   );
 };

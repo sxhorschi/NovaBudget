@@ -128,9 +128,9 @@ const FilterBar: React.FC<FilterBarProps> = ({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-150"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              Zurücksetzen
+              Reset
             </button>
-            <HelpTooltip text="Setzt alle Filter zurück und zeigt alle Positionen" />
+            <HelpTooltip text="Resets all filters and shows all items" />
           </span>
         )}
 
@@ -144,8 +144,8 @@ const FilterBar: React.FC<FilterBarProps> = ({
         {filteredCount != null && totalCount != null && (
           <span className="text-xs text-gray-400 tabular-nums whitespace-nowrap">
             {filteredCount === totalCount
-              ? `${totalCount} Positionen`
-              : `${filteredCount} von ${totalCount} Positionen`}
+              ? `${totalCount} items`
+              : `${filteredCount} of ${totalCount} items`}
           </span>
         )}
       </div>

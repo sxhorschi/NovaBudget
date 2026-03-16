@@ -32,29 +32,29 @@ export default function WorkAreaRow({
     <tr
       onClick={onToggle}
       data-workarea-name={name}
-      className="group cursor-pointer transition-colors duration-150 border-b hover:bg-slate-100/60"
+      className="group cursor-pointer transition-colors duration-150 border-b bg-white hover:bg-gray-50/80"
       style={{
-        backgroundColor: 'rgba(248, 250, 252, 0.5)',
         borderBottomColor: 'var(--border-default)',
         borderLeft: `4px solid ${accentColor}40`,
       }}
     >
       {/* Name with chevron */}
-      <td colSpan={5} className="pl-9 pr-4 py-2.5 text-sm font-medium text-slate-700">
+      <td colSpan={5} className="pl-9 pr-4 py-2.5">
         <span className="inline-flex items-center gap-1.5">
           <ChevronRight
             size={14}
             className="text-slate-400 shrink-0 transition-transform duration-200 ease-out"
             style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
           />
-          {name}
-          <span className="text-xs font-normal text-slate-400 tabular-nums ml-1">
-            ({itemCount})
+          <span className="font-semibold text-gray-700 text-sm">{name}</span>
+          {/* Item count badge */}
+          <span className="bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded-full tabular-nums ml-1">
+            {itemCount}
           </span>
         </span>
       </td>
 
-      {/* Subtotal + item count */}
+      {/* Subtotal */}
       <td className="px-4 py-2.5 text-right whitespace-nowrap">
         <span className="font-mono tabular-nums text-sm font-medium text-slate-700">
           {format(total)}
@@ -71,8 +71,8 @@ export default function WorkAreaRow({
                 onOpenContext();
               }}
               className={contextActionButtonClass}
-              title="Kategorie bearbeiten"
-              aria-label="Kategorie bearbeiten"
+              title="Edit category"
+              aria-label="Edit category"
             >
               <Pencil size={14} />
             </button>

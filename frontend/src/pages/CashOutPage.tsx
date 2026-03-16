@@ -44,17 +44,17 @@ const MONTHS = [
 ];
 
 const MONTH_LABELS: Record<string, string> = {
-  '2026-02': 'Feb 26', '2026-03': 'Mrz 26', '2026-04': 'Apr 26',
-  '2026-05': 'Mai 26', '2026-06': 'Jun 26', '2026-07': 'Jul 26',
-  '2026-08': 'Aug 26', '2026-09': 'Sep 26', '2026-10': 'Okt 26',
-  '2026-11': 'Nov 26', '2026-12': 'Dez 26', '2027-01': 'Jan 27',
+  '2026-02': 'Feb 26', '2026-03': 'Mar 26', '2026-04': 'Apr 26',
+  '2026-05': 'May 26', '2026-06': 'Jun 26', '2026-07': 'Jul 26',
+  '2026-08': 'Aug 26', '2026-09': 'Sep 26', '2026-10': 'Oct 26',
+  '2026-11': 'Nov 26', '2026-12': 'Dec 26', '2027-01': 'Jan 27',
 };
 
 const MONTH_SHORT: Record<string, string> = {
-  '2026-02': 'Feb', '2026-03': 'Mrz', '2026-04': 'Apr',
-  '2026-05': 'Mai', '2026-06': 'Jun', '2026-07': 'Jul',
-  '2026-08': 'Aug', '2026-09': 'Sep', '2026-10': 'Okt',
-  '2026-11': 'Nov', '2026-12': 'Dez', '2027-01': 'Jan',
+  '2026-02': 'Feb', '2026-03': 'Mar', '2026-04': 'Apr',
+  '2026-05': 'May', '2026-06': 'Jun', '2026-07': 'Jul',
+  '2026-08': 'Aug', '2026-09': 'Sep', '2026-10': 'Oct',
+  '2026-11': 'Nov', '2026-12': 'Dec', '2027-01': 'Jan',
 };
 
 const DEPT_COLORS: Record<number, string> = {
@@ -415,11 +415,11 @@ const CashOutPage: React.FC = () => {
         {filteredItems.length === 0 && (
           <EmptyState
             icon={BarChart3}
-            title="Keine Cash-Out Daten vorhanden"
-            description="Fuer die aktuelle Filterauswahl gibt es keine Kostenpositionen. Passe die Filter an oder setze sie zurueck."
+            title="No cash-out data available"
+            description="No cost items found for the current filter selection. Adjust or reset the filters."
             action={
               hasActiveFilters
-                ? { label: 'Filter zuruecksetzen', onClick: resetFilters }
+                ? { label: 'Reset filters', onClick: resetFilters }
                 : undefined
             }
           />
@@ -435,7 +435,7 @@ const CashOutPage: React.FC = () => {
                 <div>
                   <h2 className="text-base font-semibold text-gray-900">Cash-Out Timeline</h2>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Monatlicher Cash-Out nach Abteilung — Feb 2026 bis Jan 2027
+                    Monthly cash-out by department — Feb 2026 to Jan 2027
                   </p>
                 </div>
                 {/* Clickable legend */}
@@ -468,7 +468,7 @@ const CashOutPage: React.FC = () => {
                       className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                     >
                       <FilterX className="w-3 h-3" />
-                      Alle
+                      All
                     </button>
                   )}
                 </div>
@@ -556,7 +556,7 @@ const CashOutPage: React.FC = () => {
                                 );
                               })}
                             <div className="border-t border-gray-200 mt-1.5 pt-1.5 flex justify-between font-semibold text-gray-900">
-                              <span>Gesamt</span>
+                              <span>Total</span>
                               <span className="tabular-nums">{formatEur(total)}</span>
                             </div>
                           </div>
@@ -607,7 +607,7 @@ const CashOutPage: React.FC = () => {
                       />
                     </div>
                     <p className="text-[10px] text-gray-400 mt-1 tabular-nums">
-                      {q.pct}% des Gesamtbudgets
+                      {q.pct}% of total budget
                     </p>
                   </div>
                 ))}
@@ -625,11 +625,11 @@ const CashOutPage: React.FC = () => {
             <div className="lg:col-span-3 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
               <div className="px-5 pt-4 pb-2">
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-sm font-semibold text-gray-900">Monats-Heatmap</h3>
-                  <HelpTooltip text="Farbintensitaet zeigt die Hoehe des monatlichen Geldabflusses. Klicke auf eine Zelle, um zur Costbook-Ansicht zu springen." />
+                  <h3 className="text-sm font-semibold text-gray-900">Monthly Heatmap</h3>
+                  <HelpTooltip text="Color intensity shows the level of monthly cash outflow. Click a cell to jump to the Costbook view." />
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Abteilungen x Monate — Farbintensitaet proportional zum Betrag
+                  Departments x months — color intensity proportional to amount
                 </p>
               </div>
               <div className="overflow-x-auto">
@@ -637,7 +637,7 @@ const CashOutPage: React.FC = () => {
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/80">
                       <th className="px-3 py-2 text-left font-semibold text-gray-600 uppercase tracking-wider sticky left-0 bg-gray-50/80 z-10 min-w-[130px]">
-                        Abteilung
+                        Department
                       </th>
                       {MONTHS.map((m, colIdx) => {
                         const isCurrent = m === CURRENT_MONTH;
@@ -710,7 +710,7 @@ const CashOutPage: React.FC = () => {
                                   navigateToCostbook(row.department.id, m);
                                 }
                               }}
-                              title={val > 0 ? `${row.department.name} / ${MONTH_LABELS[m]}: ${formatEur(val)} — Klicken fuer Details` : '-'}
+                              title={val > 0 ? `${row.department.name} / ${MONTH_LABELS[m]}: ${formatEur(val)} — Click for details` : '-'}
                             >
                               {val > 0 ? fmtCompact(val) : (
                                 <span className="text-gray-300">—</span>
@@ -727,7 +727,7 @@ const CashOutPage: React.FC = () => {
                   <tfoot>
                     <tr className="border-t-2 border-gray-300 bg-gray-50/80 font-bold">
                       <td className="px-3 py-2 text-gray-900 sticky left-0 bg-gray-50/80 z-10">
-                        Gesamt
+                        Total
                       </td>
                       {MONTHS.map((m, colIdx) => {
                         const isCurrent = m === CURRENT_MONTH;
@@ -753,7 +753,7 @@ const CashOutPage: React.FC = () => {
               </div>
               {/* Heatmap color scale legend */}
               <div className="px-5 py-3 border-t border-gray-100 flex items-center gap-3">
-                <span className="text-[10px] text-gray-400 uppercase tracking-wider">Skala</span>
+                <span className="text-[10px] text-gray-400 uppercase tracking-wider">Scale</span>
                 <div className="flex items-center gap-0.5">
                   {[0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1].map((t) => (
                     <div
@@ -779,7 +779,7 @@ const CashOutPage: React.FC = () => {
                   </div>
                   <div>
                     <h4 className="text-sm font-semibold text-gray-900">Peak Month</h4>
-                    <p className="text-[10px] text-gray-500">Hoechster monatlicher Cash-Out</p>
+                    <p className="text-[10px] text-gray-500">Highest monthly cash-out</p>
                   </div>
                 </div>
                 <p className="text-2xl font-bold text-indigo-700 tabular-nums mt-1">
@@ -788,7 +788,7 @@ const CashOutPage: React.FC = () => {
                 <p className="text-xs text-gray-600 mt-1">
                   <span className="font-semibold text-indigo-600">{peakMonth.label}</span>
                   {' '}— {columnTotals.__total > 0
-                    ? `${Math.round((peakMonth.value / columnTotals.__total) * 100)}% des Gesamtvolumens`
+                    ? `${Math.round((peakMonth.value / columnTotals.__total) * 100)}% of total volume`
                     : ''}
                 </p>
               </div>
@@ -800,8 +800,8 @@ const CashOutPage: React.FC = () => {
                     <Calendar className="w-4 h-4 text-blue-600" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900">Naechste 3 Monate</h4>
-                    <p className="text-[10px] text-gray-500">Erwarteter Cash-Out nach Abteilung</p>
+                    <h4 className="text-sm font-semibold text-gray-900">Next 3 Months</h4>
+                    <p className="text-[10px] text-gray-500">Expected cash-out by department</p>
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -811,7 +811,7 @@ const CashOutPage: React.FC = () => {
                         <div className="flex items-baseline gap-2">
                           <span className="text-sm font-semibold text-gray-800">{um.label}</span>
                           <span className="text-[10px] text-gray-400">
-                            {um.itemCount} Position{um.itemCount !== 1 ? 'en' : ''}
+                            {um.itemCount} item{um.itemCount !== 1 ? 's' : ''}
                           </span>
                         </div>
                         <span className="text-sm font-bold tabular-nums text-gray-900">
@@ -844,7 +844,7 @@ const CashOutPage: React.FC = () => {
                 </div>
                 {/* Upcoming total */}
                 <div className="mt-4 pt-3 border-t border-gray-200 flex justify-between">
-                  <span className="text-xs font-semibold text-gray-600">Summe 3 Monate</span>
+                  <span className="text-xs font-semibold text-gray-600">3-month total</span>
                   <span className="text-sm font-bold tabular-nums text-indigo-700">
                     {formatEur(upcomingMonths.reduce((s, m) => s + m.total, 0))}
                   </span>
@@ -880,9 +880,9 @@ const CashOutPage: React.FC = () => {
                       <Tooltip
                         formatter={(value: any, name: any) => {
                           const labels: Record<string, string> = {
-                            planned: 'Geplant',
-                            actual: 'Ist',
-                            remaining: 'Verbleibend',
+                            planned: 'Planned',
+                            actual: 'Actual',
+                            remaining: 'Remaining',
                           };
                           return [formatEur(Number(value)), labels[name] ?? name];
                         }}
@@ -924,7 +924,7 @@ const CashOutPage: React.FC = () => {
                   </ResponsiveContainer>
                 ) : (
                   <div className="h-[180px] flex items-center justify-center text-gray-400 text-sm">
-                    Keine Daten vorhanden
+                    No data available
                   </div>
                 )}
               </div>
@@ -942,9 +942,9 @@ const CashOutPage: React.FC = () => {
               className="w-full flex items-center justify-between px-5 py-3 rounded-xl border border-gray-200 bg-white shadow-sm hover:bg-gray-50 transition-colors"
             >
               <span className="text-sm font-semibold text-gray-900">
-                Details anzeigen
+                Show details
                 <span className="text-gray-400 font-normal ml-2">
-                  ({detailItems.length} Positionen)
+                  ({detailItems.length} items)
                 </span>
               </span>
               {detailsOpen ? (
@@ -970,10 +970,10 @@ const CashOutPage: React.FC = () => {
                           className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:text-gray-900 select-none"
                           onClick={() => toggleSort('department')}
                         >
-                          Abteilung {sortIcon('department')}
+                          Department {sortIcon('department')}
                         </th>
                         <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[280px]">
-                          Beschreibung
+                          Description
                         </th>
                         <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           Status
@@ -982,7 +982,7 @@ const CashOutPage: React.FC = () => {
                           className="px-4 py-2.5 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:text-gray-900 select-none"
                           onClick={() => toggleSort('amount')}
                         >
-                          Betrag {sortIcon('amount')}
+                          Amount {sortIcon('amount')}
                         </th>
                       </tr>
                     </thead>
@@ -1030,7 +1030,7 @@ const CashOutPage: React.FC = () => {
                     <tfoot>
                       <tr className="border-t-2 border-gray-300 bg-gray-50/80 font-bold">
                         <td colSpan={4} className="px-4 py-2.5 text-gray-900">
-                          Gesamt ({detailItems.length} Positionen)
+                          Total ({detailItems.length} items)
                         </td>
                         <td className="px-4 py-2.5 text-right tabular-nums text-indigo-700">
                           {formatEur(

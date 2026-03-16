@@ -92,11 +92,11 @@ export interface BudgetAdjustment {
 }
 
 export const ADJUSTMENT_CATEGORY_LABELS: Record<AdjustmentCategory, string> = {
-  product_change: 'Produktaenderung',
-  supplier_change: 'Lieferantenwechsel',
-  scope_change: 'Scope-Aenderung',
-  optimization: 'Optimierung',
-  other: 'Sonstiges',
+  product_change: 'Product Change',
+  supplier_change: 'Supplier Change',
+  scope_change: 'Scope Change',
+  optimization: 'Optimization',
+  other: 'Other',
 };
 
 export const ADJUSTMENT_CATEGORY_COLORS: Record<AdjustmentCategory, string> = {
@@ -133,11 +133,11 @@ export interface AttachmentList {
 }
 
 export const ATTACHMENT_TYPE_LABELS: Record<AttachmentType, string> = {
-  OFFER: 'Angebot',
-  INVOICE: 'Rechnung',
-  SPECIFICATION: 'Spezifikation',
-  PHOTO: 'Foto',
-  OTHER: 'Sonstiges',
+  OFFER: 'Offer',
+  INVOICE: 'Invoice',
+  SPECIFICATION: 'Specification',
+  PHOTO: 'Photo',
+  OTHER: 'Other',
 };
 
 // --- Summary types ---
@@ -174,12 +174,12 @@ export const PHASE_LABELS: Record<ProjectPhase, string> = {
 
 export const STATUS_LABELS: Record<ApprovalStatus, string> = {
   open: 'Open',
-  submitted_for_approval: 'Submitted',
+  submitted_for_approval: 'Submitted for Approval',
   approved: 'Approved',
   rejected: 'Rejected',
   on_hold: 'On Hold',
-  pending_supplier_negotiation: 'Pending Supplier',
-  pending_technical_clarification: 'Pending Technical',
+  pending_supplier_negotiation: 'Pending Supplier Negotiation',
+  pending_technical_clarification: 'Pending Technical Clarification',
   obsolete: 'Obsolete',
 };
 
@@ -223,8 +223,8 @@ export const COST_BASIS_LABELS: Record<CostBasis, string> = {
 export const COST_DRIVER_LABELS: Record<CostDriver, string> = {
   product: 'Product',
   process: 'Process',
-  new_req_assembly: 'New Req. Assembly',
-  new_req_testing: 'New Req. Testing',
+  new_req_assembly: 'Assembly Requirements',
+  new_req_testing: 'Testing Requirements',
   initial_setup: 'Initial Setup',
 };
 

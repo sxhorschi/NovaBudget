@@ -1,24 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Download, ChevronDown, FileSpreadsheet, PieChart, ClipboardList, Loader2 } from 'lucide-react';
+import { Download, ChevronDown, FileSpreadsheet, PieChart, ClipboardList, Loader2, Upload } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { USE_MOCKS } from '../../mocks/data';
 import { useBudgetData } from '../../context/BudgetDataContext';
 import client from '../../api/client';
 import { exportStandard, exportFinance, exportSteeringCommittee } from '../../services/clientExport';
 import { useToast } from '../common/ToastProvider';
-
-const LS_FINANCE_EXPORT_FACTOR = 'settings_finance_export_factor';
-
-function getFinanceExportFactor(): number {
-  const raw = localStorage.getItem(LS_FINANCE_EXPORT_FACTOR)
-    ?? localStorage.getItem('settings_factor_085')
-    ?? '0.85';
-
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) {
-    return 0.85;
-  }
-  return Math.min(Math.max(parsed, 0), 1);
-}
+import { useDisplaySettings } from '../../context/DisplaySettingsContext';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,20 +22,20 @@ const EXPORT_OPTIONS: {
 }[] = [
   {
     key: 'standard',
-    label: 'Excel Export (aktuelle Ansicht)',
-    description: 'Gefilterte Cost Items mit Work Area Subtotals',
+    label: 'Excel Export (current view)',
+    description: 'Filtered cost items with work area subtotals',
     icon: <FileSpreadsheet size={16} className="text-green-600" />,
   },
   {
     key: 'finance',
     label: 'Finance Template',
-    description: 'BudgetTemplate mit monatlicher Cash-Out-Verteilung',
+    description: 'Budget template with monthly cash-out distribution',
     icon: <PieChart size={16} className="text-blue-600" />,
   },
   {
     key: 'steering-committee',
     label: 'Steering Committee Report',
-    description: 'Budget-Übersicht, Top Items, Risiken, Cash-Out',
+    description: 'Budget overview, top items, risks, cash-out',
     icon: <ClipboardList size={16} className="text-indigo-600" />,
   },
 ];
@@ -86,9 +74,11 @@ function buildExportPath(type: ExportType, budgetFactor?: number): string {
 
 const ExportMenu: React.FC = () => {
   const { departments: allDepartments, workAreas: allWorkAreas, costItems: allCostItems } = useBudgetData();
+  const { financeBudgetFactor } = useDisplaySettings();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState<ExportType | null>(null);
   const toast = useToast();
+  const navigate = useNavigate();
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -131,7 +121,7 @@ const ExportMenu: React.FC = () => {
               exportStandard(departments, workAreas, items);
               break;
             case 'finance':
-              exportFinance(departments, workAreas, items, getFinanceExportFactor());
+              exportFinance(departments, workAreas, items, financeBudgetFactor);
               break;
             case 'steering-committee': {
               const approved = items.filter(i => i.approval_status === 'approved');
@@ -152,9 +142,9 @@ const ExportMenu: React.FC = () => {
             }
           }
 
-          toast.success('Export heruntergeladen');
+          toast.success('Export downloaded');
         } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Export fehlgeschlagen';
+          const msg = err instanceof Error ? err.message : 'Export failed';
           toast.error(msg);
         } finally {
           setLoading(null);
@@ -164,7 +154,7 @@ const ExportMenu: React.FC = () => {
 
       setLoading(type);
       try {
-        const factor = type === 'finance' ? getFinanceExportFactor() : undefined;
+        const factor = type === 'finance' ? financeBudgetFactor : undefined;
         const path = buildExportPath(type, factor);
         const response = await client.get(path, { responseType: 'blob' });
 
@@ -188,15 +178,15 @@ const ExportMenu: React.FC = () => {
         document.body.removeChild(a);
         URL.revokeObjectURL(downloadUrl);
 
-        toast.success('Export erfolgreich heruntergeladen');
+        toast.success('Export downloaded successfully');
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Export fehlgeschlagen';
+        const msg = err instanceof Error ? err.message : 'Export failed';
         toast.error(msg);
       } finally {
         setLoading(null);
       }
     },
-    [toast],
+    [toast, allDepartments, allWorkAreas, allCostItems, financeBudgetFactor],
   );
 
   return (
@@ -205,7 +195,7 @@ const ExportMenu: React.FC = () => {
         <button
           type="button"
           onClick={() => setOpen((p) => !p)}
-          className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:border-gray-300"
+          className={`inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium shadow-sm transition-all hover:shadow hover:border-indigo-200 hover:text-indigo-600 ${open ? 'text-indigo-600 border-indigo-200' : 'text-gray-700'}`}
         >
           {loading ? (
             <Loader2 size={14} className="animate-spin" />
@@ -218,10 +208,10 @@ const ExportMenu: React.FC = () => {
 
         {/* Dropdown */}
         {open && (
-          <div className="absolute right-0 top-full mt-1 w-80 rounded-lg border border-gray-200 bg-white shadow-lg z-50">
-            <div className="px-3 py-2 border-b border-gray-100">
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Daten exportieren
+          <div className="absolute right-0 top-full mt-1 w-80 rounded-2xl border border-gray-100 bg-white shadow-2xl z-50 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-50 bg-gradient-to-r from-gray-50 to-white">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Export Data
               </span>
             </div>
             <div className="py-1">
@@ -231,7 +221,7 @@ const ExportMenu: React.FC = () => {
                   type="button"
                   onClick={() => handleExport(opt.key)}
                   disabled={loading !== null}
-                  className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-gray-50 disabled:opacity-50"
+                  className="flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors hover:bg-indigo-50/60 disabled:opacity-50"
                 >
                   <div className="mt-0.5 shrink-0">{opt.icon}</div>
                   <div className="min-w-0">
@@ -243,10 +233,25 @@ const ExportMenu: React.FC = () => {
                   )}
                 </button>
               ))}
+              <div className="border-t border-dashed border-gray-200 mt-1 pt-1" />
+              <button
+                type="button"
+                onClick={() => { setOpen(false); navigate('/import'); }}
+                disabled={loading !== null}
+                className="flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors hover:bg-indigo-50/60 disabled:opacity-50"
+              >
+                <div className="mt-0.5 shrink-0">
+                  <Upload size={16} className="text-amber-500" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-gray-800">Import Excel</div>
+                  <div className="text-xs text-gray-500 mt-0.5">Import budget data from an Excel file</div>
+                </div>
+              </button>
             </div>
-            <div className="px-3 py-1.5 border-t border-gray-100">
+            <div className="px-4 py-2 border-t border-gray-100 bg-gray-50/50">
               <span className="text-[10px] text-gray-400">
-                Tastenkürzel: Ctrl+E
+                Shortcut: Ctrl+E
               </span>
             </div>
           </div>

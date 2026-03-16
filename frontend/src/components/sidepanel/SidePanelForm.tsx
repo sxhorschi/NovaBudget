@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Percent, Euro, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import type {
   CostItem,
   ProjectPhase,
@@ -32,8 +32,8 @@ function formatEur(value: number): string {
 }
 
 function deltaColor(delta: number): string {
-  if (delta > 0) return 'text-green-600';
-  if (delta < 0) return 'text-red-600';
+  if (delta > 0) return 'text-red-600';
+  if (delta < 0) return 'text-green-600';
   return 'text-gray-500';
 }
 
@@ -79,7 +79,7 @@ const FormSection: React.FC<FormSectionProps> = ({ title, defaultOpen, children 
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-1.5 w-full text-left group py-2 border-b border-gray-100"
+        className="flex items-center gap-1.5 w-full text-left group py-2 border-l-2 border-indigo-300 pl-2 hover:bg-gray-50 rounded-r transition-colors"
       >
         {isOpen ? (
           <ChevronDown size={13} className="text-gray-400 group-hover:text-gray-600 transition-colors flex-shrink-0" />
@@ -90,7 +90,7 @@ const FormSection: React.FC<FormSectionProps> = ({ title, defaultOpen, children 
           {title}
         </span>
       </button>
-      {isOpen && <div className="pt-3 pb-1">{children}</div>}
+      {isOpen && <div className="pt-4 pb-2">{children}</div>}
     </div>
   );
 };
@@ -150,6 +150,77 @@ const EurAmountInput: React.FC<EurAmountInputProps> = ({ value, onChange, classN
 };
 
 // ---------------------------------------------------------------------------
+// Percent Adjust Input — shows a % suffix, calculates absolute from original
+// ---------------------------------------------------------------------------
+
+interface PercentAmountInputProps {
+  originalAmount: number;
+  onChange: (value: number) => void;
+  className?: string;
+}
+
+const PercentAmountInput: React.FC<PercentAmountInputProps> = ({
+  originalAmount,
+  onChange,
+  className,
+}) => {
+  const [pctInput, setPctInput] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus on mount
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const parsedPct = pctInput === '' || pctInput === '-' ? null : Number(pctInput);
+  const calculatedValue =
+    parsedPct !== null && !isNaN(parsedPct)
+      ? Math.round(originalAmount * (1 + parsedPct / 100))
+      : null;
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    // Allow minus sign, digits only (integer percentages)
+    if (raw === '' || raw === '-' || /^-?\d{0,4}$/.test(raw)) {
+      setPctInput(raw);
+      const num = raw === '' || raw === '-' ? null : Number(raw);
+      if (num !== null && !isNaN(num)) {
+        onChange(Math.round(originalAmount * (1 + num / 100)));
+      }
+    }
+  }, [originalAmount, onChange]);
+
+  return (
+    <div>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          inputMode="numeric"
+          className={`pr-8 ${className ?? ''}`}
+          value={pctInput}
+          onChange={handleChange}
+          placeholder="e.g. -10"
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium pointer-events-none select-none">
+          %
+        </span>
+      </div>
+      {calculatedValue !== null && (
+        <p className="mt-1 text-xs text-gray-500 tabular-nums">
+          = {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(calculatedValue)}
+        </p>
+      )}
+      {pctInput === '' && (
+        <p className="mt-1 text-xs text-gray-400">
+          Positive = increase, negative = decrease
+        </p>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Status Select with color dots
 // ---------------------------------------------------------------------------
 
@@ -189,11 +260,11 @@ const StatusSelect: React.FC<StatusSelectProps> = ({ value, onChange, className 
 
 const labelClass = 'text-xs font-medium text-gray-500 block mb-1';
 const inputClass =
-  'w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-colors';
+  'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 focus:shadow-sm transition-colors';
 const selectClass =
-  'w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-colors appearance-none cursor-pointer';
+  'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 focus:shadow-sm transition-colors appearance-none cursor-pointer';
 const readonlyInputClass =
-  'w-full rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600 tabular-nums';
+  'w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600 tabular-nums';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -212,6 +283,7 @@ interface SidePanelFormProps {
 
 const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onChange }) => {
   const delta = item.current_amount - item.original_amount;
+  const [amountMode, setAmountMode] = useState<'absolute' | 'percent'>('absolute');
 
   /** Returns extra CSS class if the field value differs from the original */
   function dirtyRing(field: keyof CostItem): string {
@@ -226,44 +298,89 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
       ? ((delta / item.original_amount) * 100).toFixed(1)
       : '0.0';
 
+  // Delta trend icon
+  const DeltaIcon = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus;
+
   return (
     <div className="space-y-0">
-      {/* ---- BETR\u00c4GE (always open) ---- */}
-      <FormSection title="Betr\u00e4ge" defaultOpen={true}>
-        <div className="grid grid-cols-3 gap-4">
-          {/* Original (readonly) */}
-          <div>
-            <label className={labelClass}>Original</label>
-            <div className={readonlyInputClass}>{formatEur(item.original_amount)}</div>
-          </div>
+      {/* ---- AMOUNTS (always open) ---- */}
+      <FormSection title="Amounts" defaultOpen={true}>
+        <div className="bg-gradient-to-br from-indigo-50/50 to-white rounded-xl border border-indigo-100/80 p-4">
+          <div className="grid grid-cols-3 gap-4">
+            {/* Original (readonly) */}
+            <div>
+              <label className={labelClass}>Original</label>
+              <div className={readonlyInputClass}>{formatEur(item.original_amount)}</div>
+            </div>
 
-          {/* Current (editable with EUR prefix + thousand separators) */}
-          <div>
-            <label className={labelClass}>Aktuell</label>
-            <EurAmountInput
-              value={item.current_amount}
-              onChange={(v) => onChange('current_amount', v)}
-              className={`${inputClass} tabular-nums${dirtyRing('current_amount')}`}
-            />
-          </div>
+            {/* Current (editable with EUR prefix + thousand separators, or % adjust) */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelClass} style={{ marginBottom: 0 }}>Current</label>
+                {/* Pill toggle: Absolute € / % Adjust */}
+                <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 p-0.5 gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setAmountMode('absolute')}
+                    title="Absolute amount"
+                    className={`inline-flex items-center justify-center w-6 h-5 rounded-full transition-colors duration-150 ${
+                      amountMode === 'absolute'
+                        ? 'bg-white text-indigo-600 shadow-sm'
+                        : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    <Euro size={11} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAmountMode('percent')}
+                    title="Percentage adjustment"
+                    className={`inline-flex items-center justify-center w-6 h-5 rounded-full transition-colors duration-150 ${
+                      amountMode === 'percent'
+                        ? 'bg-white text-indigo-600 shadow-sm'
+                        : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    <Percent size={11} />
+                  </button>
+                </span>
+              </div>
+              {amountMode === 'absolute' ? (
+                <EurAmountInput
+                  value={item.current_amount}
+                  onChange={(v) => onChange('current_amount', v)}
+                  className={`${inputClass} tabular-nums${dirtyRing('current_amount')}`}
+                />
+              ) : (
+                <PercentAmountInput
+                  originalAmount={item.original_amount}
+                  onChange={(v) => onChange('current_amount', v)}
+                  className={`${inputClass} tabular-nums${dirtyRing('current_amount')}`}
+                />
+              )}
+            </div>
 
-          {/* Delta (calculated) */}
-          <div>
-            <label className={labelClass}>Delta</label>
-            <div className={`${readonlyInputClass} ${deltaColor(delta)}`}>
-              {deltaPrefix(delta)}
-              {formatEur(delta)}{' '}
-              <span className="text-xs">
-                ({deltaPrefix(delta)}
-                {deltaPct}%)
-              </span>
+            {/* Delta (calculated) with trend icon */}
+            <div>
+              <label className={labelClass}>Delta</label>
+              <div className={`${readonlyInputClass} ${deltaColor(delta)} flex items-center gap-1`}>
+                <DeltaIcon size={13} className="flex-shrink-0" />
+                <span className="tabular-nums">
+                  {deltaPrefix(delta)}
+                  {formatEur(delta)}{' '}
+                  <span className="text-xs">
+                    ({deltaPrefix(delta)}
+                    {deltaPct}%)
+                  </span>
+                </span>
+              </div>
             </div>
           </div>
         </div>
       </FormSection>
 
-      {/* ---- KLASSIFIZIERUNG (default open) ---- */}
-      <FormSection title="Klassifizierung" defaultOpen={true}>
+      {/* ---- CLASSIFICATION (default open) ---- */}
+      <FormSection title="Classification" defaultOpen={true}>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>Phase</label>
@@ -283,7 +400,7 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
           </div>
 
           <div>
-            <label className={labelClass}>Produkt</label>
+            <label className={labelClass}>Product</label>
             <select
               className={`${selectClass}${dirtyRing('product')}`}
               value={item.product}
@@ -298,7 +415,7 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
           </div>
 
           <div>
-            <label className={labelClass}>Kostenbasis</label>
+            <label className={labelClass}>Cost Basis</label>
             <select
               className={`${selectClass}${dirtyRing('cost_basis')}`}
               value={item.cost_basis}
@@ -315,7 +432,7 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
           </div>
 
           <div>
-            <label className={labelClass}>Kostentreiber</label>
+            <label className={labelClass}>Cost Driver</label>
             <select
               className={`${selectClass}${dirtyRing('cost_driver')}`}
               value={item.cost_driver}
@@ -333,8 +450,8 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
         </div>
       </FormSection>
 
-      {/* ---- FREIGABE (default open) ---- */}
-      <FormSection title="Freigabe" defaultOpen={true}>
+      {/* ---- APPROVAL (default open) ---- */}
+      <FormSection title="Approval" defaultOpen={true}>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>Status</label>
@@ -346,7 +463,7 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
           </div>
 
           <div>
-            <label className={labelClass}>Freigabedatum</label>
+            <label className={labelClass}>Approval Date</label>
             <input
               type="date"
               className={`${inputClass}${dirtyRing('approval_date')}`}
@@ -359,8 +476,8 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
         </div>
       </FormSection>
 
-      {/* ---- ZIELANPASSUNG / BUDGET-WIRKSAM (default closed, opens when active) ---- */}
-      <FormSection title="Zielanpassung" defaultOpen={item.zielanpassung}>
+      {/* ---- TARGET ADJUSTMENT / BUDGET RELEVANT (default closed, opens when active) ---- */}
+      <FormSection title="Target Adjustment" defaultOpen={item.zielanpassung}>
         <div className="space-y-3">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -369,15 +486,15 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
               onChange={(e) => onChange('zielanpassung', e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
             />
-            <span className="text-sm text-gray-700">Budget-wirksam</span>
+            <span className="text-sm text-gray-700">Budget Relevant</span>
           </label>
           {item.zielanpassung && (
             <div>
-              <label className={labelClass}>Begr\u00fcndung</label>
+              <label className={labelClass}>Reason</label>
               <textarea
                 className={`${inputClass} resize-none`}
                 rows={2}
-                placeholder="Begr\u00fcndung f\u00fcr die Zielanpassung..."
+                placeholder="Reason for target adjustment..."
                 value={item.zielanpassung_reason}
                 onChange={(e) => onChange('zielanpassung_reason', e.target.value)}
               />
@@ -388,9 +505,9 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
 
       {/* ---- DETAILS (default closed) ---- */}
       <FormSection title="Details" defaultOpen={false}>
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div>
-            <label className={labelClass}>Basisbeschreibung</label>
+            <label className={labelClass}>Basis Description</label>
             <input
               type="text"
               className={`${inputClass}${dirtyRing('basis_description')}`}
@@ -402,7 +519,7 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
           </div>
 
           <div>
-            <label className={labelClass}>Annahmen</label>
+            <label className={labelClass}>Assumptions</label>
             <textarea
               className={`${inputClass} resize-none${dirtyRing('assumptions')}`}
               rows={2}
@@ -412,7 +529,7 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
           </div>
 
           <div>
-            <label className={labelClass}>Kommentare</label>
+            <label className={labelClass}>Comments</label>
             <textarea
               className={`${inputClass} resize-none${dirtyRing('comments')}`}
               rows={3}
@@ -422,7 +539,7 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
           </div>
 
           <div>
-            <label className={labelClass}>Erwarteter Zahlungsausgang</label>
+            <label className={labelClass}>Expected Cash-Out</label>
             <input
               type="month"
               className={`${inputClass}${dirtyRing('expected_cash_out')}`}

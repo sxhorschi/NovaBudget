@@ -93,7 +93,7 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
   // Fetch attachments
   const fetchAttachments = useCallback(async () => {
     if (USE_MOCKS) {
-      // Im Mock-Modus keine API-Aufrufe — lokaler State reicht
+      // In mock mode no API calls — local state is sufficient
       setLoading(false);
       return;
     }
@@ -103,7 +103,7 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
       const result = await getAttachments({ costItemId });
       setAttachments(result.items);
     } catch {
-      setError('Anhänge konnten nicht geladen werden.');
+      setError('Attachments could not be loaded.');
     } finally {
       setLoading(false);
     }
@@ -125,7 +125,7 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
       setError(null);
       try {
         if (USE_MOCKS) {
-          // Mock-Modus: Datei nur lokal in den State aufnehmen
+          // Mock mode: add file to local state only
           const now = new Date().toISOString();
           const newAttachments: Attachment[] = Array.from(files).map((file) => ({
             id: `mock-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -155,7 +155,7 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
         }
       } catch (err: unknown) {
         const message =
-          err instanceof Error ? err.message : 'Upload fehlgeschlagen.';
+          err instanceof Error ? err.message : 'Upload failed.';
         setError(message);
       } finally {
         setUploading(false);
@@ -167,7 +167,7 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
   // Delete handler
   const handleDelete = useCallback(
     async (id: string) => {
-      if (!window.confirm('Anhang wirklich löschen?')) return;
+      if (!window.confirm('Really delete this attachment?')) return;
       try {
         if (USE_MOCKS) {
           setAttachments((prev) => prev.filter((a) => a.id !== id));
@@ -176,7 +176,7 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
           setAttachments((prev) => prev.filter((a) => a.id !== id));
         }
       } catch {
-        setError('Löschen fehlgeschlagen.');
+        setError('Delete failed.');
       }
     },
     [],
@@ -233,7 +233,7 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
           className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded transition-colors disabled:opacity-50"
         >
           <Upload size={12} />
-          Hochladen
+          Upload
         </button>
         <input
           ref={fileInputRef}
@@ -269,20 +269,20 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
       >
         {isDragOver && (
           <p className="text-center text-sm text-indigo-600 font-medium py-2">
-            Datei hierher ziehen
+            Drop file here
           </p>
         )}
 
         {/* Loading */}
         {loading && !isDragOver && (
-          <p className="text-xs text-gray-400 py-2">Laden...</p>
+          <p className="text-xs text-gray-400 py-2">Loading...</p>
         )}
 
         {/* Uploading indicator */}
         {uploading && (
           <div className="flex items-center gap-2 py-2 px-2 text-xs text-indigo-600 bg-indigo-50 rounded mb-2">
             <div className="animate-spin h-3 w-3 border-2 border-indigo-600 border-t-transparent rounded-full" />
-            Wird hochgeladen...
+            Uploading...
           </div>
         )}
 
@@ -298,10 +298,10 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
           >
             <Paperclip size={16} className="mx-auto text-gray-300 mb-1" />
             <p className="text-xs text-gray-400">
-              Klicken oder Datei hierher ziehen
+              Click or drop file here
             </p>
             <p className="text-[10px] text-gray-300 mt-0.5">
-              PDF, Excel, Word, Bilder, ZIP (max. 50 MB)
+              PDF, Excel, Word, Images, ZIP (max. 50 MB)
             </p>
           </div>
         )}
@@ -344,14 +344,14 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
                   <button
                     onClick={() => downloadAttachment(att.id)}
                     className="p-1 rounded text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-                    title="Herunterladen"
+                    title="Download"
                   >
                     <Download size={14} />
                   </button>
                   <button
                     onClick={() => handleDelete(att.id)}
                     className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                    title="Löschen"
+                    title="Delete"
                   >
                     <Trash2 size={14} />
                   </button>

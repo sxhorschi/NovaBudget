@@ -88,42 +88,42 @@ export const statusColors = {
     text: '#475569',   // slate-600
     border: '#cbd5e1', // slate-300
     dot: '#94a3b8',    // slate-400
-    label: 'Entwurf',
+    label: 'Draft',
   },
   pending: {
     bg: '#fef3c7',     // amber-100
     text: '#92400e',   // amber-800
     border: '#fcd34d', // amber-300
     dot: '#f59e0b',    // amber-500
-    label: 'Ausstehend',
+    label: 'Pending',
   },
   inReview: {
     bg: '#dbeafe',     // blue-100
     text: '#1e40af',   // blue-800
     border: '#93c5fd', // blue-300
     dot: '#3b82f6',    // blue-500
-    label: 'In Prüfung',
+    label: 'In Review',
   },
   approved: {
     bg: '#dcfce7',     // green-100
     text: '#166534',   // green-800
     border: '#86efac', // green-300
     dot: '#22c55e',    // green-500
-    label: 'Genehmigt',
+    label: 'Approved',
   },
   rejected: {
     bg: '#fee2e2',     // red-100
     text: '#991b1b',   // red-800
     border: '#fca5a5', // red-300
     dot: '#ef4444',    // red-500
-    label: 'Abgelehnt',
+    label: 'Rejected',
   },
   onHold: {
     bg: '#f3e8ff',     // purple-100
     text: '#6b21a8',   // purple-800
     border: '#d8b4fe', // purple-300
     dot: '#a855f7',    // purple-500
-    label: 'Pausiert',
+    label: 'On Hold',
   },
 } as const;
 
@@ -166,35 +166,35 @@ export const budgetHealth = {
     bg: '#dcfce7',
     text: '#166534',
     bar: '#22c55e',
-    label: 'Im Rahmen',
+    label: 'On Track',
   },
   /** 60-80 % spent — caution */
   caution: {
     bg: '#fef9c3',
     text: '#854d0e',
     bar: '#eab308',
-    label: 'Achtung',
+    label: 'Caution',
   },
   /** 80-95 % spent — warning */
   warning: {
     bg: '#fef3c7',
     text: '#92400e',
     bar: '#f59e0b',
-    label: 'Warnung',
+    label: 'Warning',
   },
   /** 95-100 % spent — critical */
   critical: {
     bg: '#fee2e2',
     text: '#991b1b',
     bar: '#ef4444',
-    label: 'Kritisch',
+    label: 'Critical',
   },
   /** > 100 % — over budget */
   overBudget: {
     bg: '#fef2f2',
     text: '#7f1d1d',
     bar: '#b91c1c',
-    label: 'Überschritten',
+    label: 'Over Budget',
   },
 } as const;
 
