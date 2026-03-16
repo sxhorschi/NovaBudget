@@ -1,12 +1,12 @@
 # NovaDrive CAPEX Budget Tool
 
-<!-- TODO: Screenshot der Costbook-Ansicht einfuegen -->
+<!-- TODO: Screenshot der Costbook-Ansicht einfügen -->
 
 ## Was ist das?
 
-CAPEX Budget Management Tool fuer Fabrikaufbau-Projekte. Ersetzt Excel-basiertes Budget-Tracking mit einer modernen Web-App.
+CAPEX Budget Management Tool für Fabrikaufbau-Projekte. Ersetzt Excel-basiertes Budget-Tracking mit einer modernen Web-App.
 
-Entwickelt fuer **NovaDrive Motors** — ein EV-Startup das eine Produktionsstaette aufbaut und ~200 Kostenpositionen ueber 5 Departments tracken muss. Das Tool loest konkrete Probleme: dynamische Summen bei Filtern, nachvollziehbare Zielanpassungen, und ein Cash-Out Export der nicht 2 Stunden manuelle Arbeit bedeutet.
+Entwickelt für **NovaDrive Motors** — ein EV-Startup das eine Produktionsstaette aufbaut und ~200 Kostenpositionen über 5 Departments tracken muss. Das Tool löst konkrete Probleme: dynamische Summen bei Filtern, nachvollziehbare Zielanpassungen, und ein Cash-Out Export der nicht 2 Stunden manuelle Arbeit bedeutet.
 
 ## Features
 
@@ -17,11 +17,11 @@ Entwickelt fuer **NovaDrive Motors** — ein EV-Startup das eine Produktionsstae
 - **Budget Sankey Diagram** — Geldfluss-Visualisierung
 - **Budget Burndown + S-Curve** — Fortschritts-Tracking
 - **Excel Import/Export** + Finance Template Export + Steering Committee Export
-- **Side Panel** fuer Item-Details (ersetzt Modals)
-- **Command Palette** (Cmd+K) — globale Suche ueber Items, Departments, Aktionen
+- **Side Panel** für Item-Details (ersetzt Modals)
+- **Command Palette** (Cmd+K) — globale Suche über Items, Departments, Aktionen
 - **Datei-Anhaenge** — Angebote, Rechnungen, Specs pro Item/Work Area/Department
 - **Risk Tracking** — automatische Risikobewertung basierend auf Cost Basis und Status
-- **Keyboard Shortcuts** — J/K Navigation, N fuer neues Item, 1/2/3 fuer Tabs
+- **Keyboard Shortcuts** — J/K Navigation, N für neues Item, 1/2/3 für Tabs
 
 ## Quick Start
 
@@ -65,10 +65,10 @@ make dev          # Start mit Live-Reload (Development Mode)
 make up           # Start (Production Mode)
 make down         # Alle Services stoppen
 make logs         # Logs anzeigen
-make migrate      # Datenbank-Migrationen ausfuehren
+make migrate      # Datenbank-Migrationen ausführen
 make migration msg="add xyz"   # Neue Migration erstellen
-make seed         # Datenbank mit Testdaten befuellen
-make reset-db     # Datenbank komplett zuruecksetzen (Vorsicht!)
+make seed         # Datenbank mit Testdaten befüllen
+make reset-db     # Datenbank komplett zurücksetzen (Vorsicht!)
 ```
 
 ## Tech Stack
@@ -100,7 +100,7 @@ budget-tool/
 │   │   │   ├── summary/         # SummaryStrip, ProgressMicro
 │   │   │   └── visualization/   # Sankey, Burndown, SCurve, RiskMatrix
 │   │   ├── hooks/               # useFilterState, useFilteredData, useKeyboardShortcuts
-│   │   ├── mocks/               # Mock-Daten fuer Offline-Entwicklung
+│   │   ├── mocks/               # Mock-Daten für Offline-Entwicklung
 │   │   ├── pages/               # CostbookPage, CashOutPage, ImportPage
 │   │   ├── styles/              # Design Tokens
 │   │   └── types/               # TypeScript Interfaces (budget.ts)
@@ -147,7 +147,7 @@ npm run dev                      # Startet auf http://localhost:5173
 
 Der Frontend Dev-Server proxied API-Calls an `http://localhost:8000`.
 
-**Mock-Modus:** In `src/mocks/data.ts` ist `USE_MOCKS = true` gesetzt. Damit laeuft das Frontend komplett ohne Backend mit realistischen Testdaten.
+**Mock-Modus:** In `src/mocks/data.ts` ist `USE_MOCKS = true` gesetzt. Damit läuft das Frontend komplett ohne Backend mit realistischen Testdaten.
 
 ## Environment Variables
 
@@ -169,4 +169,4 @@ Details zu allen Endpoints: siehe [`docs/API.md`](docs/API.md)
 
 ## Architektur
 
-Siehe [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) fuer High-Level Architektur, Component Hierarchy und Data Flow.
+Siehe [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) für High-Level Architektur, Component Hierarchy und Data Flow.

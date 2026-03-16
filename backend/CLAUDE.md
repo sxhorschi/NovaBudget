@@ -1,6 +1,6 @@
-# Backend — Hinweise fuer Claude Code
+# Backend — Hinweise für Claude Code
 
-## Ueberblick
+## Überblick
 
 Python 3.12, FastAPI, SQLAlchemy 2.0 (async), PostgreSQL 16. Alle Routen unter `/api/v1/`.
 
@@ -72,7 +72,7 @@ class Department(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 - Immer `Mapped[T]` + `mapped_column()` verwenden, nicht das alte `Column()` Pattern.
 - `UUIDPrimaryKeyMixin` gibt automatisch `id: UUID` als Primary Key.
 - `TimestampMixin` gibt automatisch `created_at` und `updated_at`.
-- ForeignKeys mit `PG_UUID(as_uuid=True)` fuer PostgreSQL UUID Type.
+- ForeignKeys mit `PG_UUID(as_uuid=True)` für PostgreSQL UUID Type.
 
 ### Async Session
 
@@ -109,7 +109,7 @@ stmt = (
 
 - `*Create` — POST Body. Alle Pflichtfelder required, optionale mit Default.
 - `*Read` — GET Response. Alle Felder + `id` + `created_at` + `updated_at`. Immer `model_config = ConfigDict(from_attributes=True)`.
-- `*Update` — PUT Body. Alle Felder optional. Server nutzt `data.model_dump(exclude_unset=True)` fuer Partial Updates.
+- `*Update` — PUT Body. Alle Felder optional. Server nutzt `data.model_dump(exclude_unset=True)` für Partial Updates.
 
 ```python
 from pydantic import BaseModel, ConfigDict
@@ -144,7 +144,7 @@ Pydantic serialisiert/deserialisiert diese automatisch als Strings.
 # Neue Migration erstellen (autogenerate aus Model-Aenderungen)
 make migration msg="add attachments table"
 
-# Migrationen ausfuehren
+# Migrationen ausführen
 make migrate
 
 # Oder direkt:
@@ -153,11 +153,11 @@ docker compose exec backend alembic upgrade head
 ```
 
 **Workflow bei Model-Aenderungen:**
-1. Model in `app/models/` aendern
+1. Model in `app/models/` ändern
 2. Model in `app/models/__init__.py` importieren (falls neu)
-3. `make migration msg="..."` ausfuehren
-4. Generierte Migration in `alembic/versions/` pruefen
-5. `make migrate` ausfuehren
+3. `make migration msg="..."` ausführen
+4. Generierte Migration in `alembic/versions/` prüfen
+5. `make migrate` ausführen
 
 ## Neuen Endpoint anlegen
 
@@ -219,7 +219,7 @@ make migrate
 
 ## Enum-Konventionen
 
-- **Datei:** `app/models/enums.py` — zentral fuer alle Enums.
+- **Datei:** `app/models/enums.py` — zentral für alle Enums.
 - **Naming:** UPPER_CASE Werte, PascalCase Klassennamen.
 - **SQLAlchemy Type:** Fuer jedes Enum ein `SAEnum(...)` Type definieren (z.B. `ApprovalStatusType`).
 - **Wiederverwendung:** Enum Klasse in Schemas importieren, SAEnum Type in Models verwenden.
@@ -258,7 +258,7 @@ Es gibt auch ein `SessionDep` Type Alias in `app/db.py`, aber die meisten Router
 
 ## Services
 
-Business Logic gehoert in `app/services/`, nicht in die Router:
+Business Logic gehört in `app/services/`, nicht in die Router:
 
 - Router: HTTP-Handling, Validation, Response Formatting
 - Services: Datenbankabfragen, Berechnungen, Aggregation
@@ -283,10 +283,10 @@ docker compose exec backend pytest
 pytest
 ```
 
-## Haeufige Fallstricke
+## Häufige Fallstricke
 
-1. **Async vergessen** — Alle DB-Calls muessen `await` haben. `session.execute()` ohne `await` gibt ein Coroutine-Objekt zurueck, keine Daten.
-2. **Import-Reihenfolge** — Models muessen in `__init__.py` importiert sein, damit Alembic sie fuer Autogenerate findet.
+1. **Async vergessen** — Alle DB-Calls müssen `await` haben. `session.execute()` ohne `await` gibt ein Coroutine-Objekt zurück, keine Daten.
+2. **Import-Reihenfolge** — Models müssen in `__init__.py` importiert sein, damit Alembic sie für Autogenerate findet.
 3. **UUID-Format** — Backend nutzt Python `uuid.UUID`, Frontend sendet UUID-Strings. FastAPI konvertiert automatisch.
-4. **Decimal vs Float** — Finanzdaten sind `Decimal(15,2)` in der DB und in Pydantic. Keine Floats fuer Geldbetraege.
-5. **Cascade Delete** — `CostItem` hat `ondelete="CASCADE"` auf `work_area_id`. Beim Loeschen einer WorkArea werden alle Items mitgeloescht.
+4. **Decimal vs Float** — Finanzdaten sind `Decimal(15,2)` in der DB und in Pydantic. Keine Floats für Geldbeträge.
+5. **Cascade Delete** — `CostItem` hat `ondelete="CASCADE"` auf `work_area_id`. Beim Löschen einer WorkArea werden alle Items mitgeloescht.

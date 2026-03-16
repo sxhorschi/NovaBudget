@@ -26,12 +26,12 @@ Aus verschiedenen Quellen zusammengetragen:
 | Kategorie | Anteil (geschaetzt) | Beispiele |
 |---|---|---|
 | **Manufacturing Equipment** | 50-60% | Roboter, Montagelinien, Testequipment, Batterieassembly |
-| **Gebaude/Bau** | 20-30% | Fabrikhalle, Reinräume, Trockenkammern, Bueros |
+| **Gebäude/Bau** | 20-30% | Fabrikhalle, Reinräume, Trockenkammern, Büros |
 | **Infrastruktur/Utilities** | 10-15% | Strom, Wasser, HVAC, Abfall |
 | **IT/Automation** | 5-10% | MES, Netzwerk, Sicherheitssysteme |
 | **Sonstiges** | 3-5% | Umwelt-Compliance, Sicherheit, Erstausstattung |
 
-**Takeaway für TYTAN:** Equipment ist der größte Posten (50-60%). Das Budget-Tool muss hier die feinste Granularitaet bieten. Gebaude/Bau ist typischerweise ein Grossprojekt mit eigener Steuerung.
+**Takeaway für TYTAN:** Equipment ist der größte Posten (50-60%). Das Budget-Tool muss hier die feinste Granularität bieten. Gebäude/Bau ist typischerweise ein Großprojekt mit eigener Steuerung.
 
 ---
 
@@ -109,8 +109,8 @@ Typische Staffelung in der Industrie:
 EVM ist der Industriestandard für Fortschrittsmessung bei Investitionsprojekten:
 
 - **Planned Value (PV)** = Gesamtbudget x geplanter %-Fortschritt
-- **Earned Value (EV)** = Gesamtbudget x tatsaechlicher %-Fortschritt
-- **Actual Cost (AC)** = tatsaechlich ausgegebenes Geld
+- **Earned Value (EV)** = Gesamtbudget x tatsächlicher %-Fortschritt
+- **Actual Cost (AC)** = tatsächlich ausgegebenes Geld
 
 Daraus:
 - **CPI (Cost Performance Index)** = EV / AC -- über 1.0 = unter Budget
@@ -153,14 +153,14 @@ Best Practices:
 
 | Problem | Auswirkung | Unser Tool loest das durch... |
 |---|---|---|
-| **Kein Audit Trail** | Wer hat wann was geaendert? Niemand weiss es | Backend-seitiges Change Log |
+| **Kein Audit Trail** | Wer hat wann was geändert? Niemand weiss es | Backend-seitiges Change Log |
 | **Keine Versionierung** | "Budget_v3_final_FINAL2.xlsx" | Datenbank mit History |
 | **Concurrent Access** | Datei gesperrt, jemand hat sie offen gelassen | Web-App, gleichzeitiger Zugriff |
 | **Keine Validierung** | Buchstaben in Zahlenfeldern, negative Budgets | Frontend + Backend Validation |
 | **Kein Approval Workflow** | Genehmigungen per Email, nicht nachvollziehbar | Status-Workflow im Tool |
 | **Keine Live-Daten** | Alle arbeiten mit veralteten Zahlen | Single Source of Truth |
 | **Keine Rollenaggregation** | Jede Abteilung hat eigene Datei | Zentrale Datenbank mit Views |
-| **Fehleranfaelligkeit** | Copy-Paste-Fehler, kaputte Formeln | Berechnete Felder server-seitig |
+| **Fehleranfälligkeit** | Copy-Paste-Fehler, kaputte Formeln | Berechnete Felder server-seitig |
 
 **Takeaway fürs Meeting mit Chris:** Das sind die Selling Points. Excel ist nicht "schlecht", aber für Multi-User CAPEX Tracking mit Audit-Anforderungen ungeeignet. Unser Tool adressiert genau diese Lücken.
 

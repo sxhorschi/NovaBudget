@@ -4,7 +4,7 @@ Base URL: `http://localhost:8000`
 
 Interaktive Docs: http://localhost:8000/docs (Swagger UI) | http://localhost:8000/redoc
 
-Authentifizierung: **Aktuell keine.** Fuer Produktion geplant: JWT-basierte Auth.
+Authentifizierung: **Aktuell keine.** Für Produktion geplant: JWT-basierte Auth.
 
 ---
 
@@ -12,7 +12,7 @@ Authentifizierung: **Aktuell keine.** Fuer Produktion geplant: JWT-basierte Auth
 
 ### `GET /health`
 
-Pruefen ob der Service laeuft.
+Prüfen ob der Service laeuft.
 
 **Response:**
 ```json
@@ -32,7 +32,7 @@ Alle Werke auflisten.
 [
   {
     "id": "a1b2c3d4-...",
-    "name": "Werk Sued — Augsburg",
+    "name": "Werk Süd — Augsburg",
     "location": "Augsburg, Germany",
     "description": "NovaDrive Motors — Main CAPEX facility",
     "created_at": "2026-01-15T10:00:00",
@@ -62,11 +62,11 @@ Neues Werk anlegen.
 
 ### `PUT /api/v1/facilities/{facility_id}`
 
-Werk aktualisieren (alle Felder ueberschreiben).
+Werk aktualisieren (alle Felder überschreiben).
 
 ### `DELETE /api/v1/facilities/{facility_id}`
 
-Werk loeschen. **Response:** `204 No Content`
+Werk löschen. **Response:** `204 No Content`
 
 ---
 
@@ -249,9 +249,9 @@ Neues Cost Item erstellen.
 
 ### `PUT /api/v1/cost-items/{item_id}`
 
-Cost Item aktualisieren. **Partial Update** — nur uebergebene Felder werden aktualisiert (`exclude_unset=True`).
+Cost Item aktualisieren. **Partial Update** — nur übergebene Felder werden aktualisiert (`exclude_unset=True`).
 
-**Request Body (Beispiel — nur Status aendern):**
+**Request Body (Beispiel — nur Status ändern):**
 ```json
 {
   "approval_status": "APPROVED",
@@ -259,7 +259,7 @@ Cost Item aktualisieren. **Partial Update** — nur uebergebene Felder werden ak
 }
 ```
 
-**Response:** `200 OK` — vollstaendiges Item zurueck.
+**Response:** `200 OK` — vollständiges Item zurück.
 
 ### `DELETE /api/v1/cost-items/{item_id}`
 
@@ -347,7 +347,7 @@ Finance-Template Export im Format der Finanzabteilung.
 
 ### `GET /api/v1/export/steering-committee`
 
-Ein-Seiten-Zusammenfassung fuer das Steering Committee.
+Ein-Seiten-Zusammenfassung für das Steering Committee.
 
 **Query Parameter:**
 
@@ -386,7 +386,7 @@ Excel-Datei importieren und Cost Items anlegen.
 
 ### `POST /api/v1/attachments/upload`
 
-Datei hochladen und an ein Item, eine Work Area oder ein Department haengen.
+Datei hochladen und an ein Item, eine Work Area oder ein Department hängen.
 
 **Request:** `multipart/form-data`
 
@@ -437,7 +437,7 @@ Datei herunterladen. Liefert die Original-Datei mit korrektem Content-Type.
 
 ### `DELETE /api/v1/attachments/{attachment_id}`
 
-Attachment loeschen (Datei auf Disk + DB-Record).
+Attachment löschen (Datei auf Disk + DB-Record).
 
 **Response:** `204 No Content`
 
@@ -445,7 +445,7 @@ Attachment loeschen (Datei auf Disk + DB-Record).
 
 ## Enum-Werte Referenz
 
-Die API verwendet durchgehend UPPER_CASE fuer Enum-Werte.
+Die API verwendet durchgehend UPPER_CASE für Enum-Werte.
 
 ### ApprovalStatus
 `OPEN` | `SUBMITTED_FOR_APPROVAL` | `APPROVED` | `REJECTED` | `ON_HOLD` | `PENDING_SUPPLIER_NEGOTIATION` | `PENDING_TECHNICAL_CLARIFICATION` | `OBSOLETE`
@@ -479,7 +479,7 @@ Alle Fehler folgen dem gleichen Format:
 
 | Status Code | Bedeutung                           |
 |-------------|-------------------------------------|
-| `400`       | Ungueltige Eingabe / Validierungsfehler |
+| `400`       | Ungültige Eingabe / Validierungsfehler |
 | `404`       | Ressource nicht gefunden            |
 | `422`       | Pydantic Validierungsfehler (automatisch von FastAPI) |
 | `500`       | Server Error                        |

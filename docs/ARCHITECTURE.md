@@ -1,6 +1,6 @@
 # Architektur — NovaDrive CAPEX Budget Tool
 
-## High-Level Uebersicht
+## High-Level Übersicht
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -23,7 +23,7 @@
 │  │ (Router) │   │ (Logik)      │   │ (SQLAlchemy) │   │ 16         │  │
 │  └──────────┘   └──────────────┘   └──────────────┘   └────────────┘  │
 │                                                                         │
-│  Alembic fuer Migrations  │  Pydantic v2 fuer Validation               │
+│  Alembic für Migrations  │  Pydantic v2 für Validation               │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -44,7 +44,7 @@ FastAPI Router mit REST-Endpoints. Jede Ressource hat einen eigenen Router:
 | `export`         | `/api/v1/export`      | Standard-, Finance- und SteerCo-Export |
 | `attachments`    | `/api/v1/attachments` | Datei-Uploads (Angebote, Specs etc.)   |
 
-Jeder Router nutzt Dependency Injection fuer die DB-Session (`Depends(get_session)`).
+Jeder Router nutzt Dependency Injection für die DB-Session (`Depends(get_session)`).
 
 ### 2. Service Layer (`app/services/`)
 
@@ -76,7 +76,7 @@ Alle Models nutzen:
 
 ### 4. Schema Layer (`app/schemas/`)
 
-Pydantic v2 Modelle fuer Request/Response Validation:
+Pydantic v2 Modelle für Request/Response Validation:
 - `*Create` — POST Body (required fields)
 - `*Read` — GET Response (alle Felder + id + timestamps)
 - `*Update` — PUT Body (alle Felder optional via `exclude_unset=True`)
@@ -103,8 +103,8 @@ App
 │   │   │   └── TableFooter            # Grand Total
 │   │   └── SidePanel                  # Detail-Ansicht + Edit
 │   │       ├── SidePanelForm          # Alle Felder gruppiert
-│   │       ├── AttachmentList         # Datei-Anhaenge
-│   │       └── DecisionLog            # Aenderungs-Historie
+│   │       ├── AttachmentList         # Datei-Anhänge
+│   │       └── DecisionLog            # Änderungs-Historie
 │   ├── CashOutPage (/cashout)
 │   │   ├── FilterBar                  # Gleiche Komponente
 │   │   └── SummaryStrip
@@ -176,9 +176,9 @@ Bewusst einfach gehalten — kein Redux, kein Zustand.
 | State                | Wo gespeichert                  | Warum                                    |
 |----------------------|---------------------------------|------------------------------------------|
 | Filter               | URL Query Params (`useSearchParams`) | Bookmarkbar, Back-Button funktioniert |
-| Selektiertes Item    | URL Query Param (`?item=5`)     | Deep-Link zu einem Item moeglich         |
-| Table Expansion      | React `useState` (lokal)        | Kein Persistence noetig                  |
-| Globale Daten        | Mock-Daten / API Calls          | Spaeter: TanStack Query                  |
+| Selektiertes Item    | URL Query Param (`?item=5`)     | Deep-Link zu einem Item möglich         |
+| Table Expansion      | React `useState` (lokal)        | Kein Persistence nötig                  |
+| Globale Daten        | Mock-Daten / API Calls          | Später: TanStack Query                  |
 | Command Palette      | React `useState` (lokal)        | Einfacher Toggle                         |
 
 ---
@@ -248,11 +248,11 @@ Backend verwendet UPPER_CASE, Frontend verwendet lowercase (z.B. `APPROVED` vs. 
 
 ## Design-Entscheidungen
 
-1. **Keine Sidebar** — Die Tabelle braucht maximale Breite. Drei Seiten werden ueber den TabBar navigiert. Departments sind ein Filter, keine Navigation.
+1. **Keine Sidebar** — Die Tabelle braucht maximale Breite. Drei Seiten werden über den TabBar navigiert. Departments sind ein Filter, keine Navigation.
 
 2. **Filter in URL** — Jede Filteransicht ist ein teilbarer Link. Back-Button funktioniert. Keine Hidden State.
 
-3. **Side Panel statt Modal** — Item-Details oeffnen als Panel rechts, die Tabelle bleibt sichtbar und wird schmaler.
+3. **Side Panel statt Modal** — Item-Details öffnen als Panel rechts, die Tabelle bleibt sichtbar und wird schmaler.
 
 4. **UUID als Primary Key** — Verteilte ID-Generierung, keine Sequential-Leak Information.
 

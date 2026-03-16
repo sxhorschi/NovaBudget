@@ -12,7 +12,7 @@
 | 1 | Dashboard Budget/Committed/Remaining | **10** | Das ist mein Startbildschirm morgens -- ich muss sofort sehen, wo ich stehe, bevor ich irgendwas freigebe. |
 | 2 | Hierarchische Tabelle (Dept > Work Area > Items) | **10** | Genau so denke ich: Bodyshop > Spot Welding > Roboterzelle -- ohne diese Struktur ist das Tool wertlos. |
 | 3 | Multi-Select Filter (Dept, Phase, Product, Status) | **9** | Wenn der Steering Committee fragt "zeig mir alles Phase 2 für Bodyshop" muss das in 2 Sekunden stehen. |
-| 4 | Sankey Diagram | **4** | Sieht huebsch aus für Praesentationen, aber ich brauche es nicht für meine tägliche Arbeit. |
+| 4 | Sankey Diagram | **4** | Sieht hübsch aus für Präsentationen, aber ich brauche es nicht für meine tägliche Arbeit. |
 | 5 | Side Panel zum Editieren | **8** | Schnelles Editieren ohne den Kontext der Tabelle zu verlieren ist wichtig -- in Excel springe ich ständig zwischen Sheets hin und her. |
 | 6 | Excel Import | **10** | Absolutes Muss -- ich habe 500+ Zeilen in meiner aktuellen CAPEX-Datei, die müssen rein, sonst benutze ich das Tool nicht. |
 | 7 | Finance Export | **9** | Finance will jeden Monat ihr Format, das mache ich aktuell manuell in 2 Stunden -- Automatisierung spart mir Lebenszeit. |
@@ -29,7 +29,7 @@
 | 18 | Decision Log | **5** | Waere nett zu wissen warum wir Lieferant A statt B gewaehlt haben, aber ich schreibe das heute in E-Mails. |
 | 19 | Status-Workflow | **7** | Klarer Ablauf von "Requested" bis "Installed" verhindert, dass Leute an mir vorbei bestellen. |
 | 20 | Zielanpassung | **6** | Budgets aendern sich nach jedem Board Meeting -- ich muss Targets anpassen koennen ohne alles neu aufzusetzen. |
-| 21 | Inline-Edit | **9** | So arbeite ich in Excel: Zelle anklicken, Wert aendern, fertig -- alles andere ist ein Rueckschritt. |
+| 21 | Inline-Edit | **9** | So arbeite ich in Excel: Zelle anklicken, Wert aendern, fertig -- alles andere ist ein Rückschritt. |
 | 22 | Approval Workflow | **6** | Theoretisch wichtig, aber in der Praxis laeuft das bei uns ueber E-Mail und Unterschrift. |
 | 23 | Multi-User | **7** | Mein Kollege in der Lackiererei pflegt seine Items selbst -- gleichzeitig bearbeiten müssen wir koennen. |
 | 24 | Audit Log | **5** | Finance fragt manchmal "wer hat das geaendert", aber das passiert vielleicht 2x im Monat. |
