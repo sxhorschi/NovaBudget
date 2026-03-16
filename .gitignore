@@ -49,5 +49,14 @@ htmlcov/
 .pytest_cache/
 .mypy_cache/
 
+# Spreadsheets / local data exports
+*.xlsx
+*.xls
+*.xlsm
+*.xlsb
+
+# Local AI tool settings (machine-specific)
+.claude/settings.local.json
+
 # Alembic
 alembic/versions/__pycache__/
