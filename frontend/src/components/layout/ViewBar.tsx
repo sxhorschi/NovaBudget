@@ -1,29 +1,31 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { Table2, Calendar, Building2 } from 'lucide-react';
+import { NavLink, useParams } from 'react-router-dom';
+import { Table2, Calendar, BarChart3, Upload } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface TabDef {
   label: string;
-  to: string;
+  segment: string;
   icon: LucideIcon;
-  end?: boolean;
 }
 
 const tabs: TabDef[] = [
-  { label: 'Costbook', to: '/', icon: Table2, end: true },
-  { label: 'Cash-Out', to: '/cashout', icon: Calendar },
-  { label: 'Facilities', to: '/facilities', icon: Building2 },
+  { label: 'Costbook', segment: 'costbook', icon: Table2 },
+  { label: 'Cash-Out', segment: 'cashout', icon: Calendar },
+  { label: 'Overview', segment: 'overview', icon: BarChart3 },
+  { label: 'Import', segment: 'import', icon: Upload },
 ];
 
-const TabBar: React.FC = () => {
+const ViewBar: React.FC = () => {
+  const { facilityId } = useParams<{ facilityId: string }>();
+
   return (
     <nav className="flex h-11 items-end gap-1 border-b border-gray-200 bg-white px-4">
       {tabs.map((tab) => (
         <NavLink
-          key={tab.to}
-          to={tab.to}
-          end={tab.end}
+          key={tab.segment}
+          to={`/f/${facilityId}/${tab.segment}`}
+          end
           className={({ isActive }) =>
             `flex items-center gap-1.5 px-4 pb-3 pt-2.5 text-sm font-medium transition-colors rounded-t ${
               isActive
@@ -40,4 +42,4 @@ const TabBar: React.FC = () => {
   );
 };
 
-export default TabBar;
+export default ViewBar;

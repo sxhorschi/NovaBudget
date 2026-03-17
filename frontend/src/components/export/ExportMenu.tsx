@@ -6,7 +6,6 @@ import { useBudgetData } from '../../context/BudgetDataContext';
 import client from '../../api/client';
 import { exportStandard, exportFinance, exportSteeringCommittee } from '../../services/clientExport';
 import { useToast } from '../common/ToastProvider';
-import { useDisplaySettings } from '../../context/DisplaySettingsContext';
 import { PHASE_LABELS, STATUS_LABELS } from '../../types/budget';
 import type { ProjectPhase, ApprovalStatus } from '../../types/budget';
 
@@ -97,7 +96,7 @@ function buildExportPath(type: ExportType, budgetFactor?: number, compareFacilit
 
 const ExportMenu: React.FC = () => {
   const { facility, departments: allDepartments, workAreas: allWorkAreas, costItems: allCostItems } = useBudgetData();
-  const { financeBudgetFactor } = useDisplaySettings();
+  const financeBudgetFactor = 1.0;
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState<ExportType | null>(null);
   const [showCompareDialog, setShowCompareDialog] = useState(false);

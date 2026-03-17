@@ -1,8 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { X as XIcon, Plus, Layers, FolderPlus, Building2, ArrowRightLeft } from 'lucide-react';
 import HelpTooltip from '../components/help/HelpTooltip';
-import { useOnboarding } from '../hooks/useOnboarding';
-import OnboardingModal from '../components/onboarding/OnboardingModal';
 import type {
   CostItem,
   ApprovalStatus,
@@ -119,7 +117,6 @@ const statusOptions = (Object.keys(STATUS_LABELS) as ApprovalStatus[]).map((s) =
 // ---------------------------------------------------------------------------
 
 const CostbookPage: React.FC = () => {
-  const { showOnboarding, currentStep, setCurrentStep, completeOnboarding, resetOnboarding: _resetOnboarding } = useOnboarding();
   const { user } = useAuth();
   const {
     facility,
@@ -563,10 +560,6 @@ const CostbookPage: React.FC = () => {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [openCreate]);
 
-  const isRightPanelOpen = Boolean(
-    selectedItem || selectedDepartmentContext || selectedWorkAreaContext,
-  );
-
   return (
     <>
       {/* ---- Sticky container: SavedViews + FilterBar + SummaryStrip ---- */}
@@ -958,15 +951,6 @@ const CostbookPage: React.FC = () => {
         sourceFacilityId={facility.id}
       />
 
-      {/* ---- Onboarding Modal ---- */}
-      {showOnboarding && (
-        <OnboardingModal
-          currentStep={currentStep}
-          onStepChange={setCurrentStep}
-          onComplete={completeOnboarding}
-          onSkip={completeOnboarding}
-        />
-      )}
     </>
   );
 };

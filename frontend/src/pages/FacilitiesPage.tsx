@@ -266,7 +266,7 @@ const FacilitiesPage: React.FC = () => {
   const handleOpen = useCallback(
     (facility: Facility) => {
       setCurrentFacility(facility.id);
-      navigate('/');
+      navigate(`/f/${facility.id}/costbook`);
     },
     [navigate, setCurrentFacility],
   );

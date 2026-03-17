@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   AreaChart,
   Area,
@@ -116,6 +116,7 @@ const CashOutPage: React.FC = () => {
   const { filters, setFilter, resetFilters, hasActiveFilters } = useFilterState();
   const { filteredDepartments, filteredItems, summary } = useFilteredData(filters);
   const navigate = useNavigate();
+  const { facilityId } = useParams<{ facilityId: string }>();
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<{ row: number; col: number } | null>(null);
@@ -294,12 +295,6 @@ const CashOutPage: React.FC = () => {
   const detailItems = useMemo(() => {
     const items = [...filteredItems];
 
-    const getDeptId = (item: CostItem): string => {
-      const wa = workAreas.find((w) => w.id === item.work_area_id);
-      if (!wa) return '';
-      return wa.department_id;
-    };
-
     const getDeptNameForItem = (item: CostItem): string => {
       const wa = workAreas.find((w) => w.id === item.work_area_id);
       if (!wa) return '';
@@ -362,10 +357,10 @@ const CashOutPage: React.FC = () => {
   }
 
   // ---- Navigate to costbook with filters ----
-  function navigateToCostbook(deptId: string, month: string): void {
+  function navigateToCostbook(deptId: string, _month: string): void {
     const params = new URLSearchParams();
     params.set('dept', String(deptId));
-    navigate(`/?${params.toString()}`);
+    navigate(`/f/${facilityId}/costbook?${params.toString()}`);
   }
 
   // ---- Legend click handler ----

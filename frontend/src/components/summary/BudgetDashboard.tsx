@@ -10,7 +10,6 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-import { TrendingUp, TrendingDown } from 'lucide-react';
 import type { CostItem, CostDriver, ProjectPhase } from '../../types/budget';
 import { COST_DRIVER_LABELS, PHASE_LABELS } from '../../types/budget';
 import { useAmountFormatter } from '../costbook/AmountCell';
@@ -107,72 +106,12 @@ function yTickFormat(v: number): string {
   return String(v);
 }
 
-function currentYearMonth(): string {
-  const now = new Date();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  return `${now.getFullYear()}-${mm}`;
-}
-
-function remainingCardColors(remaining: number, budget: number) {
-  if (budget <= 0 || remaining < 0) {
-    return {
-      bg: 'bg-red-50', border: 'border-red-200', blob: 'bg-red-400',
-      label: 'text-red-500', value: 'text-red-700',
-      iconBg: 'bg-red-100', iconColor: 'text-red-500',
-    };
-  }
-  const p = (remaining / budget) * 100;
-  if (p > 20) {
-    return {
-      bg: 'bg-emerald-50', border: 'border-emerald-200', blob: 'bg-emerald-400',
-      label: 'text-emerald-600', value: 'text-emerald-700',
-      iconBg: 'bg-emerald-100', iconColor: 'text-emerald-500',
-    };
-  }
-  if (p >= 5) {
-    return {
-      bg: 'bg-amber-50', border: 'border-amber-200', blob: 'bg-amber-400',
-      label: 'text-amber-600', value: 'text-amber-700',
-      iconBg: 'bg-amber-100', iconColor: 'text-amber-500',
-    };
-  }
-  return {
-    bg: 'bg-red-50', border: 'border-red-200', blob: 'bg-red-400',
-    label: 'text-red-500', value: 'text-red-700',
-    iconBg: 'bg-red-100', iconColor: 'text-red-500',
-  };
-}
 
 // ---------------------------------------------------------------------------
 // KPI Card
 // ---------------------------------------------------------------------------
 
-interface KPICardColors {
-  bg: string; border: string; blob: string;
-  label: string; value: string; iconBg: string; iconColor: string;
-}
-
-interface KPICardProps {
-  label: string;
-  value: string;
-  subLabel?: string;
-  colors: KPICardColors;
-  icon: React.ReactNode;
-}
-
-const KPICard: React.FC<KPICardProps> = ({ label, value, subLabel, colors, icon }) => (
-  <div className={`flex-1 min-w-0 rounded-2xl border p-4 relative overflow-hidden ${colors.bg} ${colors.border}`}>
-    <div className={`absolute -top-4 -right-4 w-20 h-20 rounded-full opacity-20 ${colors.blob}`} />
-    <div className="relative z-10">
-      <div className="flex items-center justify-between mb-2">
-        <span className={`text-[10px] font-bold uppercase tracking-widest ${colors.label}`}>{label}</span>
-        <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${colors.iconBg}`}>{icon}</div>
-      </div>
-      <p className={`text-xl font-black font-mono tabular-nums leading-none ${colors.value}`}>{value}</p>
-      {subLabel && <p className="text-[11px] text-gray-400 mt-1.5 truncate">{subLabel}</p>}
-    </div>
-  </div>
-);
+// KPICard types and component removed — SummaryStrip handles KPIs now.
 
 // ---------------------------------------------------------------------------
 // Custom Tooltip
@@ -248,44 +187,7 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Icons
-// ---------------------------------------------------------------------------
-
-const IconBudget = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
-    <path d="M5 8h6M5 10.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-    <path d="M5 5.5h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-  </svg>
-);
-
-const IconSpent = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const IconPending = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.4" />
-    <path d="M8 5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-  </svg>
-);
-
-const IconCoC = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M2 12 L5 7 L8 9 L11 4 L14 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M11 4 L14 4 L14 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const IconRemaining = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M8 2v5l3 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    <path d="M3.5 5A6 6 0 1 0 8 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-  </svg>
-);
+// Icons removed — were used by the old KPI cards.
 
 // ---------------------------------------------------------------------------
 // Main Component
@@ -295,8 +197,8 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
   budget,
   committed,
   forecast,
-  remaining,
-  itemCount,
+  remaining: _remaining,
+  itemCount: _itemCount,
   items,
   hasItemLevelFilters = false,
 }) => {
@@ -307,22 +209,6 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
   const spent = committed;
   // pending = forecast - spent (floating Forecast bar height)
   const pending = Math.max(0, forecast - spent);
-
-  // ---------------------------------------------------------------------------
-  // Paid-out sub-category
-  // ---------------------------------------------------------------------------
-
-  const currentYM = useMemo(() => currentYearMonth(), []);
-
-  const paidOut = useMemo(
-    () =>
-      items
-        .filter((i) => i.approval_status === 'approved' && i.expected_cash_out <= currentYM)
-        .reduce((s, i) => s + i.current_amount, 0),
-    [items, currentYM],
-  );
-
-  const approvedFuture = useMemo(() => Math.max(0, spent - paidOut), [spent, paidOut]);
 
   // ---------------------------------------------------------------------------
   // Per-driver breakdowns (for subdivision modes)
@@ -425,19 +311,6 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
   const rcKey = `chart-${subdivisionMode}-${budget}-${forecast}-${items.length}`;
 
   const hasItems = items.length > 0;
-
-  // KPI derived
-  const spentPct = forecast > 0 ? `${Math.round((spent / forecast) * 100)}% of CoC` : undefined;
-  const pendingPct = forecast > 0 ? `${Math.round((pending / forecast) * 100)}% of CoC` : undefined;
-  const remainingColors = remainingCardColors(remaining, budget);
-  const remainingPct = budget > 0 ? `${Math.round((remaining / budget) * 100)}% of Budget` : undefined;
-  const paidSubLabel = paidOut > 0 ? `${format(paidOut)} paid · ${format(approvedFuture)} committed` : undefined;
-
-  // Budget vs CoC indicator
-  const delta = forecast - budget;
-  const deltaPercent = budget > 0 ? ((delta / budget) * 100).toFixed(1) : '0';
-  const isOverBudget = delta > 0;
-  const cocBarWidth = budget > 0 ? Math.min(100, (forecast / Math.max(budget, forecast)) * 100) : 0;
 
   // ---------------------------------------------------------------------------
   // Render bars based on mode

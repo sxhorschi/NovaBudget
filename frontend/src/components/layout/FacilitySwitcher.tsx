@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronDown, Plus, Building2 } from 'lucide-react';
 import { useFacility } from '../../context/FacilityContext';
 import type { Facility, FacilityStatus } from '../../types/budget';
 import { FACILITY_STATUS_LABELS } from '../../types/budget';
@@ -109,6 +110,7 @@ const CreateFacilityForm: React.FC<{
 // ---------------------------------------------------------------------------
 
 const FacilitySwitcher: React.FC = () => {
+  const navigate = useNavigate();
   const { facilities, currentFacility, setCurrentFacility, createFacility } = useFacility();
   const [open, setOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -133,12 +135,14 @@ const FacilitySwitcher: React.FC = () => {
 
   const handleSelect = (id: string) => {
     setCurrentFacility(id);
+    navigate(`/f/${id}/costbook`);
     setOpen(false);
     setShowCreate(false);
   };
 
   const handleCreate = (name: string, location: string) => {
-    createFacility(name, location);
+    const newFacility = createFacility(name, location);
+    navigate(`/f/${newFacility.id}/costbook`);
     setOpen(false);
     setShowCreate(false);
   };
@@ -227,6 +231,17 @@ const FacilitySwitcher: React.FC = () => {
               >
                 <Plus size={14} />
                 Create New Facility
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  navigate('/facilities');
+                  setOpen(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
+              >
+                <Building2 size={14} />
+                Manage All Facilities
               </button>
             </div>
           )}

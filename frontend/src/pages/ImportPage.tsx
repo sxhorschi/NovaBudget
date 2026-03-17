@@ -13,7 +13,7 @@ import {
   FlaskConical,
   Info,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../components/common/ToastProvider';
 import { useBudgetData } from '../context/BudgetDataContext';
 import { USE_MOCKS } from '../mocks/data';
@@ -302,6 +302,7 @@ const ImportPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
   const navigate = useNavigate();
+  const { facilityId } = useParams<{ facilityId: string }>();
   const { facility, bulkImport } = useBudgetData();
 
   const [step, setStep] = useState<ImportStep>('upload');
@@ -954,7 +955,7 @@ const ImportPage: React.FC = () => {
                 Import another file
               </button>
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate(`/f/${facilityId}/costbook`)}
                 className="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
               >
                 View in Costbook

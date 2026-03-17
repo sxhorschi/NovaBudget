@@ -75,7 +75,7 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
   committed,
   forecast,
   remaining,
-  itemCount,
+  itemCount: _itemCount,
 }) => {
   const remColor = remainingColor(remaining, budget);
   const format = useAmountFormatter();

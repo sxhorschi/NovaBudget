@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, X as XIcon, Save, RotateCcw } from 'lucide-react';
+import { X as XIcon, Save, RotateCcw } from 'lucide-react';
 import type { FilterState } from '../../hooks/useFilterState';
 import { EMPTY_FILTER } from '../../hooks/useFilterState';
 import type { ApprovalStatus, ProjectPhase } from '../../types/budget';

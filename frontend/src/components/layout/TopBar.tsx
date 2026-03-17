@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Settings, LogOut, MapPin, Briefcase, Mail } from 'lucide-react';
 import ExportMenu from '../export/ExportMenu';
 import SettingsPanel from '../settings/SettingsPanel';
@@ -201,7 +202,9 @@ const TopBar: React.FC = () => {
         {/* Left: Logo + Facility Switcher */}
         <div className="flex items-center gap-3">
           {/* TYTAN Logo */}
-          <img src="/tytan-logo.png" alt="TYTAN Technologies" className="h-8 w-auto select-none" draggable={false} />
+          <Link to="/facilities" className="flex-shrink-0">
+            <img src="/tytan-logo.png" alt="TYTAN Technologies" className="h-8 w-auto select-none" draggable={false} />
+          </Link>
           {/* Facility switcher */}
           <div className="border-l border-gray-200 pl-3">
             <FacilitySwitcher />
