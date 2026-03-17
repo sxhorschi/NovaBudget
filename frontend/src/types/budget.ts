@@ -27,32 +27,72 @@ export type CostDriver =
   | 'new_req_testing'
   | 'initial_setup';
 
+// --- Facility enums ---
+
+export type FacilityStatus = 'active' | 'planning' | 'completed' | 'archived';
+export type FacilityType = 'production' | 'expansion' | 'retrofit' | 'prototype';
+
+export const FACILITY_STATUS_LABELS: Record<FacilityStatus, string> = {
+  active: 'Active',
+  planning: 'Planning',
+  completed: 'Completed',
+  archived: 'Archived',
+};
+
+export const FACILITY_STATUS_COLORS: Record<FacilityStatus, string> = {
+  planning: 'bg-amber-100 text-amber-800',
+  active: 'bg-green-100 text-green-800',
+  completed: 'bg-blue-100 text-blue-800',
+  archived: 'bg-gray-100 text-gray-600',
+};
+
+export const FACILITY_TYPE_LABELS: Record<FacilityType, string> = {
+  production: 'Production',
+  expansion: 'Expansion',
+  retrofit: 'Retrofit',
+  prototype: 'Prototype',
+};
+
+export const FACILITY_TYPE_COLORS: Record<FacilityType, string> = {
+  production: 'bg-indigo-100 text-indigo-800',
+  expansion: 'bg-emerald-100 text-emerald-800',
+  retrofit: 'bg-orange-100 text-orange-800',
+  prototype: 'bg-purple-100 text-purple-800',
+};
+
 // --- Interfaces ---
 
 export interface Facility {
-  id: number;
+  id: string;
   name: string;
   location: string;
   description: string;
+  status: FacilityStatus;
+  facility_type: FacilityType;
+  source_facility_id?: string | null;
+  start_date?: string | null;
+  completion_date?: string | null;
+  archived_at?: string | null;
+  sort_order: number;
 }
 
 export interface Department {
-  id: number;
-  facility_id: number;
+  id: string;
+  facility_id: string;
   name: string;
   budget_total: number;
 }
 
 export interface WorkArea {
-  id: number;
-  department_id: number;
+  id: string;
+  department_id: string;
   name: string;
   cost_items?: CostItem[];
 }
 
 export interface CostItem {
-  id: number;
-  work_area_id: number;
+  id: string;
+  work_area_id: string;
   description: string;
   original_amount: number;
   current_amount: number;
@@ -83,8 +123,8 @@ export type AdjustmentCategory =
   | 'other';
 
 export interface BudgetAdjustment {
-  id: number;
-  department_id: number;
+  id: string;
+  department_id: string;
   amount: number; // +80000 oder -20000
   reason: string; // "Produktaenderung CR-2026-042"
   category: AdjustmentCategory;

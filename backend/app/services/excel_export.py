@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import re
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Sequence
@@ -18,6 +19,35 @@ from sqlalchemy.orm import selectinload
 from app.models import CostItem, Department, Facility, WorkArea
 from app.models.enums import ApprovalStatus, CostBasis, ProjectPhase
 from app.services.aggregation import EXCLUDED_STATUSES
+
+# ---------------------------------------------------------------------------
+# Filename helpers
+# ---------------------------------------------------------------------------
+
+
+def _sanitize_filename(name: str) -> str:
+    """Sanitize a facility name for use in filenames.
+
+    Replaces spaces and special characters with underscores, strips leading/trailing
+    whitespace, and limits length.
+    """
+    sanitized = re.sub(r"[^\w\-]", "_", name.strip())
+    sanitized = re.sub(r"_+", "_", sanitized).strip("_")
+    return sanitized[:60] if sanitized else "facility"
+
+
+async def _load_facility(session: AsyncSession, facility_id: UUID) -> Facility | None:
+    """Load a facility by ID."""
+    stmt = select(Facility).where(Facility.id == facility_id)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+def _build_export_filename(facility_name: str, export_type: str) -> str:
+    """Build a standardized export filename: TYTAN_{facility}_{type}_{YYYY-MM}.xlsx"""
+    safe_name = _sanitize_filename(facility_name)
+    month_str = date.today().strftime("%Y-%m")
+    return f"TYTAN_{safe_name}_{export_type}_{month_str}.xlsx"
 
 # ---------------------------------------------------------------------------
 # Style constants
@@ -116,11 +146,13 @@ async def generate_standard_export(
     facility_id: UUID,
     department_ids: list[UUID] | None = None,
     phase: ProjectPhase | None = None,
-) -> bytes:
+) -> tuple[bytes, str]:
     """Generate a standard department-based Excel export.
 
-    Returns the .xlsx file as bytes.
+    Returns a tuple of (xlsx_bytes, suggested_filename).
     """
+    facility = await _load_facility(session, facility_id)
+    facility_name = facility.name if facility else "Unknown"
     departments = await _load_departments(session, facility_id, department_ids)
 
     wb = Workbook()
@@ -225,7 +257,8 @@ async def generate_standard_export(
 
     buf = io.BytesIO()
     wb.save(buf)
-    return buf.getvalue()
+    filename = _build_export_filename(facility_name, "Standard")
+    return buf.getvalue(), filename
 
 
 # ---------------------------------------------------------------------------
@@ -292,7 +325,7 @@ async def generate_finance_export(
     start_month: int = 1,
     end_year: int = 2027,
     end_month: int = 12,
-) -> bytes:
+) -> tuple[bytes, str]:
     """Generate the pixel-perfect BudgetTemplate-style finance export.
 
     Row layout matches the original Excel template exactly:
@@ -307,7 +340,11 @@ async def generate_finance_export(
       Last:  SUM totals row
 
     Core formula: IF(item.cash_out == month, amount * factor, 0)
+
+    Returns a tuple of (xlsx_bytes, suggested_filename).
     """
+    facility = await _load_facility(session, facility_id)
+    facility_name = facility.name if facility else "Unknown"
     departments = await _load_departments(session, facility_id)
 
     months = _generate_month_range(start_year, start_month, end_year, end_month)
@@ -660,7 +697,8 @@ async def generate_finance_export(
 
     buf = io.BytesIO()
     wb.save(buf)
-    return buf.getvalue()
+    filename = _build_export_filename(facility_name, "Finance")
+    return buf.getvalue(), filename
 
 
 # ---------------------------------------------------------------------------
@@ -671,7 +709,7 @@ async def generate_finance_export(
 async def generate_steering_committee_export(
     session: AsyncSession,
     facility_id: UUID,
-) -> bytes:
+) -> tuple[bytes, str]:
     """Generate a one-page steering committee summary Excel.
 
     Contents:
@@ -679,7 +717,11 @@ async def generate_steering_committee_export(
     - Top 10 largest open items
     - Top 5 risk items (no offer / cost_estimation + high amount)
     - Cash-out next 3 months
+
+    Returns a tuple of (xlsx_bytes, suggested_filename).
     """
+    facility = await _load_facility(session, facility_id)
+    facility_name = facility.name if facility else "Unknown"
     departments = await _load_departments(session, facility_id)
 
     wb = Workbook()
@@ -896,4 +938,5 @@ async def generate_steering_committee_export(
 
     buf = io.BytesIO()
     wb.save(buf)
-    return buf.getvalue()
+    filename = _build_export_filename(facility_name, "Steering_Committee")
+    return buf.getvalue(), filename

@@ -70,13 +70,13 @@ const COLUMNS: ColumnDef[] = [
 export interface CostbookTableProps {
   departments: Department[];
   workAreas: WorkArea[];
-  departmentCommittedTotals?: Record<number, number>;
+  departmentCommittedTotals?: Record<string, number>;
   onSelectItem: (item: CostItem) => void;
-  selectedItemId: number | null;
+  selectedItemId: string | null;
   onStatusChange: (item: CostItem, newStatus: ApprovalStatus) => void;
   onDeleteItem: (item: CostItem) => void;
-  onOpenDepartmentContext?: (departmentId: number) => void;
-  onOpenWorkAreaContext?: (workAreaId: number) => void;
+  onOpenDepartmentContext?: (departmentId: string) => void;
+  onOpenWorkAreaContext?: (workAreaId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -95,10 +95,10 @@ export default function CostbookTable({
   onOpenWorkAreaContext,
 }: CostbookTableProps) {
   // -- Expansion state: all expanded by default --------------------------------
-  const [expandedDepts, setExpandedDepts] = useState<Set<number>>(
+  const [expandedDepts, setExpandedDepts] = useState<Set<string>>(
     () => new Set(departments.map((d) => d.id)),
   );
-  const [expandedWAs, setExpandedWAs] = useState<Set<number>>(
+  const [expandedWAs, setExpandedWAs] = useState<Set<string>>(
     () => new Set(workAreas.map((wa) => wa.id)),
   );
 
@@ -142,7 +142,7 @@ export default function CostbookTable({
   }, []);
 
   // -- Toggle helpers ----------------------------------------------------------
-  const toggleDept = useCallback((deptId: number) => {
+  const toggleDept = useCallback((deptId: string) => {
     setExpandedDepts((prev) => {
       const next = new Set(prev);
       if (next.has(deptId)) next.delete(deptId);
@@ -151,7 +151,7 @@ export default function CostbookTable({
     });
   }, []);
 
-  const toggleWA = useCallback((waId: number) => {
+  const toggleWA = useCallback((waId: string) => {
     setExpandedWAs((prev) => {
       const next = new Set(prev);
       if (next.has(waId)) next.delete(waId);
@@ -162,7 +162,7 @@ export default function CostbookTable({
 
   // -- Precompute: group work areas by department ------------------------------
   const waByDept = useMemo(() => {
-    const map = new Map<number, WorkArea[]>();
+    const map = new Map<string, WorkArea[]>();
     for (const wa of workAreas) {
       const list = map.get(wa.department_id) ?? [];
       list.push(wa);

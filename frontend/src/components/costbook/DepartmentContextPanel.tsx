@@ -100,8 +100,8 @@ interface DepartmentContextPanelProps {
   workAreas: WorkArea[];
   costItems: CostItem[];
   onClose: () => void;
-  onSave: (departmentId: number, data: { name: string; budget_total: number }) => void;
-  onDelete: (departmentId: number) => void;
+  onSave: (departmentId: string, data: { name: string; budget_total: number }) => void;
+  onDelete: (departmentId: string) => void;
 }
 
 export default function DepartmentContextPanel({

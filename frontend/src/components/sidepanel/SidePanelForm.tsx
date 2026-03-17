@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronRight, Percent, Euro, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Percent, Euro, TrendingUp, TrendingDown, Minus, Search, X } from 'lucide-react';
 import type {
   CostItem,
   ProjectPhase,
@@ -17,6 +17,8 @@ import {
   STATUS_DOT_COLORS,
 } from '../../types/budget';
 import { formatEUR as formatEur } from '../costbook/AmountCell';
+import { getUsersBrief } from '../../api/users';
+import type { UserBrief } from '../../api/users';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -246,6 +248,159 @@ const StatusSelect: React.FC<StatusSelectProps> = ({ value, onChange, className 
 };
 
 // ---------------------------------------------------------------------------
+// Requester Combobox — searchable dropdown of users from /api/v1/users/brief
+// ---------------------------------------------------------------------------
+
+interface RequesterComboboxProps {
+  value: string | null;
+  onChange: (value: string | null) => void;
+  className?: string;
+}
+
+const RequesterCombobox: React.FC<RequesterComboboxProps> = ({ value, onChange, className }) => {
+  const [users, setUsers] = useState<UserBrief[]>([]);
+  const [query, setQuery] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch users on mount
+  useEffect(() => {
+    let cancelled = false;
+    getUsersBrief()
+      .then((data) => {
+        if (!cancelled) setUsers(data);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError(true);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isOpen]);
+
+  // Filter users by query (name or department)
+  const filtered = users.filter((u) => {
+    if (!query.trim()) return true;
+    const q = query.toLowerCase();
+    return (
+      u.name.toLowerCase().includes(q) ||
+      (u.department ?? '').toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q)
+    );
+  });
+
+  const handleSelect = (user: UserBrief) => {
+    onChange(user.name);
+    setQuery('');
+    setIsOpen(false);
+  };
+
+  const handleClear = () => {
+    onChange(null);
+    setQuery('');
+  };
+
+  // If the users API fails, fall back to a plain text input
+  if (loadError) {
+    return (
+      <input
+        type="text"
+        className={className ?? ''}
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value || null)}
+        placeholder="Person who requested this item"
+      />
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="relative">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        <input
+          ref={inputRef}
+          type="text"
+          className={`pl-8 pr-8 ${className ?? ''}`}
+          value={isOpen ? query : value ?? ''}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (!isOpen) setIsOpen(true);
+          }}
+          onFocus={() => {
+            setIsOpen(true);
+            setQuery('');
+          }}
+          placeholder={value ? value : 'Search users...'}
+        />
+        {value && !isOpen && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Clear requester"
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-gray-400">
+              {users.length === 0 ? 'Loading users...' : 'No users found'}
+            </div>
+          ) : (
+            filtered.map((u) => (
+              <button
+                key={u.id}
+                type="button"
+                onClick={() => handleSelect(u)}
+                className={`w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-indigo-50 transition-colors ${
+                  value === u.name ? 'bg-indigo-50/50' : ''
+                }`}
+              >
+                {/* Mini avatar */}
+                <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-500 flex-shrink-0 overflow-hidden">
+                  {u.photo_url ? (
+                    <img src={u.photo_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    u.name
+                      .split(' ')
+                      .map((p) => p[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase()
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-900 truncate">{u.name}</p>
+                  {u.department && (
+                    <p className="text-xs text-gray-400 truncate">{u.department}</p>
+                  )}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Shared style constants
 // ---------------------------------------------------------------------------
 
@@ -467,12 +622,10 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
 
           <div className="col-span-2">
             <label className={labelClass}>Requester</label>
-            <input
-              type="text"
+            <RequesterCombobox
+              value={item.requester ?? null}
+              onChange={(v) => onChange('requester', v)}
               className={`${inputClass}${dirtyRing('requester')}`}
-              value={item.requester ?? ''}
-              onChange={(e) => onChange('requester', e.target.value || null)}
-              placeholder="Person who requested this item"
             />
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Table2, Calendar } from 'lucide-react';
+import { Table2, Calendar, Building2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface TabDef {
@@ -13,6 +13,7 @@ interface TabDef {
 const tabs: TabDef[] = [
   { label: 'Costbook', to: '/', icon: Table2, end: true },
   { label: 'Cash-Out', to: '/cashout', icon: Calendar },
+  { label: 'Facilities', to: '/facilities', icon: Building2 },
 ];
 
 const TabBar: React.FC = () => {

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { setAuthToken, getAuthToken } from '../api/client';
 
 // ---------------------------------------------------------------------------
-// Types
+// Types — enriched with Microsoft Entra ID profile fields
 // ---------------------------------------------------------------------------
 
 export interface User {
@@ -10,8 +10,16 @@ export interface User {
   name: string;
   email: string;
   role: 'admin' | 'viewer' | 'editor';
+  job_title?: string;
   department?: string;
-  avatar?: string; // initials or URL
+  office_location?: string;
+  phone?: string;
+  employee_id?: string;
+  company_name?: string;
+  manager_email?: string;
+  manager_name?: string;
+  photo_url?: string;
+  avatar?: string; // initials fallback
 }
 
 interface AuthContextValue {
@@ -23,7 +31,7 @@ interface AuthContextValue {
 }
 
 // ---------------------------------------------------------------------------
-// Mock user — Georg Weis, TYTAN Technologies admin
+// Mock user — Georg Weis, TYTAN Technologies admin (full Entra ID profile)
 // ---------------------------------------------------------------------------
 
 const MOCK_USER: User = {
@@ -31,7 +39,11 @@ const MOCK_USER: User = {
   name: 'Georg Weis',
   email: 'georg.weis@tytan.tech',
   role: 'admin',
-  department: 'Industrial Engineering',
+  job_title: 'Industrial Engineer',
+  department: 'Engineering',
+  office_location: 'Augsburg HQ',
+  company_name: 'TYTAN Technologies',
+  employee_id: 'EMP-001',
   avatar: 'GW',
 };
 

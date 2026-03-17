@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
@@ -61,14 +60,13 @@ async def export_standard(
             raise HTTPException(status_code=400, detail=f"Invalid phase: {phase}")
 
     try:
-        content = await generate_standard_export(
+        content, filename = await generate_standard_export(
             session, facility_id, department_ids=dept_ids, phase=phase_filter,
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
-    today = date.today().strftime("%Y%m%d")
-    return _xlsx_response(content, f"costbook_export_{today}.xlsx")
+    return _xlsx_response(content, filename)
 
 
 @router.get("/finance")
@@ -83,14 +81,13 @@ async def export_finance(
     """Export BudgetTemplate-format Excel for Finance."""
 
     try:
-        content = await generate_finance_export(
+        content, filename = await generate_finance_export(
             session, facility_id, budget_factor=Decimal(str(budget_factor)),
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
-    today = date.today().strftime("%Y%m%d")
-    return _xlsx_response(content, f"budget_template_{today}.xlsx")
+    return _xlsx_response(content, filename)
 
 
 @router.get("/steering-committee")
@@ -104,9 +101,8 @@ async def export_steering_committee(
     """Export one-page steering committee summary."""
 
     try:
-        content = await generate_steering_committee_export(session, facility_id)
+        content, filename = await generate_steering_committee_export(session, facility_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
-    today = date.today().strftime("%Y%m%d")
-    return _xlsx_response(content, f"steering_committee_{today}.xlsx")
+    return _xlsx_response(content, filename)

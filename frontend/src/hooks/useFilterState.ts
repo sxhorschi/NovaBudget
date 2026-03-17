@@ -7,7 +7,7 @@ import type { ProjectPhase, Product, ApprovalStatus } from '../types/budget';
 // ---------------------------------------------------------------------------
 
 export interface FilterState {
-  departments: number[];
+  departments: string[];
   phases: ProjectPhase[];
   products: Product[];
   statuses: ApprovalStatus[];
@@ -43,12 +43,12 @@ const PARAM_KEYS: Record<string, string> = {
 // Serialisation helpers
 // ---------------------------------------------------------------------------
 
-function parseNumberArray(raw: string | null): number[] {
+function parseDepartmentIds(raw: string | null): string[] {
   if (!raw) return [];
   return raw
     .split(',')
-    .map((s) => Number(s.trim()))
-    .filter((n) => !Number.isNaN(n) && n > 0);
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function parseStringArray<T extends string>(raw: string | null): T[] {
@@ -69,7 +69,7 @@ export function useFilterState() {
   // --- Deserialise URL -> FilterState (memoised on searchParams string) ---
   const filters: FilterState = useMemo(() => {
     return {
-      departments: parseNumberArray(searchParams.get(PARAM_KEYS.departments)),
+      departments: parseDepartmentIds(searchParams.get(PARAM_KEYS.departments)),
       phases: parseStringArray<ProjectPhase>(searchParams.get(PARAM_KEYS.phases)),
       products: parseStringArray<Product>(searchParams.get(PARAM_KEYS.products)),
       statuses: parseStringArray<ApprovalStatus>(searchParams.get(PARAM_KEYS.statuses)),
@@ -100,7 +100,7 @@ export function useFilterState() {
             next.delete(paramKey);
           }
         } else {
-          const arr = values as (string | number)[];
+          const arr = values as string[];
           if (arr.length > 0) {
             next.set(paramKey, arr.join(','));
           } else {

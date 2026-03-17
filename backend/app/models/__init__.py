@@ -11,10 +11,13 @@ from app.models.enums import (
     ApprovalStatus,
     CostBasis,
     CostDriver,
+    FacilityStatus,
+    FacilityType,
     Product,
     ProjectPhase,
 )
 from app.models.facility import Facility
+from app.models.transfer_log import TransferLog
 from app.models.user import User
 from app.models.work_area import WorkArea
 
@@ -30,10 +33,13 @@ __all__ = [
     "ApprovalStatus",
     "CostBasis",
     "CostDriver",
+    "FacilityStatus",
+    "FacilityType",
     "Product",
     "ProjectPhase",
     "Facility",
     "Department",
+    "TransferLog",
     "User",
     "WorkArea",
     "CostItem",

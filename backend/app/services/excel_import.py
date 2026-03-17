@@ -397,8 +397,13 @@ async def import_excel_file(
     file_contents: bytes,
     facility_id: UUID,
     session: AsyncSession,
+    dry_run: bool = False,
 ) -> dict:
     """Import a TYTAN CAPEX Excel workbook into the database.
+
+    When *dry_run* is True the entire import is validated and statistics are
+    computed, but the database transaction is rolled back instead of committed.
+    The returned report includes a ``dry_run`` flag.
 
     Returns a detailed JSON-serializable report dict.
     """
@@ -653,15 +658,21 @@ async def import_excel_file(
             report.department_reports.append(dept_report)
 
         # ── Finalize ──────────────────────────────────────────────────────
-        await session.commit()
         report.finalize()
+
+        if dry_run:
+            await session.rollback()
+        else:
+            await session.commit()
 
     finally:
         wb_data.close()
         if wb_formulas:
             wb_formulas.close()
 
-    return report.to_dict()
+    result = report.to_dict()
+    result["dry_run"] = dry_run
+    return result
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

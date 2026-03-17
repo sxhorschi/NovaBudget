@@ -80,7 +80,7 @@ function formatDateDE(iso: string | null | undefined): string {
 interface SidePanelProps {
   item: CostItem | null;
   departmentName?: string;
-  departmentId?: number;
+  departmentId?: string;
   departmentBudget?: number;
   workAreaName?: string;
   onSave: (data: Partial<CostItem>) => void;

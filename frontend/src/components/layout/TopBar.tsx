@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Settings, LogOut } from 'lucide-react';
+import { Settings, LogOut, MapPin, Briefcase, Mail } from 'lucide-react';
 import ExportMenu from '../export/ExportMenu';
 import SettingsPanel from '../settings/SettingsPanel';
-import { useBudgetData } from '../../context/BudgetDataContext';
+import FacilitySwitcher from './FacilitySwitcher';
 import { useDisplaySettings } from '../../context/DisplaySettingsContext';
 import { useAuth } from '../../context/AuthContext';
 import type { User } from '../../context/AuthContext';
@@ -73,6 +73,7 @@ const UserMenu: React.FC = () => {
 
   const initials = getInitials(user.name);
   const avatarStyle = getAvatarStyle(user.name);
+  const hasPhoto = !!user.photo_url;
 
   return (
     <div ref={containerRef} className="relative">
@@ -84,31 +85,51 @@ const UserMenu: React.FC = () => {
         aria-label={`User menu for ${user.name}`}
         aria-expanded={open}
       >
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white select-none ring-2 ring-white shadow-sm group-hover:ring-indigo-300 transition-all"
-          style={avatarStyle}
-        >
-          {initials}
-        </div>
+        {hasPhoto ? (
+          <img
+            src={user.photo_url}
+            alt={user.name}
+            className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm group-hover:ring-indigo-300 transition-all"
+          />
+        ) : (
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white select-none ring-2 ring-white shadow-sm group-hover:ring-indigo-300 transition-all"
+            style={avatarStyle}
+          >
+            {initials}
+          </div>
+        )}
       </button>
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-64 rounded-xl bg-white shadow-xl border border-gray-100 py-1 z-[200] animate-in fade-in slide-in-from-top-1 duration-100">
+        <div className="absolute right-0 top-full mt-2 w-72 rounded-xl bg-white shadow-xl border border-gray-100 py-1 z-[200] animate-in fade-in slide-in-from-top-1 duration-100">
           {/* User info block */}
           <div className="px-4 py-3 border-b border-gray-100">
             <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white select-none flex-shrink-0"
-                style={avatarStyle}
-              >
-                {initials}
-              </div>
+              {hasPhoto ? (
+                <img
+                  src={user.photo_url}
+                  alt={user.name}
+                  className="w-11 h-11 rounded-full object-cover flex-shrink-0"
+                />
+              ) : (
+                <div
+                  className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold text-white select-none flex-shrink-0"
+                  style={avatarStyle}
+                >
+                  {initials}
+                </div>
+              )}
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
-                <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                {user.job_title && (
+                  <p className="text-xs text-gray-500 truncate">{user.job_title}</p>
+                )}
               </div>
             </div>
+
+            {/* Role + Department */}
             {user.role && (
               <div className="mt-2.5 flex items-center gap-2">
                 <span
@@ -121,6 +142,26 @@ const UserMenu: React.FC = () => {
                 )}
               </div>
             )}
+
+            {/* Profile details */}
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Mail size={12} className="text-gray-400 flex-shrink-0" />
+                <span className="truncate">{user.email}</span>
+              </div>
+              {user.office_location && (
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <MapPin size={12} className="text-gray-400 flex-shrink-0" />
+                  <span className="truncate">{user.office_location}</span>
+                </div>
+              )}
+              {user.company_name && (
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <Briefcase size={12} className="text-gray-400 flex-shrink-0" />
+                  <span className="truncate">{user.company_name}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Actions */}
@@ -152,30 +193,19 @@ const UserMenu: React.FC = () => {
 
 const TopBar: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { facility } = useBudgetData();
-  const { headerTitle, headerSubtitle, inflationEnabled, inflationRate } = useDisplaySettings();
-
-  const title = headerTitle.trim() || facility?.name || 'Budget Tool';
-  const subtitle = headerSubtitle.trim() || facility?.location || '';
+  const { inflationEnabled, inflationRate } = useDisplaySettings();
 
   return (
     <>
       <header className="flex h-16 items-center justify-between border-b border-gray-100 bg-white px-4">
-        {/* Left: Logo + Facility */}
+        {/* Left: Logo + Facility Switcher */}
         <div className="flex items-center gap-3">
           {/* TYTAN Logo */}
           <img src="/tytan-logo.png" alt="TYTAN Technologies" className="h-8 w-auto select-none" draggable={false} />
-          {/* App title + version badge */}
-          <div className="flex items-center gap-2 border-l border-gray-200 pl-3">
-            <span className="text-sm font-bold text-gray-700 tracking-tight">{title}</span>
-            <span className="text-[9px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full font-mono">v2.0</span>
+          {/* Facility switcher */}
+          <div className="border-l border-gray-200 pl-3">
+            <FacilitySwitcher />
           </div>
-          {subtitle && (
-            <>
-              <span className="hidden sm:inline text-sm text-gray-300">|</span>
-              <span className="hidden sm:inline text-sm text-gray-500">{subtitle}</span>
-            </>
-          )}
           {inflationEnabled && (
             <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
               ~ Inflation {inflationRate.toFixed(1)}%

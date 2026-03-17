@@ -146,16 +146,16 @@ export const departmentColors = {
  * Department accent colors by numeric ID.
  * Single source of truth — import this instead of hardcoding colors.
  */
-export const DEPT_ACCENT_COLORS: Record<number, string> = {
-  1: '#6366f1', // Assembly  — indigo
-  2: '#f59e0b', // Testing   — amber
-  3: '#3b82f6', // Logistics — blue
-  4: '#ec4899', // Facility  — pink
-  5: '#a855f7', // Prototyping — purple
+export const DEPT_ACCENT_COLORS: Record<string, string> = {
+  'd-001': '#6366f1', // Assembly  — indigo
+  'd-002': '#f59e0b', // Testing   — amber
+  'd-003': '#3b82f6', // Logistics — blue
+  'd-004': '#ec4899', // Facility  — pink
+  'd-005': '#a855f7', // Prototyping — purple
 };
 
 /** Returns the accent color for a department ID, with a slate fallback. */
-export function getDeptColor(deptId: number): string {
+export function getDeptColor(deptId: string): string {
   return DEPT_ACCENT_COLORS[deptId] ?? '#64748b';
 }
 

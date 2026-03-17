@@ -81,9 +81,9 @@ const FilterBar: React.FC<FilterBarProps> = ({
         <FilterChip
           label="Department"
           options={deptOptions}
-          selected={filters.departments.map(String)}
+          selected={filters.departments}
           onChange={(vals) =>
-            onFilterChange('departments', vals.map(Number))
+            onFilterChange('departments', vals)
           }
         />
 

@@ -48,7 +48,7 @@ export function useFilteredData(filters: FilterState): FilteredData {
   } = useBudgetData();
 
   const searchIndex = useMemo(() => {
-    const index = new Map<number, string>();
+    const index = new Map<string, string>();
     for (const ci of allCostItems) {
       index.set(
         ci.id,
@@ -121,7 +121,7 @@ export function useFilteredData(filters: FilterState): FilteredData {
 
     // ---- Step 5b: Apply overBudget filter ----
     if (filters.overBudget) {
-      const overBudgetDeptIds = new Set<number>();
+      const overBudgetDeptIds = new Set<string>();
       for (const dept of filteredDepartments) {
         const deptWAs = workAreasInDepts.filter((wa) => wa.department_id === dept.id);
         const deptWAIds = new Set(deptWAs.map((wa) => wa.id));

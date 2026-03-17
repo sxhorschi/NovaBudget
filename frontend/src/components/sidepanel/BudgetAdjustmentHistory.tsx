@@ -133,7 +133,7 @@ const NewAdjustmentForm: React.FC<NewAdjustmentFormProps> = ({ onSubmit, onCance
 // ---------------------------------------------------------------------------
 
 interface BudgetAdjustmentHistoryProps {
-  departmentId: number;
+  departmentId: string;
   originalBudget: number;
 }
 
@@ -166,7 +166,7 @@ const BudgetAdjustmentHistory: React.FC<BudgetAdjustmentHistoryProps> = ({
 
   const handleNewAdjustment = (data: Omit<BudgetAdjustment, 'id' | 'department_id' | 'created_at'>) => {
     const newEntry: BudgetAdjustment = {
-      id: Date.now(),
+      id: `ba-${Date.now()}`,
       department_id: departmentId,
       amount: data.amount,
       reason: data.reason,

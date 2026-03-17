@@ -1,11 +1,15 @@
-"""User model — authentication and role-based access control."""
+"""User model — authentication and role-based access control.
+
+Stores both local fields and data synced from Microsoft Entra ID
+(Azure AD) via the Microsoft Graph API.
+"""
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, func
+from sqlalchemy import String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,7 +29,24 @@ class User(Base):
     role: Mapped[str] = mapped_column(
         String(20), nullable=False, default="viewer",
     )  # admin, editor, viewer
+
+    # ── Entra ID / Microsoft Graph profile fields ─────────────────────────
+    job_title: Mapped[str | None] = mapped_column(String(200), nullable=True)
     department: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    office_location: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    employee_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    company_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    manager_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    manager_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    entra_id: Mapped[str | None] = mapped_column(
+        String(100), nullable=True, unique=True, index=True,
+    )  # Azure AD object ID
+    entra_groups: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON array of group names
+    last_synced_at: Mapped[datetime | None] = mapped_column(nullable=True)  # last Entra profile sync
+
+    # ── App-level fields ──────────────────────────────────────────────────
     is_active: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     last_login: Mapped[datetime | None] = mapped_column(nullable=True)

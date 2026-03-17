@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { X as XIcon, Plus, Layers, FolderPlus, Building2 } from 'lucide-react';
+import { X as XIcon, Plus, Layers, FolderPlus, Building2, ArrowRightLeft } from 'lucide-react';
 import HelpTooltip from '../components/help/HelpTooltip';
 import { useOnboarding } from '../hooks/useOnboarding';
 import OnboardingModal from '../components/onboarding/OnboardingModal';
@@ -29,6 +29,7 @@ import DepartmentContextPanel from '../components/costbook/DepartmentContextPane
 import WorkAreaContextPanel from '../components/costbook/WorkAreaContextPanel';
 import SidePanel from '../components/sidepanel/SidePanel';
 import DeleteConfirmDialog from '../components/costbook/DeleteConfirmDialog';
+import TransferDialog from '../components/transfer/TransferDialog';
 import { useToast } from '../components/common/ToastProvider';
 import { useAuth } from '../context/AuthContext';
 
@@ -121,6 +122,7 @@ const CostbookPage: React.FC = () => {
   const { showOnboarding, currentStep, setCurrentStep, completeOnboarding, resetOnboarding: _resetOnboarding } = useOnboarding();
   const { user } = useAuth();
   const {
+    facility,
     departments,
     workAreas,
     costItems,
@@ -147,22 +149,25 @@ const CostbookPage: React.FC = () => {
 
   // -- SidePanel state --
   const [selectedItem, setSelectedItem] = useState<CostItem | null>(null);
-  const [selectedDepartmentContextId, setSelectedDepartmentContextId] = useState<number | null>(null);
-  const [selectedWorkAreaContextId, setSelectedWorkAreaContextId] = useState<number | null>(null);
+  const [selectedDepartmentContextId, setSelectedDepartmentContextId] = useState<string | null>(null);
+  const [selectedWorkAreaContextId, setSelectedWorkAreaContextId] = useState<string | null>(null);
 
   // -- Delete dialog state --
   const [deleteTarget, setDeleteTarget] = useState<CostItem | null>(null);
+
+  // -- Transfer dialog state --
+  const [transferOpen, setTransferOpen] = useState(false);
 
   // -- Quick create modal state --
   const [createOpen, setCreateOpen] = useState(false);
   const [createMode, setCreateMode] = useState<'item' | 'work-area' | 'department'>('item');
 
-  const [newItemDeptId, setNewItemDeptId] = useState<number | null>(null);
-  const [newItemWorkAreaId, setNewItemWorkAreaId] = useState<number | null>(null);
+  const [newItemDeptId, setNewItemDeptId] = useState<string | null>(null);
+  const [newItemWorkAreaId, setNewItemWorkAreaId] = useState<string | null>(null);
   const [newItemDescription, setNewItemDescription] = useState('');
   const [newItemAmount, setNewItemAmount] = useState('0');
 
-  const [newWADeptId, setNewWADeptId] = useState<number | null>(null);
+  const [newWADeptId, setNewWADeptId] = useState<string | null>(null);
   const [newWAName, setNewWAName] = useState('');
 
   const [newDeptName, setNewDeptName] = useState('');
@@ -254,12 +259,12 @@ const CostbookPage: React.FC = () => {
   }, [selectedWorkAreaContext, departments]);
 
   const departmentCommittedTotals = useMemo(() => {
-    const workAreaToDepartment = new Map<number, number>();
+    const workAreaToDepartment = new Map<string, string>();
     for (const wa of workAreas) {
       workAreaToDepartment.set(wa.id, wa.department_id);
     }
 
-    const totals: Record<number, number> = {};
+    const totals: Record<string, number> = {};
     for (const dept of departments) {
       totals[dept.id] = 0;
     }
@@ -320,20 +325,20 @@ const CostbookPage: React.FC = () => {
     }
   }, [selectedItem]);
 
-  const handleOpenDepartmentContext = useCallback((departmentId: number) => {
+  const handleOpenDepartmentContext = useCallback((departmentId: string) => {
     setSelectedItem(null);
     setSelectedWorkAreaContextId(null);
     setSelectedDepartmentContextId(departmentId);
   }, []);
 
-  const handleOpenWorkAreaContext = useCallback((workAreaId: number) => {
+  const handleOpenWorkAreaContext = useCallback((workAreaId: string) => {
     setSelectedItem(null);
     setSelectedDepartmentContextId(null);
     setSelectedWorkAreaContextId(workAreaId);
   }, []);
 
   const handleDepartmentContextSave = useCallback(
-    (departmentId: number, data: { name: string; budget_total: number }) => {
+    (departmentId: string, data: { name: string; budget_total: number }) => {
       if (!data.name.trim()) {
         toast.error('Department name must not be empty.');
         return;
@@ -348,7 +353,7 @@ const CostbookPage: React.FC = () => {
   );
 
   const handleDepartmentContextDelete = useCallback(
-    (departmentId: number) => {
+    (departmentId: string) => {
       if (selectedItem) {
         const wa = workAreas.find((w) => w.id === selectedItem.work_area_id);
         if (wa?.department_id === departmentId) {
@@ -364,7 +369,7 @@ const CostbookPage: React.FC = () => {
   );
 
   const handleWorkAreaContextSave = useCallback(
-    (workAreaId: number, data: { name: string }) => {
+    (workAreaId: string, data: { name: string }) => {
       if (!data.name.trim()) {
         toast.error('Category name must not be empty.');
         return;
@@ -378,7 +383,7 @@ const CostbookPage: React.FC = () => {
   );
 
   const handleWorkAreaContextDelete = useCallback(
-    (workAreaId: number) => {
+    (workAreaId: string) => {
       if (selectedItem?.work_area_id === workAreaId) {
         setSelectedItem(null);
       }
@@ -575,9 +580,9 @@ const CostbookPage: React.FC = () => {
             <FilterChip
               label="Department"
               options={departmentOptions}
-              selected={filters.departments.map(String)}
+              selected={filters.departments}
               onChange={(vals) =>
-                setFilter('departments', vals.map(Number))
+                setFilter('departments', vals)
               }
             />
             <FilterChip
@@ -628,6 +633,15 @@ const CostbookPage: React.FC = () => {
                 <Building2 size={12} />
               </button>
             </div>
+            <button
+              onClick={() => setTransferOpen(true)}
+              disabled={!selectedItem}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-gray-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              title={selectedItem ? 'Transfer selected item to another facility' : 'Select an item first'}
+            >
+              <ArrowRightLeft size={12} />
+              Transfer
+            </button>
             <SearchInput
               value={filters.search}
               onChange={(v) => setFilter('search', v)}
@@ -738,7 +752,7 @@ const CostbookPage: React.FC = () => {
                     <select
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                       value={newItemDeptId ?? ''}
-                      onChange={(e) => setNewItemDeptId(Number(e.target.value))}
+                      onChange={(e) => setNewItemDeptId(e.target.value)}
                     >
                       {departments.map((d) => (
                         <option key={d.id} value={d.id}>{d.name}</option>
@@ -750,7 +764,7 @@ const CostbookPage: React.FC = () => {
                     <select
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                       value={newItemWorkAreaId ?? ''}
-                      onChange={(e) => setNewItemWorkAreaId(Number(e.target.value))}
+                      onChange={(e) => setNewItemWorkAreaId(e.target.value)}
                     >
                       {workAreasForSelectedDept.length === 0 ? (
                         <option value="">No category available</option>
@@ -789,7 +803,7 @@ const CostbookPage: React.FC = () => {
                     <select
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                       value={newWADeptId ?? ''}
-                      onChange={(e) => setNewWADeptId(Number(e.target.value))}
+                      onChange={(e) => setNewWADeptId(e.target.value)}
                     >
                       {departments.map((d) => (
                         <option key={d.id} value={d.id}>{d.name}</option>
@@ -934,6 +948,15 @@ const CostbookPage: React.FC = () => {
           onClose={() => setDeleteTarget(null)}
         />
       )}
+
+      {/* ---- Transfer Dialog ---- */}
+      <TransferDialog
+        isOpen={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        entityType="cost_item"
+        entityIds={selectedItem ? [selectedItem.id] : []}
+        sourceFacilityId={facility.id}
+      />
 
       {/* ---- Onboarding Modal ---- */}
       {showOnboarding && (

@@ -121,11 +121,11 @@ const CashOutPage: React.FC = () => {
   const [hoveredCell, setHoveredCell] = useState<{ row: number; col: number } | null>(null);
   const [sortField, setSortField] = useState<SortField>('cashout');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [legendFilter, setLegendFilter] = useState<number | null>(null);
+  const [legendFilter, setLegendFilter] = useState<string | null>(null);
 
   // ---- Helper: work area IDs for a department ----
   const deptWaIds = useCallback(
-    (deptId: number): Set<number> => {
+    (deptId: string): Set<string> => {
       return new Set(
         workAreas
           .filter((wa) => wa.department_id === deptId)
@@ -294,9 +294,9 @@ const CashOutPage: React.FC = () => {
   const detailItems = useMemo(() => {
     const items = [...filteredItems];
 
-    const getDeptId = (item: CostItem): number => {
+    const getDeptId = (item: CostItem): string => {
       const wa = workAreas.find((w) => w.id === item.work_area_id);
-      if (!wa) return 0;
+      if (!wa) return '';
       return wa.department_id;
     };
 
@@ -362,14 +362,14 @@ const CashOutPage: React.FC = () => {
   }
 
   // ---- Navigate to costbook with filters ----
-  function navigateToCostbook(deptId: number, month: string): void {
+  function navigateToCostbook(deptId: string, month: string): void {
     const params = new URLSearchParams();
     params.set('dept', String(deptId));
     navigate(`/?${params.toString()}`);
   }
 
   // ---- Legend click handler ----
-  function handleLegendClick(deptId: number): void {
+  function handleLegendClick(deptId: string): void {
     setLegendFilter((prev) => (prev === deptId ? null : deptId));
   }
 

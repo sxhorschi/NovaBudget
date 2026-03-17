@@ -43,8 +43,8 @@ interface WorkAreaContextPanelProps {
   departmentName?: string;
   costItems: CostItem[];
   onClose: () => void;
-  onSave: (workAreaId: number, data: { name: string }) => void;
-  onDelete: (workAreaId: number) => void;
+  onSave: (workAreaId: string, data: { name: string }) => void;
+  onDelete: (workAreaId: string) => void;
 }
 
 export default function WorkAreaContextPanel({

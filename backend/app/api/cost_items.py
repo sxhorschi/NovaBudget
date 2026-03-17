@@ -11,6 +11,7 @@ from app.auth import UserDep
 from app.db import get_session
 from app.models import AuditLog, CostItem, WorkArea
 from app.models.enums import ApprovalStatus, CostBasis, Product, ProjectPhase
+from app.api.guards import ensure_facility_writable_for_work_area
 from app.schemas.approval import AuditLogRead, StatusChangeRequest, StatusChangeWithComment
 from app.schemas.cost_item import (
     CostItemCreate,
@@ -129,6 +130,7 @@ async def create_cost_item(
     work_area = await session.get(WorkArea, data.work_area_id)
     if not work_area:
         raise HTTPException(status_code=404, detail="Work area not found")
+    await ensure_facility_writable_for_work_area(session, data.work_area_id)
 
     item = CostItem(**data.model_dump())
     session.add(item)
@@ -149,6 +151,7 @@ async def update_cost_item(
     item = await session.get(CostItem, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Cost item not found")
+    await ensure_facility_writable_for_work_area(session, item.work_area_id)
     update_data = data.model_dump(exclude_unset=True)
     # Statusänderungen nur über den Approval-Workflow erlauben
     if "approval_status" in update_data:
@@ -181,6 +184,7 @@ async def delete_cost_item(
     item = await session.get(CostItem, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Cost item not found")
+    await ensure_facility_writable_for_work_area(session, item.work_area_id)
     item_id_copy = item.id
     await session.delete(item)
     await log_change(session, "cost_item", item_id_copy, "deleted", user_id=user.email)

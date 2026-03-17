@@ -98,7 +98,7 @@ function quarterTotals(monthValues: number[]): [number, number, number, number] 
 }
 
 /** Build a lookup map: id -> entity */
-function indexById<T extends { id: number }>(items: T[]): Map<number, T> {
+function indexById<T extends { id: string }>(items: T[]): Map<string, T> {
   return new Map(items.map((i) => [i.id, i]));
 }
 
@@ -115,14 +115,14 @@ export function exportStandard(
   const waMap = indexById(workAreas);
 
   // Group items by department (via work area)
-  const waByDept = new Map<number, WorkArea[]>();
+  const waByDept = new Map<string, WorkArea[]>();
   for (const wa of workAreas) {
     const list = waByDept.get(wa.department_id) ?? [];
     list.push(wa);
     waByDept.set(wa.department_id, list);
   }
 
-  const itemsByWa = new Map<number, CostItem[]>();
+  const itemsByWa = new Map<string, CostItem[]>();
   for (const item of items) {
     const list = itemsByWa.get(item.work_area_id) ?? [];
     list.push(item);

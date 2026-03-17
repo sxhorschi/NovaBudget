@@ -1,8 +1,8 @@
 """Authentication and authorization module.
 
 Provides:
-- CurrentUser Pydantic model
-- get_current_user dependency (dev bypass or token validation)
+- CurrentUser Pydantic model (enriched with Entra ID profile fields)
+- get_current_user dependency (dev bypass or token validation + DB lookup)
 - UserDep type alias for route signatures
 - require_role() dependency factory for RBAC
 
@@ -21,8 +21,11 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.db import get_session
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +35,14 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 class CurrentUser(BaseModel):
+    id: str | None = None
     email: str
     name: str
     role: str  # "admin", "editor", "viewer"
+    job_title: str | None = None
     department: str | None = None
+    office_location: str | None = None
+    photo_url: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -43,18 +50,51 @@ class CurrentUser(BaseModel):
 # ---------------------------------------------------------------------------
 
 _DEV_USER = CurrentUser(
+    id="usr-dev",
     email="georg.weis@tytan.tech",
     name="Georg Weis",
     role="admin",
-    department="Industrial Engineering",
+    job_title="Industrial Engineer",
+    department="Engineering",
+    office_location="Augsburg HQ",
 )
+
+
+# ---------------------------------------------------------------------------
+# Helper: enrich CurrentUser from database record
+# ---------------------------------------------------------------------------
+
+async def _enrich_from_db(session: AsyncSession, email: str, fallback: CurrentUser) -> CurrentUser:
+    """Look up the full User record and return a CurrentUser with all profile fields."""
+    from app.models.user import User  # local import to avoid circular dependency
+
+    stmt = select(User).where(User.email == email)
+    result = await session.execute(stmt)
+    db_user = result.scalar_one_or_none()
+
+    if db_user is None:
+        return fallback
+
+    return CurrentUser(
+        id=str(db_user.id),
+        email=db_user.email,
+        name=db_user.name,
+        role=db_user.role,
+        job_title=db_user.job_title,
+        department=db_user.department,
+        office_location=db_user.office_location,
+        photo_url=db_user.photo_url,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Core dependency: get_current_user
 # ---------------------------------------------------------------------------
 
-async def get_current_user(request: Request) -> CurrentUser:
+async def get_current_user(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> CurrentUser:
     """Extract and validate the current user from the request.
 
     When ``AUTH_DISABLED=true`` (dev mode), returns a default admin user
@@ -63,10 +103,13 @@ async def get_current_user(request: Request) -> CurrentUser:
     When auth is enabled, expects a Bearer token in the Authorization header.
     The token is a base64-encoded JSON payload:
         {"email": "...", "name": "...", "role": "..."}
+
+    In both cases, the full user profile is loaded from the database if a
+    matching record exists (enriching with Entra ID fields).
     """
     # Dev mode bypass
     if settings.AUTH_DISABLED:
-        return _DEV_USER
+        return await _enrich_from_db(session, _DEV_USER.email, _DEV_USER)
 
     # Extract Authorization header
     auth_header = request.headers.get("Authorization")
@@ -118,12 +161,15 @@ async def get_current_user(request: Request) -> CurrentUser:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return CurrentUser(
+    token_user = CurrentUser(
         email=email,
         name=name,
         role=role,
         department=payload.get("department"),
     )
+
+    # Enrich from DB to pick up Entra ID fields
+    return await _enrich_from_db(session, email, token_user)
 
 
 # ---------------------------------------------------------------------------

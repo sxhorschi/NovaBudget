@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.auth import UserDep
 from app.db import get_session
 from app.models import WorkArea, CostItem
+from app.api.guards import ensure_facility_writable_for_department, ensure_facility_writable_for_work_area
 from app.schemas.work_area import WorkAreaCreate, WorkAreaRead, WorkAreaWithItems
 from app.services.audit import build_changes, log_change
 
@@ -45,6 +46,7 @@ async def create_work_area(
     user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
+    await ensure_facility_writable_for_department(session, data.department_id)
     work_area = WorkArea(**data.model_dump())
     session.add(work_area)
     await session.flush()
@@ -64,6 +66,7 @@ async def update_work_area(
     work_area = await session.get(WorkArea, work_area_id)
     if not work_area:
         raise HTTPException(status_code=404, detail="Work area not found")
+    await ensure_facility_writable_for_department(session, work_area.department_id)
     update_data = data.model_dump()
     old_values = {k: getattr(work_area, k) for k in update_data}
     for key, value in update_data.items():
@@ -85,6 +88,7 @@ async def delete_work_area(
     work_area = await session.get(WorkArea, work_area_id)
     if not work_area:
         raise HTTPException(status_code=404, detail="Work area not found")
+    await ensure_facility_writable_for_department(session, work_area.department_id)
     work_area_id_copy = work_area.id
     await session.delete(work_area)
     await log_change(session, "work_area", work_area_id_copy, "deleted", user_id=user.email)

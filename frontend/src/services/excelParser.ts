@@ -311,6 +311,10 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
   let nextWaId = 1000;
   let nextCiId = 1000;
 
+  function deptIdStr(): string { return `d-imp-${nextDeptId++}`; }
+  function waIdStr(): string { return `wa-imp-${nextWaId++}`; }
+  function ciIdStr(): string { return `ci-imp-${nextCiId++}`; }
+
   const now = new Date().toISOString().split('T')[0];
 
   // Build column mappings from first detected data sheet
@@ -378,11 +382,11 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
     }
 
     // Create department for this sheet
-    const deptId = nextDeptId++;
+    const deptId = deptIdStr();
     const deptName = sheetName.replace(/_/g, ' ');
     departments.push({
       id: deptId,
-      facility_id: 1,
+      facility_id: 'f-001',
       name: deptName,
       budget_total: 0,
     });
@@ -408,7 +412,7 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
           if (existing) {
             currentWorkArea = existing;
           } else {
-            const waId = nextWaId++;
+            const waId = waIdStr();
             const newWa: WorkArea = {
               id: waId,
               department_id: deptId,
@@ -432,7 +436,7 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
           if (existing) {
             currentWorkArea = existing;
           } else {
-            const waId = nextWaId++;
+            const waId = waIdStr();
             const newWa: WorkArea = {
               id: waId,
               department_id: deptId,
@@ -445,7 +449,7 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
 
         // Ensure we have a work area
         if (!currentWorkArea) {
-          const waId = nextWaId++;
+          const waId = waIdStr();
           currentWorkArea = {
             id: waId,
             department_id: deptId,
@@ -469,7 +473,7 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
         const zielVal = cellNum(row, colMap.ZIELANPASSUNG);
 
         const costItem: CostItem = {
-          id: nextCiId++,
+          id: ciIdStr(),
           work_area_id: currentWorkArea.id,
           description,
           original_amount: amount,
