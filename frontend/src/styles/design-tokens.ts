@@ -142,6 +142,23 @@ export const departmentColors = {
   management: { bg: '#f1f5f9', text: '#334155', dot: '#64748b' },
 } as const;
 
+/**
+ * Department accent colors by numeric ID.
+ * Single source of truth — import this instead of hardcoding colors.
+ */
+export const DEPT_ACCENT_COLORS: Record<number, string> = {
+  1: '#6366f1', // Assembly  — indigo
+  2: '#f59e0b', // Testing   — amber
+  3: '#3b82f6', // Logistics — blue
+  4: '#ec4899', // Facility  — pink
+  5: '#a855f7', // Prototyping — purple
+};
+
+/** Returns the accent color for a department ID, with a slate fallback. */
+export function getDeptColor(deptId: number): string {
+  return DEPT_ACCENT_COLORS[deptId] ?? '#64748b';
+}
+
 // ---------------------------------------------------------------------------
 // Phase Colors — Factory Planning Phases
 // ---------------------------------------------------------------------------

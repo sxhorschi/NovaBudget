@@ -92,7 +92,7 @@ const LoginPage: React.FC = () => {
             Strategic capital expenditure management for facility planning
           </p>
 
-          <div className="mt-8 flex flex-col gap-4 hidden md:flex">
+          <div className="mt-8 flex-col gap-4 hidden md:flex">
             <FeatureBullet
               icon={<BarChart3 size={15} />}
               label="Real-time budget tracking"

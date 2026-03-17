@@ -16,20 +16,11 @@ import {
   STATUS_LABELS,
   STATUS_DOT_COLORS,
 } from '../../types/budget';
+import { formatEUR as formatEur } from '../costbook/AmountCell';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const eurFormatter = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-  maximumFractionDigits: 0,
-});
-
-function formatEur(value: number): string {
-  return eurFormatter.format(value);
-}
 
 function deltaColor(delta: number): string {
   if (delta > 0) return 'text-red-600';
@@ -208,7 +199,7 @@ const PercentAmountInput: React.FC<PercentAmountInputProps> = ({
       </div>
       {calculatedValue !== null && (
         <p className="mt-1 text-xs text-gray-500 tabular-nums">
-          = {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(calculatedValue)}
+          = {formatEur(calculatedValue)}
         </p>
       )}
       {pctInput === '' && (
@@ -471,6 +462,17 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
               onChange={(e) =>
                 onChange('approval_date', e.target.value || null)
               }
+            />
+          </div>
+
+          <div className="col-span-2">
+            <label className={labelClass}>Requester</label>
+            <input
+              type="text"
+              className={`${inputClass}${dirtyRing('requester')}`}
+              value={item.requester ?? ''}
+              onChange={(e) => onChange('requester', e.target.value || null)}
+              placeholder="Person who requested this item"
             />
           </div>
         </div>

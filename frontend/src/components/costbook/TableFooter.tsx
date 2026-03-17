@@ -21,7 +21,7 @@ export default function TableFooter({ totalAmount, itemCount }: TableFooterProps
         style={{ borderColor: 'var(--border-strong)' }}
       >
         <td
-          colSpan={5}
+          colSpan={6}
           className="px-4 py-3 text-sm font-semibold text-slate-900 uppercase tracking-wide"
         >
           <span>Total ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>

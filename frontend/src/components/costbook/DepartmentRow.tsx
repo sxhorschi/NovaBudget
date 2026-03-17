@@ -46,7 +46,7 @@ export default function DepartmentRow({
       }}
     >
       {/* Department name + chevron */}
-      <td colSpan={5} className="pl-4 pr-4 py-3.5">
+      <td colSpan={6} className="pl-4 pr-4 py-3.5">
         <span className="inline-flex items-center gap-2.5 tracking-tight">
           <ChevronRight
             size={18}

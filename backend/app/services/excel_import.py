@@ -60,6 +60,7 @@ COL_APPROVAL = 12        # L
 COL_APPROVAL_DATE = 13   # M
 COL_ZIELANPASSUNG = 14   # N
 COL_COMMENTS = 15        # O
+COL_REQUESTER = 16       # P
 
 DEFAULT_COLUMN_MAP: dict[str, int] = {
     "work_area": COL_WORK_AREA,
@@ -76,6 +77,7 @@ DEFAULT_COLUMN_MAP: dict[str, int] = {
     "approval_date": COL_APPROVAL_DATE,
     "zielanpassung": COL_ZIELANPASSUNG,
     "comments": COL_COMMENTS,
+    "requester": COL_REQUESTER,
 }
 
 HEADER_ALIASES: dict[str, set[str]] = {
@@ -89,10 +91,11 @@ HEADER_ALIASES: dict[str, set[str]] = {
     "cost_driver": {"cost driver", "kostentreiber", "driver"},
     "basis_desc": {"basis description", "basis beschreibung"},
     "assumptions": {"assumptions", "annahmen"},
-    "approval": {"approval", "approval status", "genehmigung", "status"},
+    "approval": {"approval", "approval status", "genehmigung", "approval_status"},
     "approval_date": {"approval date", "freigabedatum", "genehmigungsdatum"},
     "zielanpassung": {"zielanpassung", "target adjustment"},
     "comments": {"comments", "kommentare", "comment"},
+    "requester": {"requester", "anforderer", "requested by"},
 }
 
 
@@ -197,7 +200,12 @@ def _detect_column_map(ws: Worksheet) -> tuple[dict[str, int], set[str]]:
         for field, aliases in HEADER_ALIASES.items():
             if field in detected:
                 continue
-            if any(alias in header for alias in aliases):
+            if any(
+                header == alias
+                or header.startswith(alias + " ")
+                or header.endswith(" " + alias)
+                for alias in aliases
+            ):
                 detected[field] = col
                 break
 
@@ -581,6 +589,9 @@ async def import_excel_file(
                     session, current_work_area.id, description,
                 )
 
+                # Requester (optional column)
+                requester_val = _safe_str(_cell_value(ws, row, col_map, "requester"))
+
                 if existing:
                     # Update existing item
                     existing.original_amount = amount
@@ -604,6 +615,7 @@ async def import_excel_file(
                     existing.product = product
                     existing.zielanpassung = ziel_val if ziel_val != Decimal(0) else None
                     existing.comments = final_comments
+                    existing.requester = requester_val
                     dept_report.items_updated += 1
                 else:
                     # Create new item
@@ -631,6 +643,7 @@ async def import_excel_file(
                         product=product,
                         zielanpassung=ziel_val if ziel_val != Decimal(0) else None,
                         comments=final_comments,
+                        requester=requester_val,
                     )
                     session.add(cost_item)
                     dept_report.items_imported += 1

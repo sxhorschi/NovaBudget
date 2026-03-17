@@ -17,6 +17,7 @@ import { USE_MOCKS } from '../mocks/data';
 import { parseExcelFile } from '../services/excelParser';
 import type { ExcelParseResult, ParseWarning, ColumnMapping } from '../services/excelParser';
 import client from '../api/client';
+import { formatEUR as formatAmount } from '../components/costbook/AmountCell';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -207,15 +208,6 @@ const ColumnMappingDisplay: React.FC<{ mappings: ColumnMapping[] }> = ({ mapping
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function formatAmount(n: number): string {
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(n);
-}
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

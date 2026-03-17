@@ -56,7 +56,7 @@ function SkeletonDeptRow() {
         borderLeft: '4px solid #e2e8f0',
       }}
     >
-      <td colSpan={4} className="pl-4 pr-4 py-3.5">
+      <td colSpan={5} className="pl-4 pr-4 py-3.5">
         <div className="flex items-center gap-2.5">
           <div className="skeleton h-4 w-4 rounded" />
           <div className="skeleton h-5 w-40 rounded" />

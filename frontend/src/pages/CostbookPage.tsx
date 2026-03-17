@@ -23,12 +23,14 @@ import FilterChip from '../components/filter/FilterChip';
 import SearchInput from '../components/filter/SearchInput';
 import SavedViews from '../components/filter/SavedViews';
 import BudgetDashboard from '../components/summary/BudgetDashboard';
+import SummaryStrip from '../components/summary/SummaryStrip';
 import CostbookTable from '../components/costbook/CostbookTable';
 import DepartmentContextPanel from '../components/costbook/DepartmentContextPanel';
 import WorkAreaContextPanel from '../components/costbook/WorkAreaContextPanel';
 import SidePanel from '../components/sidepanel/SidePanel';
 import DeleteConfirmDialog from '../components/costbook/DeleteConfirmDialog';
 import { useToast } from '../components/common/ToastProvider';
+import { useAuth } from '../context/AuthContext';
 
 // ---------------------------------------------------------------------------
 // Helpers for formatted EUR amount input in modals
@@ -117,6 +119,7 @@ const statusOptions = (Object.keys(STATUS_LABELS) as ApprovalStatus[]).map((s) =
 
 const CostbookPage: React.FC = () => {
   const { showOnboarding, currentStep, setCurrentStep, completeOnboarding, resetOnboarding: _resetOnboarding } = useOnboarding();
+  const { user } = useAuth();
   const {
     departments,
     workAreas,
@@ -261,7 +264,9 @@ const CostbookPage: React.FC = () => {
       totals[dept.id] = 0;
     }
 
+    // Committed = only approved items (consistent with useFilteredData source of truth)
     for (const item of filteredItems) {
+      if (item.approval_status !== 'approved') continue;
       const departmentId = workAreaToDepartment.get(item.work_area_id);
       if (departmentId == null) continue;
       totals[departmentId] = (totals[departmentId] ?? 0) + item.current_amount;
@@ -400,12 +405,13 @@ const CostbookPage: React.FC = () => {
         zielanpassung: itemToDuplicate.zielanpassung,
         zielanpassung_reason: itemToDuplicate.zielanpassung_reason,
         comments: itemToDuplicate.comments,
+        requester: user?.name ?? 'Unknown',
         approval_status: 'open',
       });
       setSelectedItem(newItem);
       toast.success('Item duplicated');
     },
-    [createCostItem, toast],
+    [createCostItem, toast, user],
   );
 
   const handleFilterDepartment = useCallback(
@@ -463,7 +469,7 @@ const CostbookPage: React.FC = () => {
       return;
     }
 
-    const now = new Date().toISOString().split('T')[0];
+    const now = new Date().toISOString().slice(0, 7);
 
     const newItem = createCostItem(newItemWorkAreaId, {
       description: newItemDescription.trim(),
@@ -481,6 +487,7 @@ const CostbookPage: React.FC = () => {
       zielanpassung: false,
       zielanpassung_reason: '',
       approval_date: null,
+      requester: user?.name ?? 'Unknown',
     });
 
     setSelectedItem(newItem);
@@ -500,6 +507,7 @@ const CostbookPage: React.FC = () => {
     setAllFilters,
     closeCreate,
     toast,
+    user,
   ]);
 
   const handleCreateWorkArea = useCallback(() => {
@@ -557,7 +565,7 @@ const CostbookPage: React.FC = () => {
   return (
     <>
       {/* ---- Sticky container: SavedViews + FilterBar + SummaryStrip ---- */}
-      <div className="sticky top-[96px] z-20 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+      <div className="bg-white border-b border-gray-200">
         {/* ---- Saved Views ---- */}
         <SavedViews currentFilters={filters} onApplyView={setAllFilters} />
 
@@ -647,21 +655,32 @@ const CostbookPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ---- BudgetDashboard (inside sticky container) ---- */}
+        {/* ---- Summary Strip (same as CashOut) ---- */}
+        <SummaryStrip
+          budget={summary.budget}
+          committed={summary.committed}
+          forecast={summary.forecast}
+          remaining={summary.remaining}
+          itemCount={summary.itemCount}
+        />
+      </div>
+
+      {/* ---- Waterfall Chart (scrolls with content) ---- */}
+      <div className="px-6 pt-4">
         <BudgetDashboard
-          key={`dashboard-${summary.budget}-${summary.forecast}-${filteredItems.length}`}
           budget={summary.budget}
           committed={summary.committed}
           forecast={summary.forecast}
           remaining={summary.remaining}
           itemCount={summary.itemCount}
           items={filteredItems}
+          hasItemLevelFilters={filters.phases.length > 0 || filters.products.length > 0 || filters.statuses.length > 0 || filters.search.trim().length > 0}
         />
       </div>
 
       {createOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-[1px] flex items-center justify-center p-4"
           onClick={closeCreate}
         >
           <div
@@ -856,12 +875,8 @@ const CostbookPage: React.FC = () => {
       )}
 
       {/* ---- Main content area ---- */}
-      <div className="flex">
-        <div
-          className={`flex-1 min-w-0 transition-all duration-300 ease-out ${
-            isRightPanelOpen ? 'mr-[480px]' : ''
-          }`}
-        >
+      <div>
+        <div className="min-w-0">
           <div className="p-6">
             <CostbookTable
               departments={filteredDepartments}

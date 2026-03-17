@@ -75,7 +75,7 @@ export const mockCostItems: CostItem[] = [
     basis_description: 'Offer Desoutter Tools GmbH', assumptions: '4 spindles, torque range 1-50 Nm, integrated poka-yoke',
     approval_status: 'approved', approval_date: '2026-01-12', project_phase: 'phase_1',
     product: 'atlas', zielanpassung: false, zielanpassung_reason: '', comments: '',
-    created_at: '2025-11-01', updated_at: '2026-01-12',
+    requester: 'Georg Weis', created_at: '2025-11-01', updated_at: '2026-01-12',
   },
   {
     id: 2, work_area_id: 1, description: 'Chassis Marriage Lift System CML-800',
@@ -84,7 +84,7 @@ export const mockCostItems: CostItem[] = [
     basis_description: 'Offer Dürr Assembly Products', assumptions: 'Lift capacity 1200 kg, servo-driven, 3 positions',
     approval_status: 'approved', approval_date: '2026-01-20', project_phase: 'phase_1',
     product: 'atlas', zielanpassung: false, zielanpassung_reason: '', comments: 'Lead time 16 weeks confirmed',
-    created_at: '2025-11-05', updated_at: '2026-01-20',
+    requester: 'Anna Schmidt', created_at: '2025-11-05', updated_at: '2026-01-20',
   },
   {
     id: 3, work_area_id: 1, description: 'Adhesive Dispensing Robot Cell (Henkel Loctite)',
@@ -93,7 +93,7 @@ export const mockCostItems: CostItem[] = [
     basis_description: 'Revised offer Henkel AG — 2nd negotiation round', assumptions: '2-component PU adhesive, 0.1mm precision',
     approval_status: 'submitted_for_approval', approval_date: null, project_phase: 'phase_1',
     product: 'atlas', zielanpassung: true, zielanpassung_reason: 'Supplier increased price due to material cost', comments: 'Escalated to dept head',
-    created_at: '2025-11-10', updated_at: '2026-02-05',
+    requester: 'Thomas Mueller', created_at: '2025-11-10', updated_at: '2026-02-05',
   },
   {
     id: 4, work_area_id: 1, description: 'Subframe Fixture Set SF-12 (Atlas + Orion)',
@@ -102,7 +102,7 @@ export const mockCostItems: CostItem[] = [
     basis_description: 'Internal estimation based on similar fixture at Werk Nord', assumptions: '12 fixtures for 2 product variants',
     approval_status: 'approved', approval_date: '2026-01-08', project_phase: 'phase_1',
     product: 'atlas', zielanpassung: false, zielanpassung_reason: '', comments: '',
-    created_at: '2025-10-20', updated_at: '2026-01-08',
+    requester: 'Georg Weis', created_at: '2025-10-20', updated_at: '2026-01-08',
   },
   {
     id: 5, work_area_id: 1, description: 'Manual Workbench Station MWS-3 (x4)',
@@ -111,7 +111,7 @@ export const mockCostItems: CostItem[] = [
     basis_description: 'Offer Bott GmbH', assumptions: '4 stations, ESD, height-adjustable, tool holders',
     approval_status: 'approved', approval_date: '2026-01-05', project_phase: 'phase_1',
     product: 'overall', zielanpassung: false, zielanpassung_reason: '', comments: '',
-    created_at: '2025-10-15', updated_at: '2026-01-05',
+    requester: 'Lisa Berger', created_at: '2025-10-15', updated_at: '2026-01-05',
   },
   {
     id: 6, work_area_id: 1, description: 'Collaborative Robot Arm UR-20 (Pick & Place)',
@@ -120,7 +120,7 @@ export const mockCostItems: CostItem[] = [
     basis_description: 'Offer Universal Robots / Systemintegrator Schmalz', assumptions: 'Payload 20 kg, reach 1750mm, gripper included',
     approval_status: 'submitted_for_approval', approval_date: null, project_phase: 'phase_2',
     product: 'orion', zielanpassung: false, zielanpassung_reason: '', comments: '',
-    created_at: '2025-12-01', updated_at: '2026-02-10',
+    requester: 'Markus Weber', created_at: '2025-12-01', updated_at: '2026-02-10',
   },
 
   // --- WA 2: Drivetrain Station — 5 Items ---
@@ -131,7 +131,7 @@ export const mockCostItems: CostItem[] = [
     basis_description: 'Offer Kistler Instruments', assumptions: 'Servo press 250 kN, force-displacement monitoring',
     approval_status: 'approved', approval_date: '2026-02-01', project_phase: 'phase_1',
     product: 'atlas', zielanpassung: false, zielanpassung_reason: '', comments: '',
-    created_at: '2025-11-15', updated_at: '2026-02-01',
+    requester: 'Sophie Klein', created_at: '2025-11-15', updated_at: '2026-02-01',
   },
   {
     id: 8, work_area_id: 2, description: 'Gear Unit Test Bench GT-500',
@@ -140,7 +140,7 @@ export const mockCostItems: CostItem[] = [
     basis_description: 'Revised offer Teamtechnik GmbH', assumptions: 'Max speed 12,000 rpm, torque sensor 500 Nm',
     approval_status: 'approved', approval_date: '2026-01-28', project_phase: 'phase_1',
     product: 'atlas', zielanpassung: true, zielanpassung_reason: 'Scope extended to cover Orion variant', comments: '',
-    created_at: '2025-11-20', updated_at: '2026-01-28',
+    requester: 'Jan Hoffmann', created_at: '2025-11-20', updated_at: '2026-01-28',
   },
   {
     id: 9, work_area_id: 2, description: 'Rotor Balancing Machine RBM-3000',
@@ -149,7 +149,7 @@ export const mockCostItems: CostItem[] = [
     basis_description: 'Budget estimation based on Schenck RoTec catalog', assumptions: 'Rotor weight up to 30 kg, 2-plane balancing',
     approval_status: 'open', approval_date: null, project_phase: 'phase_2',
     product: 'orion', zielanpassung: false, zielanpassung_reason: '', comments: 'RFQ to be sent Q1 2026',
-    created_at: '2025-12-05', updated_at: '2025-12-05',
+    requester: 'Eva Fischer', created_at: '2025-12-05', updated_at: '2025-12-05',
   },
   {
     id: 10, work_area_id: 2, description: 'Stator Winding Insertion Tool SWI-6',
@@ -158,7 +158,7 @@ export const mockCostItems: CostItem[] = [
     basis_description: 'Offer Marsilli SpA', assumptions: '6-pole stator, hairpin winding compatible',
     approval_status: 'submitted_for_approval', approval_date: null, project_phase: 'phase_2',
     product: 'orion', zielanpassung: true, zielanpassung_reason: 'Additional tooling for Vega variant needed', comments: '',
-    created_at: '2025-12-10', updated_at: '2026-02-15',
+    requester: 'Georg Weis', created_at: '2025-12-10', updated_at: '2026-02-15',
   },
   {
     id: 11, work_area_id: 2, description: 'Drivetrain Transport Dolly DD-4 (x8)',
@@ -167,7 +167,7 @@ export const mockCostItems: CostItem[] = [
     basis_description: 'Internal estimation', assumptions: '8 dollies, 500 kg capacity, lockable castors',
     approval_status: 'approved', approval_date: '2025-12-20', project_phase: 'phase_1',
     product: 'overall', zielanpassung: false, zielanpassung_reason: '', comments: '',
-    created_at: '2025-10-25', updated_at: '2025-12-20',
+    requester: 'Anna Schmidt', created_at: '2025-10-25', updated_at: '2025-12-20',
   },
 
   // --- WA 3: Battery Pack Line — 6 Items ---
@@ -178,7 +178,7 @@ export const mockCostItems: CostItem[] = [
     basis_description: 'Offer ThyssenKrupp System Engineering', assumptions: 'Press force 200 kN, cycle time < 45s',
     approval_status: 'approved', approval_date: '2026-02-10', project_phase: 'phase_1',
     product: 'atlas', zielanpassung: true, zielanpassung_reason: 'Price increase due to safety enclosure upgrade', comments: '',
-    created_at: '2025-11-08', updated_at: '2026-02-10',
+    requester: 'Thomas Mueller', created_at: '2025-11-08', updated_at: '2026-02-10',
   },
   {
     id: 13, work_area_id: 3, description: 'Thermal Paste Dispensing System TPD-1',

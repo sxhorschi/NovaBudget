@@ -133,14 +133,15 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
           tooltip="Remaining budget = Budget - Forecast"
         />
 
-        {/* Items */}
+        {/* CoC */}
         <KPICard
-          label="Items"
-          value={String(itemCount)}
-          textColor="text-gray-700"
-          barValue={itemCount}
-          barMax={Math.max(itemCount, 1)}
+          label="CoC"
+          value={format(forecast)}
+          textColor="text-violet-700"
+          barValue={forecast}
+          barMax={budget || 1}
           barColor="indigo"
+          tooltip="Cost at Completion = Forecast"
         />
       </div>
     </div>

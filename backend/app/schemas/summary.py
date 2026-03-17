@@ -22,7 +22,7 @@ class DepartmentKPI(BaseModel):
     committed: Decimal           # SUM(current_amount) WHERE status = APPROVED
     forecast: Decimal            # SUM(current_amount) WHERE status NOT IN (REJECTED, OBSOLETE)
     remaining: Decimal           # budget - forecast
-    cost_of_completion: Decimal  # forecast - committed (was noch bestellt/bezahlt werden muss)
+    cost_of_completion: Decimal  # = forecast (same metric, different label)
     variance: Decimal            # SUM(original_amount - current_amount) for active items
     item_count: int              # number of active items (excl. rejected/obsolete)
     budget_utilization_pct: Decimal  # committed / budget * 100

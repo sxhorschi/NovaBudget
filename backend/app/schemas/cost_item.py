@@ -13,17 +13,18 @@ class CostItemCreate(BaseModel):
     original_amount: Decimal = Field(ge=0, max_digits=15, decimal_places=2)
     current_amount: Decimal = Field(ge=0, max_digits=15, decimal_places=2)
     expected_cash_out: date | None = None
-    cost_basis: CostBasis
-    cost_driver: CostDriver
+    cost_basis: CostBasis | None = None
+    cost_driver: CostDriver | None = None
     basis_description: str | None = Field(default=None, max_length=1000)
     assumptions: str | None = Field(default=None, max_length=2000)
     approval_status: ApprovalStatus = ApprovalStatus.OPEN
     approval_date: date | None = None
-    project_phase: ProjectPhase
-    product: Product
+    project_phase: ProjectPhase | None = None
+    product: Product | None = None
     zielanpassung: Decimal | None = Field(default=None, max_digits=15, decimal_places=2)
     zielanpassung_reason: str | None = Field(default=None, max_length=2000)
     comments: str | None = Field(default=None, max_length=4000)
+    requester: str | None = Field(default=None, max_length=200)
 
 
 class CostItemRead(BaseModel):
@@ -35,17 +36,18 @@ class CostItemRead(BaseModel):
     original_amount: Decimal
     current_amount: Decimal
     expected_cash_out: date | None = None
-    cost_basis: CostBasis
-    cost_driver: CostDriver
+    cost_basis: CostBasis | None = None
+    cost_driver: CostDriver | None = None
     basis_description: str | None = None
     assumptions: str | None = None
     approval_status: ApprovalStatus
     approval_date: date | None = None
-    project_phase: ProjectPhase
-    product: Product
+    project_phase: ProjectPhase | None = None
+    product: Product | None = None
     zielanpassung: Decimal | None = None
     zielanpassung_reason: str | None = None
     comments: str | None = None
+    requester: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -81,3 +83,4 @@ class CostItemUpdate(BaseModel):
     zielanpassung: Decimal | None = Field(default=None, max_digits=15, decimal_places=2)
     zielanpassung_reason: str | None = Field(default=None, max_length=2000)
     comments: str | None = Field(default=None, max_length=4000)
+    requester: str | None = Field(default=None, max_length=200)

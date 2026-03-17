@@ -98,6 +98,9 @@ class CostItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     zielanpassung_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # requester (person who requested/created this item)
+    requester: Mapped[str | None] = mapped_column(String(200), nullable=True, default=None)
+
     # general notes
     comments: Mapped[str | None] = mapped_column(Text, nullable=True)
 

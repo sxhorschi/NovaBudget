@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import UserDep
 from app.db import get_session
 from app.models.budget_adjustment import BudgetAdjustment
 from app.models.department import Department
@@ -47,6 +48,7 @@ async def get_budget_adjustment(
 @router.post("/", response_model=BudgetAdjustmentRead, status_code=201)
 async def create_budget_adjustment(
     data: BudgetAdjustmentCreate,
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     """Create a new budget adjustment.
@@ -62,7 +64,7 @@ async def create_budget_adjustment(
     adjustment = BudgetAdjustment(**data.model_dump())
     session.add(adjustment)
     await session.flush()
-    await log_change(session, "budget_adjustment", adjustment.id, "created")
+    await log_change(session, "budget_adjustment", adjustment.id, "created", user_id=user.email)
     await session.commit()
     await session.refresh(adjustment)
     return adjustment

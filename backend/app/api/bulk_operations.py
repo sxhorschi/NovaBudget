@@ -5,14 +5,16 @@ from __future__ import annotations
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import UserDep
 from app.db import get_session
 from app.models import CostItem, WorkArea
 from app.models.enums import ApprovalStatus
+from app.rate_limit import limiter
 from app.schemas.cost_item import CostItemRead
 from app.services.approval import is_transition_allowed
 from app.services.audit import build_changes, log_change
@@ -99,8 +101,11 @@ async def _fetch_items(
 
 
 @router.post("/bulk-update", response_model=BulkResponse)
+@limiter.limit("20/minute")
 async def bulk_update(
+    request: Request,
     body: BulkUpdateRequest,
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ) -> BulkResponse:
     """Apply the same field updates to multiple cost items (transactional)."""
@@ -152,6 +157,7 @@ async def bulk_update(
                     entity_id=uid,
                     action="updated",
                     changes=changes,
+                    user_id=user.email,
                 )
 
             details.append(BulkItemDetail(item_id=uid, success=True))
@@ -175,8 +181,11 @@ async def bulk_update(
 
 
 @router.post("/bulk-status", response_model=BulkResponse)
+@limiter.limit("20/minute")
 async def bulk_status(
+    request: Request,
     body: BulkStatusRequest,
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ) -> BulkResponse:
     """Transition multiple items to a new approval status using workflow rules.
@@ -226,6 +235,7 @@ async def bulk_status(
                         "new": body.new_status.value,
                     }
                 },
+                user_id=user.email,
             )
 
             details.append(BulkItemDetail(item_id=uid, success=True))
@@ -249,8 +259,11 @@ async def bulk_status(
 
 
 @router.delete("/bulk-delete", response_model=BulkResponse)
+@limiter.limit("20/minute")
 async def bulk_delete(
+    request: Request,
     body: BulkDeleteRequest,
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ) -> BulkResponse:
     """Delete multiple cost items (transactional)."""
@@ -273,6 +286,7 @@ async def bulk_delete(
                 entity_type="cost_item",
                 entity_id=uid,
                 action="deleted",
+                user_id=user.email,
             )
 
             details.append(BulkItemDetail(item_id=uid, success=True))
@@ -296,8 +310,11 @@ async def bulk_delete(
 
 
 @router.post("/bulk-move", response_model=BulkResponse)
+@limiter.limit("20/minute")
 async def bulk_move(
+    request: Request,
     body: BulkMoveRequest,
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ) -> BulkResponse:
     """Move multiple cost items to a different work area (transactional)."""
@@ -336,6 +353,7 @@ async def bulk_move(
                         "new": str(body.target_work_area_id),
                     }
                 },
+                user_id=user.email,
             )
 
             details.append(BulkItemDetail(item_id=uid, success=True))
@@ -361,6 +379,7 @@ async def bulk_move(
 @router.post("/duplicate", response_model=CostItemRead, status_code=201)
 async def duplicate_cost_item(
     body: DuplicateRequest,
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ) -> CostItem:
     """Duplicate a cost item, resetting status to OPEN."""
@@ -415,6 +434,7 @@ async def duplicate_cost_item(
                     "new": str(body.item_id),
                 }
             },
+            user_id=user.email,
         )
 
         await session.commit()

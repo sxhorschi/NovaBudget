@@ -160,11 +160,11 @@ const TopBar: React.FC = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-gray-100 bg-white px-4 shadow-sm">
+      <header className="flex h-16 items-center justify-between border-b border-gray-100 bg-white px-4">
         {/* Left: Logo + Facility */}
         <div className="flex items-center gap-3">
           {/* TYTAN Logo */}
-          <img src="/tytan-logo.svg" alt="TYTAN Technologies" className="h-7 w-auto select-none" draggable={false} />
+          <img src="/tytan-logo.png" alt="TYTAN Technologies" className="h-8 w-auto select-none" draggable={false} />
           {/* App title + version badge */}
           <div className="flex items-center gap-2 border-l border-gray-200 pl-3">
             <span className="text-sm font-bold text-gray-700 tracking-tight">{title}</span>

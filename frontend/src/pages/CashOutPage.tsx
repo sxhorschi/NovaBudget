@@ -26,6 +26,8 @@ import HelpTooltip from '../components/help/HelpTooltip';
 import EmptyState from '../components/common/EmptyState';
 import type { CostItem, Department } from '../types/budget';
 import { STATUS_LABELS, STATUS_COLORS } from '../types/budget';
+import { getDeptColor as getDeptColorById } from '../styles/design-tokens';
+import { formatEUR } from '../components/costbook/AmountCell';
 import { useBudgetData } from '../context/BudgetDataContext';
 import { useFilterState } from '../hooks/useFilterState';
 import { useFilteredData } from '../hooks/useFilteredData';
@@ -57,13 +59,6 @@ const MONTH_SHORT: Record<string, string> = {
   '2026-11': 'Nov', '2026-12': 'Dec', '2027-01': 'Jan',
 };
 
-const DEPT_COLORS: Record<number, string> = {
-  1: '#6366f1', // Assembly (indigo)
-  2: '#f59e0b', // Testing (amber)
-  3: '#3b82f6', // Logistics (blue)
-  4: '#ec4899', // Facility (pink)
-  5: '#a855f7', // Prototyping (purple)
-};
 
 const QUARTERS: { label: string; months: string[] }[] = [
   { label: 'Q1 2026', months: ['2026-02', '2026-03', '2026-04'] },
@@ -76,20 +71,14 @@ const QUARTERS: { label: string; months: string[] }[] = [
 // Formatters
 // ---------------------------------------------------------------------------
 
-const eurFormatter = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-  maximumFractionDigits: 0,
-});
-
 function formatEur(value: number): string {
-  return eurFormatter.format(value);
+  return formatEUR(value);
 }
 
 function fmtCompact(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace('.', ',')}M`;
   if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
-  return eurFormatter.format(n);
+  return formatEUR(n);
 }
 
 // ---------------------------------------------------------------------------
@@ -350,7 +339,7 @@ const CashOutPage: React.FC = () => {
 
   function getDeptColor(item: CostItem): string {
     const dept = getDeptForItem(item);
-    return dept ? (DEPT_COLORS[dept.id] ?? '#6b7280') : '#6b7280';
+    return dept ? getDeptColorById(dept.id) : '#64748b';
   }
 
   // ---- Sort toggle ----
@@ -376,7 +365,6 @@ const CashOutPage: React.FC = () => {
   function navigateToCostbook(deptId: number, month: string): void {
     const params = new URLSearchParams();
     params.set('dept', String(deptId));
-    params.set('cashout', month);
     navigate(`/?${params.toString()}`);
   }
 
@@ -390,7 +378,7 @@ const CashOutPage: React.FC = () => {
       {/* ================================================================ */}
       {/* 1. FilterBar + SummaryStrip (sticky container)                   */}
       {/* ================================================================ */}
-      <div className="sticky top-[96px] z-20 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+      <div className="bg-white border-b border-gray-200">
         <FilterBar
           filters={filters}
           onFilterChange={setFilter}
@@ -408,7 +396,7 @@ const CashOutPage: React.FC = () => {
         />
       </div>
 
-      <div className="px-6 pb-8 space-y-6">
+      <div className="px-6 pt-4 pb-8 space-y-6">
         {/* ================================================================ */}
         {/* Empty State                                                       */}
         {/* ================================================================ */}
@@ -455,7 +443,7 @@ const CashOutPage: React.FC = () => {
                       >
                         <div
                           className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: DEPT_COLORS[dept.id] ?? '#6b7280' }}
+                          style={{ backgroundColor: getDeptColorById(dept.id) }}
                         />
                         <span className="text-gray-700 font-medium">{dept.name}</span>
                       </button>
@@ -489,12 +477,12 @@ const CashOutPage: React.FC = () => {
                         >
                           <stop
                             offset="0%"
-                            stopColor={DEPT_COLORS[dept.id] ?? '#6b7280'}
+                            stopColor={getDeptColorById(dept.id)}
                             stopOpacity={0.6}
                           />
                           <stop
                             offset="100%"
-                            stopColor={DEPT_COLORS[dept.id] ?? '#6b7280'}
+                            stopColor={getDeptColorById(dept.id)}
                             stopOpacity={0.05}
                           />
                         </linearGradient>
@@ -571,7 +559,7 @@ const CashOutPage: React.FC = () => {
                           type="monotone"
                           dataKey={`dept_${dept.id}`}
                           stackId="cashout"
-                          stroke={isVisible ? (DEPT_COLORS[dept.id] ?? '#6b7280') : 'transparent'}
+                          stroke={isVisible ? (getDeptColorById(dept.id)) : 'transparent'}
                           strokeWidth={isVisible ? 1.5 : 0}
                           fill={isVisible ? `url(#grad_dept_${dept.id})` : 'transparent'}
                           fillOpacity={isVisible ? 1 : 0}
@@ -678,7 +666,7 @@ const CashOutPage: React.FC = () => {
                               className="w-2 h-2 rounded-full flex-shrink-0"
                               style={{
                                 backgroundColor:
-                                  DEPT_COLORS[row.department.id] ?? '#6b7280',
+                                  getDeptColorById(row.department.id),
                               }}
                             />
                             <span className="truncate">{row.department.name}</span>
@@ -824,7 +812,7 @@ const CashOutPage: React.FC = () => {
                             <div key={dept.id} className="flex items-center gap-2">
                               <div
                                 className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                style={{ backgroundColor: DEPT_COLORS[dept.id] ?? '#6b7280' }}
+                                style={{ backgroundColor: getDeptColorById(dept.id) }}
                               />
                               <span className="text-[11px] text-gray-500 flex-1 truncate">
                                 {dept.name}

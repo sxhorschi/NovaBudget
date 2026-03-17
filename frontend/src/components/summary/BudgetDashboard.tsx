@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceLine,
 } from 'recharts';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import type { CostItem, CostDriver, ProjectPhase } from '../../types/budget';
@@ -25,6 +26,8 @@ export interface BudgetDashboardProps {
   remaining: number;
   itemCount: number;
   items: CostItem[];
+  /** When true, item-level filters are active — budget/remaining/chart are not meaningful */
+  hasItemLevelFilters?: boolean;
 }
 
 type SubdivisionMode = 'total' | 'cost_driver' | 'phase';
@@ -295,6 +298,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
   remaining,
   itemCount,
   items,
+  hasItemLevelFilters = false,
 }) => {
   const format = useAmountFormatter();
   const [subdivisionMode, setSubdivisionMode] = useState<SubdivisionMode>('total');
@@ -368,40 +372,45 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
   // Chart data shape — same 4-bar waterfall, bars split internally
   // ---------------------------------------------------------------------------
 
+  // CoC split: portion within budget vs portion over budget
+  const cocWithinBudget = Math.min(forecast, budget);
+  const cocOverBudget = Math.max(0, forecast - budget);
+
   type WaterfallRow = {
     label: string;
     spacer: number;
     bar: number;
+    barOver: number; // red portion above budget (only for CoC)
     anchor: number;
   } & Record<CostDriver, number> & Record<ProjectPhase, number>;
 
   const chartData = useMemo((): WaterfallRow[] => {
     if (subdivisionMode === 'total') {
       return [
-        { label: 'Budget',   spacer: 0,     bar: budget,  anchor: 0, ...ZERO_DRIVERS, ...ZERO_PHASES },
-        { label: 'Spent',    spacer: 0,     bar: spent,   anchor: 0, ...ZERO_DRIVERS, ...ZERO_PHASES },
-        { label: 'Forecast', spacer: spent, bar: pending, anchor: 0, ...ZERO_DRIVERS, ...ZERO_PHASES },
-        { label: 'CoC',      spacer: 0,     bar: forecast, anchor: 0, ...ZERO_DRIVERS, ...ZERO_PHASES },
+        { label: 'Budget',   spacer: 0,     bar: budget,           barOver: 0, anchor: 0, ...ZERO_DRIVERS, ...ZERO_PHASES },
+        { label: 'Spent',    spacer: 0,     bar: spent,            barOver: 0, anchor: 0, ...ZERO_DRIVERS, ...ZERO_PHASES },
+        { label: 'Forecast', spacer: spent, bar: pending,          barOver: 0, anchor: 0, ...ZERO_DRIVERS, ...ZERO_PHASES },
+        { label: 'CoC',      spacer: 0,     bar: cocWithinBudget,  barOver: cocOverBudget, anchor: 0, ...ZERO_DRIVERS, ...ZERO_PHASES },
       ];
     }
 
     if (subdivisionMode === 'cost_driver') {
       return [
-        { label: 'Budget',   spacer: 0,     bar: 0, anchor: budget,   ...ZERO_DRIVERS, ...ZERO_PHASES },
-        { label: 'Spent',    spacer: 0,     bar: 0, anchor: 0,         ...spentByDriver,   ...ZERO_PHASES },
-        { label: 'Forecast', spacer: spent, bar: 0, anchor: 0,         ...pendingByDriver, ...ZERO_PHASES },
-        { label: 'CoC',      spacer: 0,     bar: 0, anchor: forecast,  ...ZERO_DRIVERS, ...ZERO_PHASES },
+        { label: 'Budget',   spacer: 0,     bar: 0, barOver: 0, anchor: budget,            ...ZERO_DRIVERS, ...ZERO_PHASES },
+        { label: 'Spent',    spacer: 0,     bar: 0, barOver: 0, anchor: 0,                  ...spentByDriver,   ...ZERO_PHASES },
+        { label: 'Forecast', spacer: spent, bar: 0, barOver: 0, anchor: 0,                  ...pendingByDriver, ...ZERO_PHASES },
+        { label: 'CoC',      spacer: 0,     bar: 0, barOver: cocOverBudget, anchor: cocWithinBudget,    ...ZERO_DRIVERS, ...ZERO_PHASES },
       ];
     }
 
     // phase
     return [
-      { label: 'Budget',   spacer: 0,     bar: 0, anchor: budget,   ...ZERO_DRIVERS, ...ZERO_PHASES },
-      { label: 'Spent',    spacer: 0,     bar: 0, anchor: 0,         ...ZERO_DRIVERS, ...spentByPhase   },
-      { label: 'Forecast', spacer: spent, bar: 0, anchor: 0,         ...ZERO_DRIVERS, ...pendingByPhase },
-      { label: 'CoC',      spacer: 0,     bar: 0, anchor: forecast,  ...ZERO_DRIVERS, ...ZERO_PHASES },
+      { label: 'Budget',   spacer: 0,     bar: 0, barOver: 0, anchor: budget,           ...ZERO_DRIVERS, ...ZERO_PHASES },
+      { label: 'Spent',    spacer: 0,     bar: 0, barOver: 0, anchor: 0,                 ...ZERO_DRIVERS, ...spentByPhase   },
+      { label: 'Forecast', spacer: spent, bar: 0, barOver: 0, anchor: 0,                 ...ZERO_DRIVERS, ...pendingByPhase },
+      { label: 'CoC',      spacer: 0,     bar: 0, barOver: cocOverBudget, anchor: cocWithinBudget,   ...ZERO_DRIVERS, ...ZERO_PHASES },
     ];
-  }, [subdivisionMode, budget, spent, pending, forecast, spentByDriver, pendingByDriver, spentByPhase, pendingByPhase]);
+  }, [subdivisionMode, budget, spent, pending, forecast, cocWithinBudget, cocOverBudget, spentByDriver, pendingByDriver, spentByPhase, pendingByPhase]);
 
   // ---------------------------------------------------------------------------
   // Y-axis domain
@@ -440,13 +449,13 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
         <>
           {/* Invisible spacer lifts the floating Forecast bar */}
           <Bar dataKey="spacer" stackId="a" fill="transparent" isAnimationActive={false} legendType="none" />
-          {/* Visible bar — single color per entry */}
+          {/* Visible bar — portion within budget */}
           <Bar
             dataKey="bar"
             name="Amount"
             stackId="a"
             maxBarSize={72}
-            radius={[6, 6, 0, 0]}
+            radius={0}
             isAnimationActive
             animationDuration={700}
             animationEasing="ease-out"
@@ -455,6 +464,18 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
               <Cell key={i} fill={TOTAL_BAR_FILL[entry.label] ?? '#94a3b8'} />
             ))}
           </Bar>
+          {/* Red portion above budget (only visible on CoC bar when over budget) */}
+          <Bar
+            dataKey="barOver"
+            name="Over Budget"
+            stackId="a"
+            maxBarSize={72}
+            radius={0}
+            fill="#dc2626"
+            isAnimationActive
+            animationDuration={700}
+            animationEasing="ease-out"
+          />
         </>
       );
     }
@@ -463,12 +484,11 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
       return (
         <>
           <Bar dataKey="spacer" stackId="a" fill="transparent" isAnimationActive={false} legendType="none" />
-          {/* Anchor bar for Budget / CoC */}
           <Bar
             dataKey="anchor"
             stackId="a"
             maxBarSize={72}
-            radius={[6, 6, 0, 0]}
+            radius={0}
             isAnimationActive
             animationDuration={700}
             animationEasing="ease-out"
@@ -477,8 +497,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
               <Cell key={i} fill={ANCHOR_BAR_COLOR[entry.label] ?? '#6366f1'} />
             ))}
           </Bar>
-          {/* Driver segments — stacked inside Spent / Forecast bars */}
-          {COST_DRIVERS.map((driver, dIdx) => (
+          {COST_DRIVERS.map((driver) => (
             <Bar
               key={driver}
               dataKey={driver}
@@ -489,9 +508,19 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
               isAnimationActive
               animationDuration={700}
               animationEasing="ease-out"
-              animationBegin={dIdx * 30}
             />
           ))}
+          <Bar
+            dataKey="barOver"
+            name="Over Budget"
+            stackId="a"
+            maxBarSize={72}
+            radius={0}
+            fill="#dc2626"
+            isAnimationActive
+            animationDuration={700}
+            animationEasing="ease-out"
+          />
         </>
       );
     }
@@ -504,7 +533,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
           dataKey="anchor"
           stackId="a"
           maxBarSize={72}
-          radius={[6, 6, 0, 0]}
+          radius={0}
           isAnimationActive
           animationDuration={700}
           animationEasing="ease-out"
@@ -513,7 +542,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
             <Cell key={i} fill={ANCHOR_BAR_COLOR[entry.label] ?? '#6366f1'} />
           ))}
         </Bar>
-        {PHASES.map((phase, pIdx) => (
+        {PHASES.map((phase) => (
           <Bar
             key={phase}
             dataKey={phase}
@@ -524,9 +553,19 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
             isAnimationActive
             animationDuration={700}
             animationEasing="ease-out"
-            animationBegin={pIdx * 30}
           />
         ))}
+        <Bar
+          dataKey="barOver"
+          name="Over Budget"
+          stackId="a"
+          maxBarSize={72}
+          radius={0}
+          fill="#dc2626"
+          isAnimationActive
+          animationDuration={700}
+          animationEasing="ease-out"
+        />
       </>
     );
   };
@@ -542,7 +581,8 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
           <LegendDot color={COLORS.budget}  label="Budget" />
           <LegendDot color={COLORS.spent}   label="Spent" />
           <LegendDot color={COLORS.pending} label="Forecast (pending)" />
-          <LegendDot color={COLORS.coc}     label="Cost at Completion" />
+          <LegendDot color={COLORS.coc} label="Cost at Completion" />
+          {forecast > budget && <LegendDot color="#dc2626" label="Over Budget" />}
         </div>
       );
     }
@@ -570,129 +610,16 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
   // Render
   // ---------------------------------------------------------------------------
 
+  // KPI Cards + Budget indicator removed — SummaryStrip handles KPIs now.
+  // This component only renders the waterfall chart.
+
+  if (!hasItems || hasItemLevelFilters) return null;
+
   return (
-    <div className="bg-white border-t border-gray-100 shadow-sm">
-      <div className="px-6 pt-4 pb-5 space-y-4">
-
-        {/* ── KPI Cards ── */}
-        <div className="flex gap-3 flex-wrap">
-          <KPICard
-            label="Budget"
-            value={format(budget)}
-            subLabel={`${itemCount} items total`}
-            colors={{
-              bg: 'bg-indigo-50', border: 'border-indigo-200', blob: 'bg-indigo-400',
-              label: 'text-indigo-500', value: 'text-indigo-700',
-              iconBg: 'bg-indigo-100', iconColor: 'text-indigo-500',
-            }}
-            icon={<IconBudget className="w-4 h-4 text-indigo-500" />}
-          />
-          <KPICard
-            label="Spent"
-            value={format(spent)}
-            subLabel={paidSubLabel ?? spentPct}
-            colors={{
-              bg: 'bg-emerald-50', border: 'border-emerald-200', blob: 'bg-emerald-400',
-              label: 'text-emerald-600', value: 'text-emerald-700',
-              iconBg: 'bg-emerald-100', iconColor: 'text-emerald-500',
-            }}
-            icon={<IconSpent className="w-4 h-4 text-emerald-500" />}
-          />
-          <KPICard
-            label="Pending"
-            value={format(pending)}
-            subLabel={pendingPct}
-            colors={{
-              bg: 'bg-amber-50', border: 'border-amber-200', blob: 'bg-amber-400',
-              label: 'text-amber-600', value: 'text-amber-700',
-              iconBg: 'bg-amber-100', iconColor: 'text-amber-500',
-            }}
-            icon={<IconPending className="w-4 h-4 text-amber-500" />}
-          />
-          <KPICard
-            label="CoC"
-            value={format(forecast)}
-            subLabel="Cost at Completion"
-            colors={{
-              bg: 'bg-violet-50', border: 'border-violet-200', blob: 'bg-violet-400',
-              label: 'text-violet-600', value: 'text-violet-700',
-              iconBg: 'bg-violet-100', iconColor: 'text-violet-500',
-            }}
-            icon={<IconCoC className="w-4 h-4 text-violet-500" />}
-          />
-          <KPICard
-            label="Remaining"
-            value={format(remaining)}
-            subLabel={remainingPct}
-            colors={remainingColors}
-            icon={<IconRemaining className={`w-4 h-4 ${remainingColors.iconColor}`} />}
-          />
-        </div>
-
-        {/* ── Budget vs CoC Comparison Indicator ── */}
-        {budget > 0 && forecast > 0 && (
-          <div
-            className={`rounded-xl border p-3 flex items-center gap-4 ${
-              isOverBudget
-                ? 'bg-red-50 border-red-200'
-                : 'bg-emerald-50 border-emerald-200'
-            }`}
-          >
-            {/* Icon */}
-            <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                isOverBudget ? 'bg-red-100' : 'bg-emerald-100'
-              }`}
-            >
-              {isOverBudget ? (
-                <TrendingUp className="w-5 h-5 text-red-600" />
-              ) : (
-                <TrendingDown className="w-5 h-5 text-emerald-600" />
-              )}
-            </div>
-
-            {/* Main text */}
-            <div className="flex-1 min-w-0">
-              <p className={`text-sm font-bold ${isOverBudget ? 'text-red-800' : 'text-emerald-800'}`}>
-                {isOverBudget ? 'Over Budget' : 'Under Budget'}
-              </p>
-              <p className={`text-xs ${isOverBudget ? 'text-red-600' : 'text-emerald-600'}`}>
-                CoC is {Math.abs(parseFloat(deltaPercent))}%{' '}
-                {isOverBudget ? 'above' : 'below'} budget
-              </p>
-            </div>
-
-            {/* Delta amount */}
-            <div className="text-right flex-shrink-0">
-              <p
-                className={`text-lg font-black font-mono tabular-nums ${
-                  isOverBudget ? 'text-red-700' : 'text-emerald-700'
-                }`}
-              >
-                {isOverBudget ? '+' : '-'}{format(Math.abs(delta))}
-              </p>
-              <p className={`text-[10px] ${isOverBudget ? 'text-red-400' : 'text-emerald-400'}`}>
-                {isOverBudget ? '+' : ''}{deltaPercent}%
-              </p>
-            </div>
-
-            {/* Mini comparison bar */}
-            <div className="w-24 h-2 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
-              <div
-                className={`h-full rounded-full transition-all duration-1000 ${
-                  isOverBudget ? 'bg-red-500' : 'bg-emerald-500'
-                }`}
-                style={{ width: `${cocBarWidth}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* ── Chart + Controls ── */}
-        {hasItems && (
-          <div className="space-y-3">
+    <div className="bg-white">
+      <div className="space-y-3">
             {/* Chart */}
-            <div className="relative rounded-2xl border border-gray-100 bg-gradient-to-br from-gray-50 to-white p-4 shadow-inner overflow-hidden">
+            <div className="relative border border-gray-100 bg-gradient-to-br from-gray-50 to-white p-4 overflow-hidden">
               {/* Subtle dot-grid pattern */}
               <div
                 className="absolute inset-0 opacity-30 pointer-events-none"
@@ -742,6 +669,17 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
                       cursor={{ fill: 'rgba(99,102,241,0.04)' }}
                     />
                     {renderBars()}
+                    {/* Budget reference line — dashed horizontal line for comparison */}
+                    {budget > 0 && (
+                      <ReferenceLine
+                        y={budget}
+                        stroke="#6366f1"
+                        strokeDasharray="6 4"
+                        strokeWidth={1.5}
+                        strokeOpacity={0.6}
+                        label={{ value: 'Budget', position: 'right', fontSize: 10, fill: '#6366f1' }}
+                      />
+                    )}
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -777,16 +715,8 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
               )}
             </div>
 
-            {/* Legend */}
-            {renderLegend()}
-          </div>
-        )}
-
-        {!hasItems && (
-          <div className="h-32 flex items-center justify-center text-sm text-gray-400">
-            No cost items yet
-          </div>
-        )}
+        {/* Legend */}
+        {renderLegend()}
       </div>
     </div>
   );

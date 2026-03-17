@@ -58,6 +58,7 @@ function normalizeCostItem(item: Partial<CostItem>): CostItem | null {
     zielanpassung: Boolean(item.zielanpassung),
     zielanpassung_reason: String(item.zielanpassung_reason ?? ''),
     comments: String(item.comments ?? ''),
+    requester: item.requester ?? null,
     created_at: String(item.created_at),
     updated_at: String(item.updated_at),
   } as CostItem;
@@ -248,34 +249,38 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
   const createCostItem = useCallback(
     (workAreaId: number, data: Partial<CostItem>): CostItem => {
       const now = new Date().toISOString().split('T')[0];
-      const newId = nextId(costItems);
+      let newItem!: CostItem;
 
-      const newItem: CostItem = {
-        id: newId,
-        work_area_id: workAreaId,
-        description: data.description ?? '',
-        original_amount: data.original_amount ?? 0,
-        current_amount: data.current_amount ?? 0,
-        expected_cash_out: data.expected_cash_out ?? now,
-        cost_basis: data.cost_basis ?? 'cost_estimation',
-        cost_driver: data.cost_driver ?? 'product',
-        basis_description: data.basis_description ?? '',
-        assumptions: data.assumptions ?? '',
-        approval_status: data.approval_status ?? 'open',
-        approval_date: data.approval_date ?? null,
-        project_phase: data.project_phase ?? 'phase_1',
-        product: data.product ?? 'atlas',
-        zielanpassung: data.zielanpassung ?? false,
-        zielanpassung_reason: data.zielanpassung_reason ?? '',
-        comments: data.comments ?? '',
-        created_at: now,
-        updated_at: now,
-      };
+      setCostItems((prev) => {
+        const newId = nextId(prev);
+        newItem = {
+          id: newId,
+          work_area_id: workAreaId,
+          description: data.description ?? '',
+          original_amount: data.original_amount ?? 0,
+          current_amount: data.current_amount ?? 0,
+          expected_cash_out: data.expected_cash_out ?? now,
+          cost_basis: data.cost_basis ?? 'cost_estimation',
+          cost_driver: data.cost_driver ?? 'product',
+          basis_description: data.basis_description ?? '',
+          assumptions: data.assumptions ?? '',
+          approval_status: data.approval_status ?? 'open',
+          approval_date: data.approval_date ?? null,
+          project_phase: data.project_phase ?? 'phase_1',
+          product: data.product ?? 'atlas',
+          zielanpassung: data.zielanpassung ?? false,
+          zielanpassung_reason: data.zielanpassung_reason ?? '',
+          comments: data.comments ?? '',
+          requester: data.requester ?? null,
+          created_at: now,
+          updated_at: now,
+        };
+        return [...prev, newItem];
+      });
 
-      setCostItems((prev) => [...prev, newItem]);
       return newItem;
     },
-    [costItems, nextId],
+    [nextId],
   );
 
   // --- createWorkArea ---
@@ -292,13 +297,17 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       if (duplicate) return null;
 
-      const newWA: WorkArea = {
-        id: nextId(workAreas),
-        department_id: departmentId,
-        name: trimmed,
-      };
+      let newWA!: WorkArea;
 
-      setWorkAreas((prev) => [...prev, newWA]);
+      setWorkAreas((prev) => {
+        newWA = {
+          id: nextId(prev),
+          department_id: departmentId,
+          name: trimmed,
+        };
+        return [...prev, newWA];
+      });
+
       return newWA;
     },
     [departments, workAreas, nextId],
@@ -336,14 +345,18 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
       const duplicate = departments.find((d) => d.name.toLowerCase() === trimmed.toLowerCase());
       if (duplicate) return null;
 
-      const newDept: Department = {
-        id: nextId(departments),
-        facility_id: mockFacility.id,
-        name: trimmed,
-        budget_total: Math.max(0, Number(budgetTotal) || 0),
-      };
+      let newDept!: Department;
 
-      setDepartments((prev) => [...prev, newDept]);
+      setDepartments((prev) => {
+        newDept = {
+          id: nextId(prev),
+          facility_id: mockFacility.id,
+          name: trimmed,
+          budget_total: Math.max(0, Number(budgetTotal) || 0),
+        };
+        return [...prev, newDept];
+      });
+
       return newDept;
     },
     [departments, nextId],

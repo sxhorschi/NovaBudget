@@ -81,6 +81,11 @@ export default function CostItemRow({
         <StatusBadge status={item.approval_status} onChange={onStatusChange} />
       </td>
 
+      {/* Requester */}
+      <td className="px-4 py-2.5 text-sm text-slate-600 whitespace-nowrap truncate max-w-[130px]">
+        {item.requester ?? ''}
+      </td>
+
       {/* Cash-Out */}
       <td className="px-4 py-2.5 text-sm font-mono tabular-nums text-slate-500 whitespace-nowrap">
         {item.expected_cash_out}

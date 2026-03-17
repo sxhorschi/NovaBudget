@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { setAuthToken, getAuthToken } from '../api/client';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -28,7 +29,7 @@ interface AuthContextValue {
 const MOCK_USER: User = {
   id: 'usr-georg-weis-001',
   name: 'Georg Weis',
-  email: 'georg.weis@tytan-technologies.com',
+  email: 'georg.weis@tytan.tech',
   role: 'admin',
   department: 'Industrial Engineering',
   avatar: 'GW',
@@ -37,6 +38,21 @@ const MOCK_USER: User = {
 const SESSION_KEY = 'capex-planner:auth-session';
 
 const DEV_SKIP_AUTH = false; // set to true to bypass login in development
+
+// ---------------------------------------------------------------------------
+// Token helpers
+// ---------------------------------------------------------------------------
+
+/** Build a base64-encoded JSON token matching the backend's expected format. */
+function buildToken(user: User): string {
+  const payload = JSON.stringify({
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    department: user.department,
+  });
+  return btoa(payload);
+}
 
 // ---------------------------------------------------------------------------
 // Context
@@ -56,12 +72,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (DEV_SKIP_AUTH) {
       setUser(MOCK_USER);
+      setAuthToken(buildToken(MOCK_USER));
       setIsLoading(false);
       return;
     }
     try {
       const stored = sessionStorage.getItem(SESSION_KEY);
-      if (stored) {
+      const existingToken = getAuthToken();
+      if (stored && existingToken) {
         const parsed: User = JSON.parse(stored);
         setUser(parsed);
       }
@@ -73,16 +91,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Simulate Microsoft Entra ID flow: 1.5 s loading then authenticate
+  // TODO: Replace with real Microsoft Entra ID (Azure AD) OAuth flow
   const login = useCallback(async (): Promise<void> => {
     setIsLoading(true);
     await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+
+    // Store user in session and generate auth token for API requests
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(MOCK_USER));
+    setAuthToken(buildToken(MOCK_USER));
     setUser(MOCK_USER);
     setIsLoading(false);
   }, []);
 
   const logout = useCallback((): void => {
     sessionStorage.removeItem(SESSION_KEY);
+    setAuthToken(null);
     setUser(null);
   }, []);
 

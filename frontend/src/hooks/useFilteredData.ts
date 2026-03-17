@@ -125,8 +125,14 @@ export function useFilteredData(filters: FilterState): FilteredData {
       for (const dept of filteredDepartments) {
         const deptWAs = workAreasInDepts.filter((wa) => wa.department_id === dept.id);
         const deptWAIds = new Set(deptWAs.map((wa) => wa.id));
+        // Use forecast logic (exclude rejected/obsolete) for over-budget check,
+        // consistent with remaining = budget - forecast
         const deptTotal = items
-          .filter((ci) => deptWAIds.has(ci.work_area_id))
+          .filter((ci) =>
+            deptWAIds.has(ci.work_area_id) &&
+            ci.approval_status !== 'rejected' &&
+            ci.approval_status !== 'obsolete',
+          )
           .reduce((s, ci) => s + ci.current_amount, 0);
         const deptAdjustments = budgetAdjustments
           .filter((adj) => adj.department_id === dept.id)

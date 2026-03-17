@@ -2,9 +2,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.db import engine
+from app.rate_limit import limiter
 from app.api.facilities import router as facilities_router
 from app.api.departments import router as departments_router
 from app.api.work_areas import router as work_areas_router
@@ -29,18 +32,29 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
+# ── Disable docs when not in debug mode ──────────────────────────────────
+_docs_url = "/docs" if settings.DEBUG else None
+_redoc_url = "/redoc" if settings.DEBUG else None
+
 app = FastAPI(
     title="CAPEX Budget Management Tool",
     description="Backend API for TYTAN Technologies CAPEX budget planning",
     version="1.0.0",
     lifespan=lifespan,
+    docs_url=_docs_url,
+    redoc_url=_redoc_url,
 )
 
+# ── Rate limiting ────────────────────────────────────────────────────────
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ── CORS — explicit method list instead of wildcard ──────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

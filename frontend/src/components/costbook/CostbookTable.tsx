@@ -1,32 +1,17 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ArrowUp, ArrowDown, SearchX, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import type { Department, WorkArea, CostItem, ApprovalStatus } from '../../types/budget';
+import { getDeptColor } from '../../styles/design-tokens';
 import DepartmentRow from './DepartmentRow';
 import WorkAreaRow from './WorkAreaRow';
 import CostItemRow from './CostItemRow';
 import TableFooter from './TableFooter';
 
 // ---------------------------------------------------------------------------
-// Department accent colors (5 departments, distinguishable at a glance)
-// ---------------------------------------------------------------------------
-
-const DEPT_COLORS: Record<number, string> = {
-  1: '#6366f1', // Assembly Equipment  — indigo
-  2: '#f59e0b', // Testing             — amber
-  3: '#3b82f6', // Logistics           — blue
-  4: '#ec4899', // Facility            — pink
-  5: '#a855f7', // Prototyping         — purple
-};
-
-function getDeptColor(deptId: number): string {
-  return DEPT_COLORS[deptId] ?? '#64748b';
-}
-
-// ---------------------------------------------------------------------------
 // Sorting
 // ---------------------------------------------------------------------------
 
-type SortField = 'description' | 'amount' | 'phase' | 'product' | 'status' | 'cashout';
+type SortField = 'description' | 'amount' | 'phase' | 'product' | 'status' | 'cashout' | 'requester';
 type SortDir = 'asc' | 'desc';
 
 interface SortState {
@@ -49,6 +34,8 @@ function compareCostItems(a: CostItem, b: CostItem, sort: SortState): number {
       return a.approval_status.localeCompare(b.approval_status) * dir;
     case 'cashout':
       return a.expected_cash_out.localeCompare(b.expected_cash_out) * dir;
+    case 'requester':
+      return (a.requester ?? '').localeCompare(b.requester ?? '') * dir;
     default:
       return 0;
   }
@@ -71,6 +58,7 @@ const COLUMNS: ColumnDef[] = [
   { key: 'phase',       label: 'Phase',       width: '96px',  align: 'left',  sortable: true },
   { key: 'product',     label: 'Product',     width: '110px', align: 'left',  sortable: true },
   { key: 'status',      label: 'Status',      width: '160px', align: 'left',  sortable: true },
+  { key: 'requester',   label: 'Requester',   width: '130px', align: 'left',  sortable: true },
   { key: 'cashout',     label: 'Cash-Out',    width: '110px', align: 'left',  sortable: true },
   { key: 'amount',      label: 'Amount',      width: '160px', align: 'right', sortable: true },
 ];
@@ -302,7 +290,10 @@ export default function CostbookTable({
             for (const wa of deptWAs) {
               if (wa.cost_items) deptItems.push(...wa.cost_items);
             }
-            const visibleCommitted = deptItems.reduce((s, ci) => s + ci.current_amount, 0);
+            // Committed = only approved items (consistent with useFilteredData source of truth)
+            const visibleCommitted = deptItems
+              .filter((ci) => ci.approval_status === 'approved')
+              .reduce((s, ci) => s + ci.current_amount, 0);
             const committed = departmentCommittedTotals?.[dept.id] ?? visibleCommitted;
             const isDeptExpanded = expandedDepts.has(dept.id);
             const color = getDeptColor(dept.id);
@@ -371,7 +362,7 @@ export default function CostbookTable({
           {/* Empty state */}
           {departments.length === 0 && (
             <tr>
-              <td colSpan={7} className="px-4 py-16 text-center">
+              <td colSpan={8} className="px-4 py-16 text-center">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
                     <SearchX size={28} className="text-slate-300" />

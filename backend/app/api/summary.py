@@ -13,9 +13,10 @@ Legacy endpoints (deprecated, kept for backward compat):
 - GET /api/v1/summary/cash-out
 """
 
+import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
@@ -41,6 +42,7 @@ from app.services.aggregation import (
 )
 
 router = APIRouter(prefix="/api/v1/summary", tags=["summary"])
+logger = logging.getLogger(__name__)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -57,7 +59,10 @@ async def facility_kpis(
     facility_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
-    return await get_facility_kpis(facility_id, session)
+    try:
+        return await get_facility_kpis(facility_id, session)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
 
 @router.get(
@@ -69,7 +74,10 @@ async def department_kpis(
     facility_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
-    return await get_department_kpis(facility_id, session)
+    try:
+        return await get_department_kpis(facility_id, session)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
 
 @router.get(
@@ -81,7 +89,10 @@ async def cash_out_forecast(
     facility_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
-    return await get_cash_out_forecast(facility_id, session)
+    try:
+        return await get_cash_out_forecast(facility_id, session)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
 
 @router.get(
@@ -93,7 +104,10 @@ async def phase_breakdown(
     facility_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
-    return await get_phase_breakdown(facility_id, session)
+    try:
+        return await get_phase_breakdown(facility_id, session)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
 
 @router.get(
@@ -105,7 +119,10 @@ async def approval_pipeline(
     facility_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
-    return await get_approval_pipeline(facility_id, session)
+    try:
+        return await get_approval_pipeline(facility_id, session)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.audit_log import AuditLog
 from app.models.cost_item import CostItem
 from app.models.enums import ApprovalStatus
+from app.services.audit import log_change
 
 
 # ── Erlaubte Status-Übergänge ───────────────────────────────────────────
@@ -172,10 +173,27 @@ async def change_status(
     required_approver = get_required_approver(item.current_amount)
 
     # 3. Wenn APPROVED: approval_date setzen
+    old_approval_date = item.approval_date
     if new_status == ApprovalStatus.APPROVED:
         item.approval_date = date.today()
     else:
         item.approval_date = None
+
+    # Log approval_date change if it changed
+    if old_approval_date != item.approval_date:
+        await log_change(
+            session,
+            entity_type="cost_item",
+            entity_id=cost_item_id,
+            action="status_change",
+            changes={
+                "approval_date": {
+                    "old": str(old_approval_date) if old_approval_date else None,
+                    "new": str(item.approval_date) if item.approval_date else None,
+                },
+            },
+            user_id=user_id,
+        )
 
     # 4. Status ändern
     previous_status = current_status

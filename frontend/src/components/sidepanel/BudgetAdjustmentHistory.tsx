@@ -6,20 +6,11 @@ import {
   ADJUSTMENT_CATEGORY_COLORS,
 } from '../../types/budget';
 import { mockBudgetAdjustments } from '../../mocks/data';
+import { formatEUR as formatEur } from '../costbook/AmountCell';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const eurFormatter = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-  maximumFractionDigits: 0,
-});
-
-function formatEur(value: number): string {
-  return eurFormatter.format(value);
-}
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);

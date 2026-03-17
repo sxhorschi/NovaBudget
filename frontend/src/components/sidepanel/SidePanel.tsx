@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Copy, ClipboardCopy, ChevronDown, ChevronRight } from 'lucide-react';
 import type { CostItem } from '../../types/budget';
+import { getDeptColor } from '../../styles/design-tokens';
+import { formatEUR } from '../costbook/AmountCell';
 import SidePanelForm from './SidePanelForm';
 import AttachmentList from './AttachmentList';
 import DecisionLog from './DecisionLog';
@@ -15,18 +17,6 @@ function isDraftDirty(draft: CostItem | null, item: CostItem | null): boolean {
   }
   return false;
 }
-
-// ---------------------------------------------------------------------------
-// Department color mapping (mirrors CostbookTable & CashOutPage)
-// ---------------------------------------------------------------------------
-
-const DEPT_ID_COLORS: Record<number, string> = {
-  1: '#6366f1', // Assembly — indigo
-  2: '#f59e0b', // Testing — amber
-  3: '#3b82f6', // Intralogistics — blue
-  4: '#ec4899', // Building & Infrastructure — pink
-  5: '#a855f7', // Prototyping Lab — purple
-};
 
 // ---------------------------------------------------------------------------
 // Collapsible Section
@@ -48,11 +38,11 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className="mt-5">
+    <div className="mt-3">
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-1.5 w-full text-left group py-1 border-l-2 border-indigo-300 pl-2 hover:bg-gray-50 rounded-r transition-colors"
+        className="flex items-center gap-1.5 w-full text-left group py-2 border-l-2 border-indigo-300 pl-2 hover:bg-gray-50 rounded-r transition-colors"
       >
         {isOpen ? (
           <ChevronDown size={14} className="text-gray-400 group-hover:text-gray-600 transition-colors flex-shrink-0" />
@@ -82,16 +72,6 @@ function formatDateDE(iso: string | null | undefined): string {
     year: 'numeric',
   });
 }
-
-// ---------------------------------------------------------------------------
-// EUR formatter for clipboard
-// ---------------------------------------------------------------------------
-
-const eurFormatter = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-  maximumFractionDigits: 0,
-});
 
 // ---------------------------------------------------------------------------
 // Props
@@ -211,7 +191,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
 
   const handleCopyToClipboard = useCallback(async () => {
     if (!draft) return;
-    const text = `${draft.description}\n${eurFormatter.format(draft.current_amount)}`;
+    const text = `${draft.description}\n${formatEUR(draft.current_amount)}`;
     try {
       await navigator.clipboard.writeText(text);
       setCopiedToClipboard(true);
@@ -222,7 +202,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
   }, [draft]);
 
   // Resolve accent color from department ID
-  const accentColor = departmentId != null ? (DEPT_ID_COLORS[departmentId] ?? '#6366f1') : '#6366f1';
+  const accentColor = departmentId != null ? getDeptColor(departmentId) : '#6366f1';
 
   // Don't render if no item
   if (!item) return null;
@@ -232,7 +212,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
   return (
     <div
       ref={panelRef}
-      className="fixed right-0 top-0 h-full w-[480px] z-40 bg-white flex flex-col shadow-2xl"
+      className="fixed right-0 top-0 h-full w-[480px] z-50 bg-white flex flex-col shadow-2xl"
       style={{
         borderLeft: '1px solid var(--border-default)',
         transform: isVisible ? 'translateX(0)' : 'translateX(100%)',
@@ -331,18 +311,18 @@ const SidePanel: React.FC<SidePanelProps> = ({
           <SidePanelForm item={draft} originalItem={item} onChange={handleFieldChange} />
         )}
 
-        {/* ---- Target Adjustment (collapsible, default closed unless active) ---- */}
-        <CollapsibleSection
-          title="Target Adjustment"
-          defaultOpen={item.zielanpassung || (departmentId != null && departmentBudget != null)}
-        >
-          {departmentId != null && departmentBudget != null && (
+        {/* ---- Budget Adjustments (collapsible, default closed unless active) ---- */}
+        {departmentId != null && departmentBudget != null && (
+          <CollapsibleSection
+            title="Budget Adjustments"
+            defaultOpen={item.zielanpassung}
+          >
             <BudgetAdjustmentHistory
               departmentId={departmentId}
               originalBudget={departmentBudget}
             />
-          )}
-        </CollapsibleSection>
+          </CollapsibleSection>
+        )}
 
         {/* ---- Attachments (collapsible, default closed, shows count badge) ---- */}
         {item?.id && (

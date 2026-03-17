@@ -15,6 +15,7 @@ from app.models.enums import (
     ProjectPhase,
 )
 from app.models.facility import Facility
+from app.models.user import User
 from app.models.work_area import WorkArea
 
 __all__ = [
@@ -33,6 +34,7 @@ __all__ = [
     "ProjectPhase",
     "Facility",
     "Department",
+    "User",
     "WorkArea",
     "CostItem",
 ]

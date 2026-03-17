@@ -39,7 +39,7 @@ export default function WorkAreaRow({
       }}
     >
       {/* Name with chevron */}
-      <td colSpan={5} className="pl-9 pr-4 py-2.5">
+      <td colSpan={6} className="pl-9 pr-4 py-2.5">
         <span className="inline-flex items-center gap-1.5">
           <ChevronRight
             size={14}

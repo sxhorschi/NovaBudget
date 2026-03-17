@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import UserDep
 from app.db import get_session
 from app.models import AuditLog, CostItem, WorkArea
 from app.models.enums import ApprovalStatus, CostBasis, Product, ProjectPhase
@@ -120,7 +121,11 @@ async def get_cost_item(item_id: UUID, session: AsyncSession = Depends(get_sessi
 
 
 @router.post("/", response_model=CostItemRead, status_code=201)
-async def create_cost_item(data: CostItemCreate, session: AsyncSession = Depends(get_session)):
+async def create_cost_item(
+    data: CostItemCreate,
+    user: UserDep,
+    session: AsyncSession = Depends(get_session),
+):
     work_area = await session.get(WorkArea, data.work_area_id)
     if not work_area:
         raise HTTPException(status_code=404, detail="Work area not found")
@@ -128,7 +133,7 @@ async def create_cost_item(data: CostItemCreate, session: AsyncSession = Depends
     item = CostItem(**data.model_dump())
     session.add(item)
     await session.flush()
-    await log_change(session, "cost_item", item.id, "created")
+    await log_change(session, "cost_item", item.id, "created", user_id=user.email)
     await session.commit()
     await session.refresh(item)
     return item
@@ -136,7 +141,10 @@ async def create_cost_item(data: CostItemCreate, session: AsyncSession = Depends
 
 @router.put("/{item_id}", response_model=CostItemRead)
 async def update_cost_item(
-    item_id: UUID, data: CostItemUpdate, session: AsyncSession = Depends(get_session)
+    item_id: UUID,
+    data: CostItemUpdate,
+    user: UserDep,
+    session: AsyncSession = Depends(get_session),
 ):
     item = await session.get(CostItem, item_id)
     if not item:
@@ -158,20 +166,24 @@ async def update_cost_item(
         setattr(item, key, value)
     changes = build_changes(old_values, update_data)
     if changes:
-        await log_change(session, "cost_item", item.id, "updated", changes=changes)
+        await log_change(session, "cost_item", item.id, "updated", changes=changes, user_id=user.email)
     await session.commit()
     await session.refresh(item)
     return item
 
 
 @router.delete("/{item_id}", status_code=204)
-async def delete_cost_item(item_id: UUID, session: AsyncSession = Depends(get_session)):
+async def delete_cost_item(
+    item_id: UUID,
+    user: UserDep,
+    session: AsyncSession = Depends(get_session),
+):
     item = await session.get(CostItem, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Cost item not found")
     item_id_copy = item.id
     await session.delete(item)
-    await log_change(session, "cost_item", item_id_copy, "deleted")
+    await log_change(session, "cost_item", item_id_copy, "deleted", user_id=user.email)
     await session.commit()
 
 
@@ -180,6 +192,7 @@ async def delete_cost_item(item_id: UUID, session: AsyncSession = Depends(get_se
 @router.post("/{item_id}/submit", response_model=CostItemRead, tags=["approval"])
 async def submit_for_approval(
     item_id: UUID,
+    user: UserDep,
     body: StatusChangeWithComment | None = None,
     session: AsyncSession = Depends(get_session),
 ):
@@ -190,12 +203,14 @@ async def submit_for_approval(
         cost_item_id=item_id,
         new_status=ApprovalStatus.SUBMITTED_FOR_APPROVAL,
         comment=comment,
+        user_id=user.email,
     )
 
 
 @router.post("/{item_id}/approve", response_model=CostItemRead, tags=["approval"])
 async def approve_cost_item(
     item_id: UUID,
+    user: UserDep,
     body: StatusChangeWithComment | None = None,
     session: AsyncSession = Depends(get_session),
 ):
@@ -206,12 +221,14 @@ async def approve_cost_item(
         cost_item_id=item_id,
         new_status=ApprovalStatus.APPROVED,
         comment=comment,
+        user_id=user.email,
     )
 
 
 @router.post("/{item_id}/reject", response_model=CostItemRead, tags=["approval"])
 async def reject_cost_item(
     item_id: UUID,
+    user: UserDep,
     body: StatusChangeWithComment | None = None,
     session: AsyncSession = Depends(get_session),
 ):
@@ -222,6 +239,7 @@ async def reject_cost_item(
         cost_item_id=item_id,
         new_status=ApprovalStatus.REJECTED,
         comment=comment,
+        user_id=user.email,
     )
 
 
@@ -229,6 +247,7 @@ async def reject_cost_item(
 async def change_cost_item_status(
     item_id: UUID,
     body: StatusChangeRequest,
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     """Allgemeiner Status-Übergang. Prüft ob der Übergang erlaubt ist."""
@@ -237,6 +256,7 @@ async def change_cost_item_status(
         cost_item_id=item_id,
         new_status=body.status,
         comment=body.comment,
+        user_id=user.email,
     )
 
 

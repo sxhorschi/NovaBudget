@@ -68,6 +68,7 @@ export interface CostItem {
   zielanpassung: boolean;
   zielanpassung_reason: string;
   comments: string;
+  requester?: string | null;
   created_at: string;
   updated_at: string;
 }

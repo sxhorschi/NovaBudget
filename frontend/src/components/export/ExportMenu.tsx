@@ -202,7 +202,7 @@ const ExportMenu: React.FC = () => {
           ) : (
             <Download size={14} />
           )}
-          <span className="hidden lg:inline">Export</span>
+          <span className="hidden lg:inline">Import / Export</span>
           <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
 
@@ -211,7 +211,7 @@ const ExportMenu: React.FC = () => {
           <div className="absolute right-0 top-full mt-1 w-80 rounded-2xl border border-gray-100 bg-white shadow-2xl z-50 overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-50 bg-gradient-to-r from-gray-50 to-white">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Export Data
+                Import / Export
               </span>
             </div>
             <div className="py-1">

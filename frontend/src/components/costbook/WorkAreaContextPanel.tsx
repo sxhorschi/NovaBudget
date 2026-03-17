@@ -57,6 +57,15 @@ export default function WorkAreaContextPanel({
 }: WorkAreaContextPanelProps) {
   const format = useAmountFormatter();
   const [nameDraft, setNameDraft] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (workArea) {
+      requestAnimationFrame(() => setIsVisible(true));
+    } else {
+      setIsVisible(false);
+    }
+  }, [workArea]);
 
   useEffect(() => {
     if (!workArea) return;
@@ -87,12 +96,14 @@ export default function WorkAreaContextPanel({
 
   return (
     <div
-      className="fixed right-0 top-0 h-full w-[480px] z-40 bg-white flex flex-col"
+      className="fixed right-0 top-0 h-full w-[480px] z-50 bg-white flex flex-col"
       style={{
         borderLeft: '1px solid var(--border-default)',
         borderTop: '3px solid #6366f1',
         boxShadow:
           '-8px 0 30px -5px rgba(0, 0, 0, 0.1), -2px 0 8px -2px rgba(0, 0, 0, 0.04)',
+        transform: isVisible ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 300ms ease-out',
       }}
     >
       <div className="px-6 py-4 border-b border-gray-200">

@@ -1,4 +1,9 @@
-"""Dashboard service — single async function that computes all KPIs in minimal queries."""
+"""Dashboard service — single async function that computes all KPIs in minimal queries.
+
+KPI definitions are imported from the canonical aggregation module to ensure
+consistency.  See ``app.services.aggregation`` for the source-of-truth
+definitions of Committed, Forecast, Budget, Remaining, and CoC.
+"""
 
 from __future__ import annotations
 
@@ -30,11 +35,9 @@ from app.schemas.dashboard import (
     RecentChange,
     StatusEntry,
 )
+from app.services.aggregation import COMMITTED_STATUSES, EXCLUDED_STATUSES
 
 ZERO = Decimal(0)
-
-# Statuses considered "active" (not dead)
-_INACTIVE_STATUSES = {ApprovalStatus.REJECTED, ApprovalStatus.OBSOLETE}
 
 # Statuses considered "pending" (in-progress, not yet approved or dead)
 _PENDING_STATUSES = {
@@ -81,7 +84,7 @@ async def get_dashboard(
                 func.coalesce(
                     func.sum(
                         case(
-                            (CostItem.approval_status == ApprovalStatus.APPROVED, CostItem.current_amount),
+                            (CostItem.approval_status.in_(COMMITTED_STATUSES), CostItem.current_amount),
                             else_=Decimal(0),
                         )
                     ),
@@ -90,7 +93,7 @@ async def get_dashboard(
                 func.coalesce(
                     func.sum(
                         case(
-                            (CostItem.approval_status.notin_(_INACTIVE_STATUSES), CostItem.current_amount),
+                            (CostItem.approval_status.notin_(EXCLUDED_STATUSES), CostItem.current_amount),
                             else_=Decimal(0),
                         )
                     ),
@@ -98,7 +101,7 @@ async def get_dashboard(
                 ).label("forecast"),
                 func.count(
                     case(
-                        (CostItem.approval_status == ApprovalStatus.APPROVED, CostItem.id),
+                        (CostItem.approval_status.in_(COMMITTED_STATUSES), CostItem.id),
                     )
                 ).label("approved_items"),
                 func.count(
@@ -236,6 +239,7 @@ async def get_dashboard(
             .where(
                 WorkArea.department_id.in_(dept_ids),
                 CostItem.expected_cash_out.is_not(None),
+                CostItem.approval_status.notin_(EXCLUDED_STATUSES),
             )
             .group_by(
                 func.to_char(func.date_trunc("month", CostItem.expected_cash_out), "YYYY-MM"),
@@ -272,7 +276,7 @@ async def get_dashboard(
                 func.coalesce(
                     func.sum(
                         case(
-                            (CostItem.approval_status == ApprovalStatus.APPROVED, CostItem.current_amount),
+                            (CostItem.approval_status.in_(COMMITTED_STATUSES), CostItem.current_amount),
                             else_=Decimal(0),
                         )
                     ),
@@ -281,7 +285,7 @@ async def get_dashboard(
                 func.coalesce(
                     func.sum(
                         case(
-                            (CostItem.approval_status.notin_(_INACTIVE_STATUSES), CostItem.current_amount),
+                            (CostItem.approval_status.notin_(EXCLUDED_STATUSES), CostItem.current_amount),
                             else_=Decimal(0),
                         )
                     ),

@@ -10,9 +10,11 @@ from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import UserDep
 from app.db import get_session
 from app.models.attachment import Attachment, AttachmentType
 from app.schemas.attachment import AttachmentList, AttachmentRead
+from app.services.audit import log_change
 from app.services.file_storage import (
     FileStorageError,
     delete_file,
@@ -27,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 @router.post("/upload", response_model=AttachmentRead, status_code=201)
 async def upload_attachment(
+    user: UserDep,
     file: UploadFile = File(...),
     cost_item_id: UUID | None = Form(None),
     work_area_id: UUID | None = Form(None),
@@ -77,6 +80,8 @@ async def upload_attachment(
         attachment_type=attachment_type,
     )
     session.add(attachment)
+    await session.flush()
+    await log_change(session, "attachment", attachment.id, "created", user_id=user.email)
     await session.commit()
     await session.refresh(attachment)
     return attachment
@@ -139,6 +144,7 @@ async def download_attachment(
 @router.delete("/{attachment_id}", status_code=204)
 async def delete_attachment(
     attachment_id: UUID,
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """Delete an attachment and its file from disk."""
@@ -147,9 +153,11 @@ async def delete_attachment(
         raise HTTPException(status_code=404, detail="Attachment not found")
 
     storage_path = attachment.storage_path
+    attachment_id_copy = attachment.id
 
     # Delete DB record first so DB state is committed even if file removal fails.
     await session.delete(attachment)
+    await log_change(session, "attachment", attachment_id_copy, "deleted", user_id=user.email)
     await session.commit()
 
     try:

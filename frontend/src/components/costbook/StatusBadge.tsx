@@ -64,6 +64,8 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
   const [open, setOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<ApprovalStatus | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const style = STATUS_STYLE[status];
 
   // Close dropdown/confirmation on outside click
@@ -92,6 +94,10 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
   const handleClick = (e: React.MouseEvent) => {
     if (!onChange) return;
     e.stopPropagation();
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left });
+    }
     setOpen((prev) => !prev);
   };
 
@@ -119,6 +125,7 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
   return (
     <div ref={ref} className="relative inline-block">
       <button
+        ref={buttonRef}
         type="button"
         onClick={handleClick}
         className={[
@@ -136,8 +143,10 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
 
       {open && (
         <div
-          className="absolute left-0 z-50 mt-1 min-w-[200px] rounded-lg border bg-white py-1"
+          className="fixed z-50 min-w-[200px] rounded-lg border bg-white py-1"
           style={{
+            top: dropdownPos.top,
+            left: dropdownPos.left,
             borderColor: 'var(--border-default)',
             boxShadow: 'var(--shadow-dropdown)',
           }}
@@ -173,8 +182,8 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
       {/* Confirmation dialog for critical status changes */}
       {pendingStatus && (
         <div
-          className="absolute left-0 z-50 mt-1 w-[240px] rounded-lg border bg-white p-3 shadow-lg"
-          style={{ borderColor: 'var(--border-default)' }}
+          className="fixed z-50 w-[240px] rounded-lg border bg-white p-3 shadow-lg"
+          style={{ top: dropdownPos.top, left: dropdownPos.left, borderColor: 'var(--border-default)' }}
           onClick={(e) => e.stopPropagation()}
         >
           <p className="text-sm font-medium text-gray-900 mb-1">

@@ -5,7 +5,7 @@ Definitions:
 - Forecast    = SUM(current_amount) WHERE status NOT IN (REJECTED, OBSOLETE)
 - Budget      = department.budget_total + SUM(budget_adjustments.amount)
 - Remaining   = Budget - Forecast
-- Cost of Completion = Forecast - Committed  (what still needs to be ordered/paid)
+- Cost of Completion (CoC) = Forecast  (same metric, different label)
 - Variance    = SUM(original_amount - current_amount) for active items
 """
 
@@ -140,7 +140,7 @@ async def get_department_kpis(
         committed = Decimal(str(row.committed))
         forecast = Decimal(str(row.forecast))
         remaining = budget - forecast
-        cost_of_completion = forecast - committed
+        cost_of_completion = forecast  # CoC = Forecast (same metric, different label)
         variance = Decimal(str(row.variance))
         utilization = _pct(committed, budget)
 
@@ -177,7 +177,7 @@ async def get_facility_kpis(
     committed = sum((d.committed for d in dept_kpis), ZERO)
     forecast = sum((d.forecast for d in dept_kpis), ZERO)
     remaining = budget - forecast
-    cost_of_completion = forecast - committed
+    cost_of_completion = forecast  # CoC = Forecast (same metric, different label)
     variance = sum((d.variance for d in dept_kpis), ZERO)
     item_count = sum(d.item_count for d in dept_kpis)
     utilization = _pct(committed, budget)
@@ -385,7 +385,7 @@ async def get_budget_summary(session: AsyncSession) -> BudgetSummary:
     forecast = Decimal(str(forecast_result.scalar_one()))
 
     remaining = total_budget - forecast
-    cost_of_completion = forecast - total_committed
+    cost_of_completion = forecast  # CoC = Forecast (same metric, different label)
 
     return BudgetSummary(
         total_budget=total_budget,

@@ -133,10 +133,11 @@ export function exportStandard(
     const rows: (string | number | boolean)[][] = [];
 
     // Department header
+    // Committed = only approved items (consistent with useFilteredData source of truth)
     const committed = items
       .filter((i) => {
         const wa = waMap.get(i.work_area_id);
-        return wa && wa.department_id === dept.id;
+        return wa && wa.department_id === dept.id && i.approval_status === 'approved';
       })
       .reduce((s, i) => s + i.current_amount, 0);
 
@@ -476,8 +477,15 @@ export function exportSteeringCommittee(
       const wa = waMap.get(i.work_area_id);
       return wa && wa.department_id === dept.id;
     });
-    const committed = deptItems.reduce((s, i) => s + i.current_amount, 0);
-    const remaining = dept.budget_total - committed;
+    // Committed = only approved items (consistent with useFilteredData source of truth)
+    const committed = deptItems
+      .filter((i) => i.approval_status === 'approved')
+      .reduce((s, i) => s + i.current_amount, 0);
+    // Remaining = Budget - Forecast (not Budget - Committed)
+    const forecast = deptItems
+      .filter((i) => i.approval_status !== 'rejected' && i.approval_status !== 'obsolete')
+      .reduce((s, i) => s + i.current_amount, 0);
+    const remaining = dept.budget_total - forecast;
     const pct = dept.budget_total > 0 ? Math.round((committed / dept.budget_total) * 100) : 0;
 
     summaryRows.push([

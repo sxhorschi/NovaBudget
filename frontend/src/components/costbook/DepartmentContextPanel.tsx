@@ -115,6 +115,15 @@ export default function DepartmentContextPanel({
   const format = useAmountFormatter();
   const [nameDraft, setNameDraft] = useState('');
   const [budgetDraft, setBudgetDraft] = useState('0');
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (department) {
+      requestAnimationFrame(() => setIsVisible(true));
+    } else {
+      setIsVisible(false);
+    }
+  }, [department]);
 
   useEffect(() => {
     if (!department) return;
@@ -134,13 +143,16 @@ export default function DepartmentContextPanel({
   }, [department, deptWorkAreas, costItems]);
 
   const committed = useMemo(
-    () => deptItems.reduce((s, ci) => s + ci.current_amount, 0),
+    () => deptItems
+      .filter(ci => ci.approval_status === 'approved')
+      .reduce((s, ci) => s + ci.current_amount, 0),
     [deptItems],
   );
 
-  const approved = useMemo(
+  // Forecast = all items not rejected or obsolete (consistent with useFilteredData)
+  const forecast = useMemo(
     () => deptItems
-      .filter((ci) => ci.approval_status === 'approved')
+      .filter((ci) => ci.approval_status !== 'rejected' && ci.approval_status !== 'obsolete')
       .reduce((s, ci) => s + ci.current_amount, 0),
     [deptItems],
   );
@@ -148,19 +160,22 @@ export default function DepartmentContextPanel({
   if (!department) return null;
 
   const budget = Math.max(0, Number(budgetDraft) || 0);
-  const remaining = budget - committed;
+  // Remaining = Budget - Forecast (consistent with useFilteredData source of truth)
+  const remaining = budget - forecast;
   const hasChanges =
     nameDraft.trim() !== department.name ||
     budget !== department.budget_total;
 
   return (
     <div
-      className="fixed right-0 top-0 h-full w-[480px] z-40 bg-white flex flex-col"
+      className="fixed right-0 top-0 h-full w-[480px] z-50 bg-white flex flex-col"
       style={{
         borderLeft: '1px solid var(--border-default)',
         borderTop: '3px solid #6366f1',
         boxShadow:
           '-8px 0 30px -5px rgba(0, 0, 0, 0.1), -2px 0 8px -2px rgba(0, 0, 0, 0.04)',
+        transform: isVisible ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 300ms ease-out',
       }}
     >
       <div className="px-6 py-4 border-b border-gray-200">
@@ -212,11 +227,11 @@ export default function DepartmentContextPanel({
             </div>
             <div className="px-3 py-2.5 flex items-center justify-between gap-3 border-b border-gray-100">
               <p className="text-sm text-gray-600">Committed</p>
-              <p className="text-sm font-mono font-semibold text-gray-800">{format(committed)}</p>
+              <p className="text-sm font-mono font-semibold text-green-700">{format(committed)}</p>
             </div>
             <div className="px-3 py-2.5 flex items-center justify-between gap-3 border-b border-gray-100">
-              <p className="text-sm text-gray-600">Approved</p>
-              <p className="text-sm font-mono font-semibold text-green-700">{format(approved)}</p>
+              <p className="text-sm text-gray-600">Forecast</p>
+              <p className="text-sm font-mono font-semibold text-orange-700">{format(forecast)}</p>
             </div>
             <div className="px-3 py-2.5 flex items-center justify-between gap-3">
               <p className="text-sm text-gray-600">Remaining</p>
