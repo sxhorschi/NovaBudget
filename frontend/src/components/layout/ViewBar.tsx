@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useParams } from 'react-router-dom';
-import { Table2, Calendar, BarChart3, Upload } from 'lucide-react';
+import { Table2, Calendar } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface TabDef {
@@ -12,8 +12,6 @@ interface TabDef {
 const tabs: TabDef[] = [
   { label: 'Costbook', segment: 'costbook', icon: Table2 },
   { label: 'Cash-Out', segment: 'cashout', icon: Calendar },
-  { label: 'Overview', segment: 'overview', icon: BarChart3 },
-  { label: 'Import', segment: 'import', icon: Upload },
 ];
 
 const ViewBar: React.FC = () => {

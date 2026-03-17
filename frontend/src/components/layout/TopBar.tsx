@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Settings, LogOut, MapPin, Briefcase, Mail } from 'lucide-react';
+import { Settings, LogOut, MapPin, Briefcase, Mail, Shield } from 'lucide-react';
 import ExportMenu from '../export/ExportMenu';
 import SettingsPanel from '../settings/SettingsPanel';
 import FacilitySwitcher from './FacilitySwitcher';
@@ -54,7 +54,7 @@ const ROLE_LABELS: Record<User['role'], string> = {
 // ---------------------------------------------------------------------------
 
 const UserMenu: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -167,6 +167,19 @@ const UserMenu: React.FC = () => {
 
           {/* Actions */}
           <div className="py-1">
+            {isAdmin && (
+              <Link
+                to="/admin"
+                onClick={() => setOpen(false)}
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors group/item"
+              >
+                <Shield
+                  size={15}
+                  className="text-gray-400 group-hover/item:text-indigo-500 transition-colors flex-shrink-0"
+                />
+                Admin
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => {

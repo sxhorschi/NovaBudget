@@ -8,6 +8,16 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 
+class UserCreate(BaseModel):
+    """Create a new user (admin only)."""
+
+    email: str
+    name: str
+    role: str = "viewer"
+    department: str | None = None
+    job_title: str | None = None
+
+
 class UserRead(BaseModel):
     """Full user profile returned by the API."""
 

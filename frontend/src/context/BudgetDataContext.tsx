@@ -153,8 +153,8 @@ function loadDataState(facilityId: string): PersistedDataState {
     }
   }
 
-  // Also try the old non-facility-scoped key for backwards compat (only for f-001)
-  if (facilityId === 'f-001') {
+  // Also try the old non-facility-scoped key for backwards compat (only for default mock facility)
+  if (facilityId === mockFacility.id) {
     try {
       const legacyRaw = localStorage.getItem('budget-tool:data-state');
       if (legacyRaw) {
@@ -256,7 +256,7 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { currentFacility } = useFacility();
-  const facilityId = currentFacility?.id ?? 'f-001';
+  const facilityId = currentFacility?.id ?? mockFacility.id;
   const prevFacilityIdRef = useRef(facilityId);
 
   // Load initial data for the current facility

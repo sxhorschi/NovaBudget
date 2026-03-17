@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     AUTH_DISABLED: bool = True
     SECRET_KEY: str = "change-me-in-production"
+    ADMIN_EMAIL: str = "admin@localhost"
+    ADMIN_NAME: str = "Administrator"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

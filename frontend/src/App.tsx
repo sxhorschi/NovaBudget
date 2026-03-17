@@ -15,6 +15,7 @@ import { AuthProvider } from './context/AuthContext';
 import AuthGuard from './components/auth/AuthGuard';
 
 const FacilitiesPage = lazy(() => import('./pages/FacilitiesPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
 
 // ---------------------------------------------------------------------------
 // RootRedirect — sends `/` to `/f/{currentFacilityId}/costbook`
@@ -59,6 +60,7 @@ const App: React.FC = () => {
                       {/* Standalone routes */}
                       <Route element={<StandaloneLayout />}>
                         <Route path="/facilities" element={<FacilitiesPage />} />
+                        <Route path="/admin" element={<AdminPage />} />
                       </Route>
 
                       {/* 404 */}

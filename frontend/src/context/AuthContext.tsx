@@ -26,12 +26,17 @@ interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  /** True if the user is admin or editor (can create/edit/delete data). */
+  canEdit: boolean;
+  /** True if the user is an admin (can manage users, delete facilities). */
+  isAdmin: boolean;
   login: () => Promise<void>;
   logout: () => void;
 }
 
 // ---------------------------------------------------------------------------
-// Mock user — Georg Weis, TYTAN Technologies admin (full Entra ID profile)
+// DEV MODE ONLY — in production, user data comes from Entra ID token.
+// This mock user is used for local development without Azure AD.
 // ---------------------------------------------------------------------------
 
 const MOCK_USER: User = {
@@ -121,10 +126,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   }, []);
 
+  const canEdit = user?.role === 'admin' || user?.role === 'editor';
+  const isAdmin = user?.role === 'admin';
+
   const value: AuthContextValue = {
     user,
     isAuthenticated: user !== null,
     isLoading,
+    canEdit: !!canEdit,
+    isAdmin: !!isAdmin,
     login,
     logout,
   };

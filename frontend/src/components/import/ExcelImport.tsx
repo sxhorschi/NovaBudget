@@ -2,8 +2,10 @@ import React, { useCallback, useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 import client from '../../api/client';
 import { USE_MOCKS } from '../../mocks/data';
+import { useBudgetData } from '../../context/BudgetDataContext';
 
 const ExcelImport: React.FC = () => {
+  const { facility } = useBudgetData();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
@@ -19,9 +21,7 @@ const ExcelImport: React.FC = () => {
       } else {
         const formData = new FormData();
         formData.append('file', file);
-        // TODO: facility_id should come from app context / route params
-        const facilityId = '00000000-0000-0000-0000-000000000001';
-        await client.post(`/import/excel?facility_id=${facilityId}`, formData, {
+        await client.post(`/import/excel?facility_id=${facility.id}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
       }

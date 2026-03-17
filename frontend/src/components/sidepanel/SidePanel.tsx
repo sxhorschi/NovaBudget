@@ -83,9 +83,9 @@ interface SidePanelProps {
   departmentId?: string;
   departmentBudget?: number;
   workAreaName?: string;
-  onSave: (data: Partial<CostItem>) => void;
+  onSave?: (data: Partial<CostItem>) => void;
   onClose: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
   onDuplicate?: (item: CostItem) => void;
   onFilterDepartment?: (departmentName: string) => void;
   onScrollToWorkArea?: (workAreaName: string) => void;
@@ -150,7 +150,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
       }
     }
     if (Object.keys(changes).length > 0) {
-      onSave({ id: item.id, ...changes });
+      onSave?.({ id: item.id, ...changes });
     }
     onClose();
   }, [draft, item, onSave, onClose]);
@@ -363,35 +363,41 @@ const SidePanel: React.FC<SidePanelProps> = ({
           </p>
         )}
         <div className="flex items-center justify-between">
-          <button
-            onClick={onDelete}
-            className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors duration-150"
-          >
-            Delete
-          </button>
+          {onDelete ? (
+            <button
+              onClick={onDelete}
+              className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors duration-150"
+            >
+              Delete
+            </button>
+          ) : (
+            <span />
+          )}
 
           <div className="flex items-center gap-2">
             <button
               onClick={safeClose}
               className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all duration-150"
             >
-              Cancel
+              {onSave ? 'Cancel' : 'Close'}
             </button>
-            <button
-              onClick={handleSave}
-              disabled={!_hasChanges}
-              className={`
-                px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
-                ${
-                  _hasChanges
-                    ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white shadow-md hover:shadow-lg'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                }
-              `}
-              title="Cmd+Enter"
-            >
-              Save
-            </button>
+            {onSave && (
+              <button
+                onClick={handleSave}
+                disabled={!_hasChanges}
+                className={`
+                  px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                  ${
+                    _hasChanges
+                      ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white shadow-md hover:shadow-lg'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  }
+                `}
+                title="Cmd+Enter"
+              >
+                Save
+              </button>
+            )}
           </div>
         </div>
       </div>

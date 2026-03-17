@@ -47,16 +47,15 @@ class CurrentUser(BaseModel):
 
 # ---------------------------------------------------------------------------
 # Default dev user (used when AUTH_DISABLED=true)
+# Development mode — returns a default admin user.
+# In production, this code path is never reached (AUTH_DISABLED=false).
 # ---------------------------------------------------------------------------
 
 _DEV_USER = CurrentUser(
-    id="usr-dev",
-    email="georg.weis@tytan.tech",
-    name="Georg Weis",
+    id="dev-admin",
+    email=settings.ADMIN_EMAIL,
+    name=settings.ADMIN_NAME,
     role="admin",
-    job_title="Industrial Engineer",
-    department="Engineering",
-    office_location="Augsburg HQ",
 )
 
 

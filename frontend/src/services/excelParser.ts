@@ -298,7 +298,7 @@ function colLetter(idx: number): string {
 // Main parser
 // ---------------------------------------------------------------------------
 
-export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
+export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): ExcelParseResult {
   const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
   const departments: Department[] = [];
@@ -386,7 +386,7 @@ export function parseExcelFile(data: ArrayBuffer): ExcelParseResult {
     const deptName = sheetName.replace(/_/g, ' ');
     departments.push({
       id: deptId,
-      facility_id: 'f-001',
+      facility_id: facilityId,
       name: deptName,
       budget_total: 0,
     });

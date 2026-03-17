@@ -62,15 +62,14 @@ function useActiveFilterLabels(): string | null {
 // Helper: build export URL from current filter params
 // ---------------------------------------------------------------------------
 
-function buildExportPath(type: ExportType, budgetFactor?: number, compareFacilityId?: string): string {
+function buildExportPath(type: ExportType, facilityId: string, budgetFactor?: number, compareFacilityId?: string): string {
   const base = type === 'compare' ? '/export/compare' : `/export/${type}`;
   const params = new URLSearchParams(window.location.search);
 
   // For the standard export, forward dept & phase filters
   const exportParams = new URLSearchParams();
 
-  // TODO: facility_id should come from app context / route params
-  exportParams.set('facility_id', '00000000-0000-0000-0000-000000000001');
+  exportParams.set('facility_id', facilityId);
 
   if (type === 'standard') {
     const dept = params.get('dept');
@@ -186,7 +185,7 @@ const ExportMenu: React.FC = () => {
       setLoading(type);
       try {
         const factor = type === 'finance' ? financeBudgetFactor : undefined;
-        const path = buildExportPath(type, factor);
+        const path = buildExportPath(type, facility.id, factor);
         const response = await client.get(path, { responseType: 'blob' });
 
         // Extract filename from Content-Disposition or use default
@@ -237,7 +236,7 @@ const ExportMenu: React.FC = () => {
         return;
       }
 
-      const path = buildExportPath('compare', undefined, compareFacilityId.trim());
+      const path = buildExportPath('compare', facility.id, undefined, compareFacilityId.trim());
       const response = await client.get(path, { responseType: 'blob' });
 
       const disposition = response.headers['content-disposition'];
@@ -401,7 +400,7 @@ const ExportMenu: React.FC = () => {
               <div className="border-t border-dashed border-gray-200 mt-1 pt-1" />
               <button
                 type="button"
-                onClick={() => { setOpen(false); navigate('/import'); }}
+                onClick={() => { setOpen(false); navigate(`/f/${facility.id}/import`); }}
                 disabled={loading !== null}
                 className="flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors hover:bg-indigo-50/60 disabled:opacity-50"
               >

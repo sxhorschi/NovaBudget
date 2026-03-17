@@ -117,7 +117,7 @@ const statusOptions = (Object.keys(STATUS_LABELS) as ApprovalStatus[]).map((s) =
 // ---------------------------------------------------------------------------
 
 const CostbookPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, canEdit } = useAuth();
   const {
     facility,
     departments,
@@ -602,39 +602,43 @@ const CostbookPage: React.FC = () => {
                 setFilter('statuses', vals as ApprovalStatus[])
               }
             />
-            <div className="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50/70 p-0.5">
+            {canEdit && (
+              <div className="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50/70 p-0.5">
+                <button
+                  onClick={() => openCreate('item')}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+                  title="New Item"
+                >
+                  <Plus size={12} />
+                  New
+                </button>
+                <button
+                  onClick={() => openCreate('work-area')}
+                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
+                  title="New Category"
+                >
+                  <FolderPlus size={12} />
+                </button>
+                <button
+                  onClick={() => openCreate('department')}
+                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
+                  title="New Department"
+                >
+                  <Building2 size={12} />
+                </button>
+              </div>
+            )}
+            {canEdit && (
               <button
-                onClick={() => openCreate('item')}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
-                title="New Item"
+                onClick={() => setTransferOpen(true)}
+                disabled={!selectedItem}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-gray-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                title={selectedItem ? 'Transfer selected item to another facility' : 'Select an item first'}
               >
-                <Plus size={12} />
-                New
+                <ArrowRightLeft size={12} />
+                Transfer
               </button>
-              <button
-                onClick={() => openCreate('work-area')}
-                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
-                title="New Category"
-              >
-                <FolderPlus size={12} />
-              </button>
-              <button
-                onClick={() => openCreate('department')}
-                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
-                title="New Department"
-              >
-                <Building2 size={12} />
-              </button>
-            </div>
-            <button
-              onClick={() => setTransferOpen(true)}
-              disabled={!selectedItem}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-gray-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              title={selectedItem ? 'Transfer selected item to another facility' : 'Select an item first'}
-            >
-              <ArrowRightLeft size={12} />
-              Transfer
-            </button>
+            )}
             <SearchInput
               value={filters.search}
               onChange={(v) => setFilter('search', v)}
@@ -892,7 +896,7 @@ const CostbookPage: React.FC = () => {
               onSelectItem={handleSelectItem}
               selectedItemId={selectedItem?.id ?? null}
               onStatusChange={handleStatusChange}
-              onDeleteItem={handleDeleteRequest}
+              onDeleteItem={canEdit ? handleDeleteRequest : undefined}
               onOpenDepartmentContext={handleOpenDepartmentContext}
               onOpenWorkAreaContext={handleOpenWorkAreaContext}
             />
@@ -906,10 +910,10 @@ const CostbookPage: React.FC = () => {
           departmentId={selectedDeptId}
           departmentBudget={selectedDeptBudget}
           workAreaName={selectedWaName}
-          onSave={handleSave}
+          onSave={canEdit ? handleSave : undefined}
           onClose={() => setSelectedItem(null)}
-          onDelete={handleDeleteFromPanel}
-          onDuplicate={handleDuplicate}
+          onDelete={canEdit ? handleDeleteFromPanel : undefined}
+          onDuplicate={canEdit ? handleDuplicate : undefined}
           onFilterDepartment={handleFilterDepartment}
           onScrollToWorkArea={handleScrollToWorkArea}
         />
@@ -919,8 +923,8 @@ const CostbookPage: React.FC = () => {
           workAreas={workAreas}
           costItems={costItems}
           onClose={() => setSelectedDepartmentContextId(null)}
-          onSave={handleDepartmentContextSave}
-          onDelete={handleDepartmentContextDelete}
+          onSave={canEdit ? handleDepartmentContextSave : undefined}
+          onDelete={canEdit ? handleDepartmentContextDelete : undefined}
         />
 
         <WorkAreaContextPanel
@@ -928,8 +932,8 @@ const CostbookPage: React.FC = () => {
           departmentName={selectedWorkAreaDepartmentName}
           costItems={costItems}
           onClose={() => setSelectedWorkAreaContextId(null)}
-          onSave={handleWorkAreaContextSave}
-          onDelete={handleWorkAreaContextDelete}
+          onSave={canEdit ? handleWorkAreaContextSave : undefined}
+          onDelete={canEdit ? handleWorkAreaContextDelete : undefined}
         />
       </div>
 

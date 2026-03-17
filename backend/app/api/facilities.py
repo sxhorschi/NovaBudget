@@ -53,7 +53,12 @@ async def get_facility(facility_id: UUID, session: AsyncSession = Depends(get_se
     return facility
 
 
-@router.post("/", response_model=FacilityRead, status_code=201)
+@router.post(
+    "/",
+    response_model=FacilityRead,
+    status_code=201,
+    dependencies=[Depends(require_role("admin", "editor"))],
+)
 async def create_facility(
     data: FacilityCreate,
     user: UserDep,
@@ -68,7 +73,11 @@ async def create_facility(
     return facility
 
 
-@router.put("/{facility_id}", response_model=FacilityRead)
+@router.put(
+    "/{facility_id}",
+    response_model=FacilityRead,
+    dependencies=[Depends(require_role("admin", "editor"))],
+)
 async def update_facility(
     facility_id: UUID,
     data: FacilityUpdate,
@@ -92,7 +101,11 @@ async def update_facility(
     return facility
 
 
-@router.delete("/{facility_id}", status_code=204)
+@router.delete(
+    "/{facility_id}",
+    status_code=204,
+    dependencies=[Depends(require_role("admin"))],
+)
 async def delete_facility(
     facility_id: UUID,
     user: UserDep,
@@ -109,7 +122,11 @@ async def delete_facility(
 
 # ── Lifecycle: status transitions ───────────────────────────────────────
 
-@router.patch("/{facility_id}/status", response_model=FacilityRead)
+@router.patch(
+    "/{facility_id}/status",
+    response_model=FacilityRead,
+    dependencies=[Depends(require_role("admin", "editor"))],
+)
 async def change_facility_status(
     facility_id: UUID,
     body: FacilityStatusChange,
@@ -171,7 +188,12 @@ async def change_facility_status(
 
 # ── Clone facility ─────────────────────────────────────────────────────
 
-@router.post("/{facility_id}/clone", response_model=FacilityRead, status_code=201)
+@router.post(
+    "/{facility_id}/clone",
+    response_model=FacilityRead,
+    status_code=201,
+    dependencies=[Depends(require_role("admin", "editor"))],
+)
 async def clone_facility_endpoint(
     facility_id: UUID,
     body: CloneFacilityRequest,

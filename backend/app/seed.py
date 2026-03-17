@@ -1,4 +1,4 @@
-"""Seed script — populate the database with default users.
+"""Seed script — create a default admin user if no users exist.
 
 Usage:
     python -m app.seed
@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.db import async_session_factory, engine
 from app.models.base import Base
@@ -17,102 +17,45 @@ from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_USERS = [
-    {
-        "email": "georg.weis@tytan.tech",
-        "name": "Georg Weis",
-        "role": "admin",
-        "job_title": "Industrial Engineer",
-        "department": "Engineering",
-        "office_location": "Augsburg HQ",
-        "company_name": "TYTAN Technologies",
-        "employee_id": "EMP-001",
-    },
-    {
-        "email": "anna.schmidt@tytan.tech",
-        "name": "Anna Schmidt",
-        "role": "editor",
-        "job_title": "Project Manager",
-        "department": "Project Management",
-        "office_location": "Augsburg HQ",
-        "company_name": "TYTAN Technologies",
-        "employee_id": "EMP-002",
-    },
-    {
-        "email": "thomas.mueller@tytan.tech",
-        "name": "Thomas Müller",
-        "role": "editor",
-        "job_title": "Finance Controller",
-        "department": "Finance",
-        "office_location": "Munich Office",
-        "company_name": "TYTAN Technologies",
-        "employee_id": "EMP-003",
-        "manager_email": "georg.weis@tytan.tech",
-        "manager_name": "Georg Weis",
-    },
-    {
-        "email": "lisa.berger@tytan.tech",
-        "name": "Lisa Berger",
-        "role": "viewer",
-        "job_title": "Procurement Specialist",
-        "department": "Procurement",
-        "office_location": "Augsburg HQ",
-        "company_name": "TYTAN Technologies",
-        "employee_id": "EMP-004",
-        "manager_email": "anna.schmidt@tytan.tech",
-        "manager_name": "Anna Schmidt",
-    },
-    {
-        "email": "markus.weber@tytan.tech",
-        "name": "Markus Weber",
-        "role": "editor",
-        "job_title": "Technical Lead",
-        "department": "Engineering",
-        "office_location": "Augsburg HQ",
-        "company_name": "TYTAN Technologies",
-        "employee_id": "EMP-005",
-        "manager_email": "georg.weis@tytan.tech",
-        "manager_name": "Georg Weis",
-    },
-]
-
 
 async def seed_users() -> None:
-    """Insert default users if they do not already exist.
+    """Create a default admin user only if the users table is empty.
 
-    If a user already exists, update their profile fields to match the
-    seed data (so re-running the seed always brings records up to date).
+    Reads ADMIN_EMAIL and ADMIN_NAME from environment variables
+    (falling back to config defaults).  Does NOT invent fake employees —
+    real user provisioning is handled by Entra ID sync.
     """
-    # Fields that get updated on existing users during re-seed
-    _PROFILE_FIELDS = [
-        "name", "role", "job_title", "department", "office_location",
-        "company_name", "employee_id", "manager_email", "manager_name",
-    ]
+    from app.config import settings
 
     async with async_session_factory() as session:
-        for user_data in DEFAULT_USERS:
-            stmt = select(User).where(User.email == user_data["email"])
-            result = await session.execute(stmt)
-            existing = result.scalar_one_or_none()
+        # Check if ANY users exist
+        count_stmt = select(func.count()).select_from(User)
+        result = await session.execute(count_stmt)
+        user_count = result.scalar_one()
 
-            if existing:
-                # Update profile fields on existing users
-                updated = False
-                for field in _PROFILE_FIELDS:
-                    if field in user_data and getattr(existing, field) != user_data[field]:
-                        setattr(existing, field, user_data[field])
-                        updated = True
-                if updated:
-                    logger.info("Updated user profile: %s", user_data["email"])
-                else:
-                    logger.info("User already up to date: %s", user_data["email"])
-                continue
+        if user_count > 0:
+            logger.info(
+                "Database already contains %d user(s) — skipping admin seed.",
+                user_count,
+            )
+            return
 
-            user = User(**user_data)
-            session.add(user)
-            logger.info("Created user: %s (%s)", user_data["name"], user_data["role"])
+        admin_email = settings.ADMIN_EMAIL
+        admin_name = settings.ADMIN_NAME
 
+        admin = User(
+            email=admin_email,
+            name=admin_name,
+            role="admin",
+        )
+        session.add(admin)
         await session.commit()
+
+        logger.info(
+            "Created default admin user: %s <%s>",
+            admin_name,
+            admin_email,
+        )
 
 
 async def main() -> None:

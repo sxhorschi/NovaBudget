@@ -1,3 +1,9 @@
+/**
+ * Mock data for development and demo mode.
+ * This data is NOT used in production — the real data comes from the API.
+ * Names, amounts, and dates are fictional.
+ */
+
 import type {
   Facility,
   Department,

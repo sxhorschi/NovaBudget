@@ -74,7 +74,7 @@ export interface CostbookTableProps {
   onSelectItem: (item: CostItem) => void;
   selectedItemId: string | null;
   onStatusChange: (item: CostItem, newStatus: ApprovalStatus) => void;
-  onDeleteItem: (item: CostItem) => void;
+  onDeleteItem?: (item: CostItem) => void;
   onOpenDepartmentContext?: (departmentId: string) => void;
   onOpenWorkAreaContext?: (workAreaId: string) => void;
 }
@@ -349,7 +349,7 @@ export default function CostbookTable({
                               selected={item.id === selectedItemId}
                               onClick={() => onSelectItem(item)}
                               onStatusChange={(newStatus) => onStatusChange(item, newStatus)}
-                              onDelete={() => onDeleteItem(item)}
+                              onDelete={onDeleteItem ? () => onDeleteItem(item) : undefined}
                             />
                           ))}
                       </WorkAreaGroup>

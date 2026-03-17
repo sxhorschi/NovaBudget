@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import UserDep
+from app.auth import UserDep, require_role
 from app.db import get_session
 from app.models import CostItem, WorkArea
 from app.models.enums import ApprovalStatus
@@ -100,7 +100,11 @@ async def _fetch_items(
 # ── POST /bulk-update ───────────────────────────────────────────────────
 
 
-@router.post("/bulk-update", response_model=BulkResponse)
+@router.post(
+    "/bulk-update",
+    response_model=BulkResponse,
+    dependencies=[Depends(require_role("admin", "editor"))],
+)
 @limiter.limit("20/minute")
 async def bulk_update(
     request: Request,
@@ -180,7 +184,11 @@ async def bulk_update(
 # ── POST /bulk-status ──────────────────────────────────────────────────
 
 
-@router.post("/bulk-status", response_model=BulkResponse)
+@router.post(
+    "/bulk-status",
+    response_model=BulkResponse,
+    dependencies=[Depends(require_role("admin", "editor"))],
+)
 @limiter.limit("20/minute")
 async def bulk_status(
     request: Request,
@@ -258,7 +266,11 @@ async def bulk_status(
 # ── DELETE /bulk-delete ─────────────────────────────────────────────────
 
 
-@router.delete("/bulk-delete", response_model=BulkResponse)
+@router.delete(
+    "/bulk-delete",
+    response_model=BulkResponse,
+    dependencies=[Depends(require_role("admin", "editor"))],
+)
 @limiter.limit("20/minute")
 async def bulk_delete(
     request: Request,
@@ -309,7 +321,11 @@ async def bulk_delete(
 # ── POST /bulk-move ─────────────────────────────────────────────────────
 
 
-@router.post("/bulk-move", response_model=BulkResponse)
+@router.post(
+    "/bulk-move",
+    response_model=BulkResponse,
+    dependencies=[Depends(require_role("admin", "editor"))],
+)
 @limiter.limit("20/minute")
 async def bulk_move(
     request: Request,
@@ -376,7 +392,12 @@ async def bulk_move(
 # ── POST /duplicate ────────────────────────────────────────────────────
 
 
-@router.post("/duplicate", response_model=CostItemRead, status_code=201)
+@router.post(
+    "/duplicate",
+    response_model=CostItemRead,
+    status_code=201,
+    dependencies=[Depends(require_role("admin", "editor"))],
+)
 async def duplicate_cost_item(
     body: DuplicateRequest,
     user: UserDep,

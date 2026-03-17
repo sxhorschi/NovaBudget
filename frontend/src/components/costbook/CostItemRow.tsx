@@ -31,7 +31,7 @@ interface CostItemRowProps {
   selected: boolean;
   onClick: () => void;
   onStatusChange: (newStatus: ApprovalStatus) => void;
-  onDelete: () => void;
+  onDelete?: () => void;
 }
 
 export default function CostItemRow({
@@ -110,17 +110,19 @@ export default function CostItemRow({
           >
             <Pencil size={14} />
           </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            className="rounded p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all duration-150"
-            title="Delete"
-          >
-            <Trash2 size={14} />
-          </button>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.();
+              }}
+              className="rounded p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all duration-150"
+              title="Delete"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
         </span>
       </td>
     </tr>

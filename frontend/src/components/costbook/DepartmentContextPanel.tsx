@@ -100,8 +100,8 @@ interface DepartmentContextPanelProps {
   workAreas: WorkArea[];
   costItems: CostItem[];
   onClose: () => void;
-  onSave: (departmentId: string, data: { name: string; budget_total: number }) => void;
-  onDelete: (departmentId: string) => void;
+  onSave?: (departmentId: string, data: { name: string; budget_total: number }) => void;
+  onDelete?: (departmentId: string) => void;
 }
 
 export default function DepartmentContextPanel({
@@ -278,40 +278,46 @@ export default function DepartmentContextPanel({
           </p>
         )}
         <div className="flex items-center justify-between">
-          <button
-            onClick={() => {
-              if (
-                window.confirm(
-                  `Really delete department "${department.name}"? All contained categories and items will be removed.`,
-                )
-              ) {
-                onDelete(department.id);
-              }
-            }}
-            className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors duration-150"
-          >
-            Delete
-          </button>
+          {onDelete ? (
+            <button
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Really delete department "${department.name}"? All contained categories and items will be removed.`,
+                  )
+                ) {
+                  onDelete(department.id);
+                }
+              }}
+              className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors duration-150"
+            >
+              Delete
+            </button>
+          ) : (
+            <span />
+          )}
 
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all duration-150"
             >
-              Cancel
+              {onSave ? 'Cancel' : 'Close'}
             </button>
-            <button
-              onClick={() => onSave(department.id, { name: nameDraft.trim(), budget_total: budget })}
-              disabled={!hasChanges}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-150 inline-flex items-center gap-1.5 ${
-                hasChanges
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              <Save size={14} />
-              Save
-            </button>
+            {onSave && (
+              <button
+                onClick={() => onSave(department.id, { name: nameDraft.trim(), budget_total: budget })}
+                disabled={!hasChanges}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-150 inline-flex items-center gap-1.5 ${
+                  hasChanges
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                <Save size={14} />
+                Save
+              </button>
+            )}
           </div>
         </div>
       </div>

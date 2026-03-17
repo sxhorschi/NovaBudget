@@ -19,6 +19,7 @@ import {
 } from '../types/budget';
 import { useBudgetData } from '../context/BudgetDataContext';
 import { useFacility } from '../context/FacilityContext';
+import { useAuth } from '../context/AuthContext';
 
 // ---------------------------------------------------------------------------
 // Status filter tabs
@@ -54,7 +55,7 @@ interface FacilityCardProps {
   budgetTotal: number;
   itemCount: number;
   onOpen: (facility: Facility) => void;
-  onClone: (facility: Facility) => void;
+  onClone?: (facility: Facility) => void;
   onChangeStatus: (facility: Facility, newStatus: FacilityStatus) => void;
 }
 
@@ -141,13 +142,15 @@ const FacilityCard: React.FC<FacilityCardProps> = ({
           <ExternalLink size={12} />
           Open
         </button>
-        <button
-          onClick={() => onClone(facility)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-slate-50 transition-colors"
-        >
-          <Copy size={12} />
-          Clone
-        </button>
+        {onClone && (
+          <button
+            onClick={() => onClone(facility)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-slate-50 transition-colors"
+          >
+            <Copy size={12} />
+            Clone
+          </button>
+        )}
 
         {/* Status change dropdown */}
         <div className="relative ml-auto">
@@ -215,6 +218,7 @@ const FacilitiesPage: React.FC = () => {
   const navigate = useNavigate();
   const { departments, costItems } = useBudgetData();
   const { facilities, setCurrentFacility, createFacility } = useFacility();
+  const { canEdit } = useAuth();
 
   const [activeTab, setActiveTab] = useState<StatusTab>('all');
 
@@ -357,12 +361,12 @@ const FacilitiesPage: React.FC = () => {
               budgetTotal={kpi.budgetTotal}
               itemCount={kpi.itemCount}
               onOpen={handleOpen}
-              onClone={handleClone}
+              onClone={canEdit ? handleClone : undefined}
               onChangeStatus={handleChangeStatus}
             />
           );
         })}
-        <CreateNewCard onClick={handleCreateNew} />
+        {canEdit && <CreateNewCard onClick={handleCreateNew} />}
       </div>
     </div>
   );

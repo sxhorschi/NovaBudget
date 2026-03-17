@@ -317,10 +317,8 @@ const ImportPage: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [dryRunResult, setDryRunResult] = useState<any>(null);
 
-  // Facility selector — in mock mode we only have one facility, but the UI is ready
-  const [selectedFacilityId] = useState<string>(
-    String(facility.id),
-  );
+  // Use facility ID from URL params (route-scoped), falling back to context
+  const selectedFacilityId = facilityId ?? facility.id;
 
   // Convert warnings to row-level errors for table display
   const rowErrors: RowError[] = useMemo(() => {
@@ -354,7 +352,7 @@ const ImportPage: React.FC = () => {
       // Client-side parsing with xlsx library
       try {
         const buffer = await file.arrayBuffer();
-        const result = parseExcelFile(buffer);
+        const result = parseExcelFile(buffer, selectedFacilityId);
         setParseResult(result);
 
         if (result.costItems.length === 0) {
@@ -375,7 +373,7 @@ const ImportPage: React.FC = () => {
       // Real API mode — parse client-side for preview, upload on confirm
       try {
         const buffer = await file.arrayBuffer();
-        const result = parseExcelFile(buffer);
+        const result = parseExcelFile(buffer, selectedFacilityId);
         setParseResult(result);
 
         if (result.costItems.length === 0) {
@@ -393,7 +391,7 @@ const ImportPage: React.FC = () => {
         );
       }
     }
-  }, [toast]);
+  }, [toast, selectedFacilityId]);
 
   // --- Dry Run ---
   const runDryRun = useCallback(async () => {
