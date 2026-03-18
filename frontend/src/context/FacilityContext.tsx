@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
-import type { Facility, FacilityType } from '../types/budget';
+import type { Facility } from '../types/budget';
 import { mockFacilities } from '../mocks/data';
 
 // ---------------------------------------------------------------------------
@@ -32,7 +32,9 @@ export interface FacilityContextValue {
   facilities: Facility[];
   currentFacility: Facility | null;
   setCurrentFacility: (id: string) => void;
-  createFacility: (name: string, location: string, facilityType?: FacilityType) => Facility;
+  createFacility: (name: string, location: string) => Facility;
+  updateFacility: (id: string, data: Partial<Facility>) => void;
+  deleteFacility: (id: string) => void;
   isLoading: boolean;
 }
 
@@ -92,22 +94,37 @@ export const FacilityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const createFacility = useCallback(
-    (name: string, location: string, facilityType?: FacilityType): Facility => {
+    (name: string, location: string): Facility => {
       const newFacility: Facility = {
         id: nextFacilityId(),
         name: name.trim(),
         location: location.trim(),
         description: '',
-        status: 'planning',
-        facility_type: facilityType ?? 'production',
-        sort_order: facilities.length,
       };
       setFacilities((prev) => [...prev, newFacility]);
       setCurrentFacilityId(newFacility.id);
       return newFacility;
     },
-    [facilities.length],
+    [],
   );
+
+  const updateFacility = useCallback((id: string, data: Partial<Facility>) => {
+    setFacilities((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, ...data } : f)),
+    );
+  }, []);
+
+  const deleteFacility = useCallback((id: string) => {
+    setFacilities((prev) => prev.filter((f) => f.id !== id));
+    // If we deleted the current facility, switch to the first remaining one
+    setCurrentFacilityId((prevId) => {
+      if (prevId === id) {
+        const remaining = facilities.filter((f) => f.id !== id);
+        return remaining[0]?.id ?? '';
+      }
+      return prevId;
+    });
+  }, [facilities]);
 
   const value = useMemo<FacilityContextValue>(
     () => ({
@@ -115,9 +132,11 @@ export const FacilityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       currentFacility,
       setCurrentFacility,
       createFacility,
+      updateFacility,
+      deleteFacility,
       isLoading: false,
     }),
-    [facilities, currentFacility, setCurrentFacility, createFacility],
+    [facilities, currentFacility, setCurrentFacility, createFacility, updateFacility, deleteFacility],
   );
 
   return (

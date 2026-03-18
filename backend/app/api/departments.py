@@ -8,7 +8,6 @@ from sqlalchemy.orm import selectinload
 from app.auth import UserDep
 from app.db import get_session
 from app.models import Department, WorkArea
-from app.api.guards import ensure_facility_writable, ensure_facility_writable_for_department
 from app.schemas.department import DepartmentCreate, DepartmentRead, DepartmentWithWorkAreas
 from app.services.audit import build_changes, log_change
 
@@ -46,7 +45,6 @@ async def create_department(
     user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
-    await ensure_facility_writable(session, data.facility_id)
     department = Department(**data.model_dump())
     session.add(department)
     await session.flush()
@@ -66,7 +64,6 @@ async def update_department(
     department = await session.get(Department, department_id)
     if not department:
         raise HTTPException(status_code=404, detail="Department not found")
-    await ensure_facility_writable(session, department.facility_id)
     update_data = data.model_dump()
     old_values = {k: getattr(department, k) for k in update_data}
     for key, value in update_data.items():
@@ -88,7 +85,6 @@ async def delete_department(
     department = await session.get(Department, department_id)
     if not department:
         raise HTTPException(status_code=404, detail="Department not found")
-    await ensure_facility_writable(session, department.facility_id)
     department_id_copy = department.id
     await session.delete(department)
     await log_change(session, "department", department_id_copy, "deleted", user_id=user.email)

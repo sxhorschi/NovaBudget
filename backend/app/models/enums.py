@@ -65,24 +65,6 @@ class AdjustmentCategory(str, enum.Enum):
     OTHER = "OTHER"
 
 
-class FacilityStatus(str, enum.Enum):
-    """Lifecycle status for a facility."""
-
-    PLANNING = "PLANNING"
-    ACTIVE = "ACTIVE"
-    COMPLETED = "COMPLETED"
-    ARCHIVED = "ARCHIVED"
-
-
-class FacilityType(str, enum.Enum):
-    """Type of facility project."""
-
-    PRODUCTION = "PRODUCTION"
-    EXPANSION = "EXPANSION"
-    RETROFIT = "RETROFIT"
-    PROTOTYPE = "PROTOTYPE"
-
-
 # ── SQLAlchemy column types (reusable in models) ────────────────────────
 
 CostBasisType = SAEnum(
@@ -127,16 +109,3 @@ AdjustmentCategoryType = SAEnum(
     native_enum=True,
 )
 
-FacilityStatusType = SAEnum(
-    FacilityStatus,
-    name="facility_status",
-    create_constraint=True,
-    native_enum=True,
-)
-
-FacilityTypeType = SAEnum(
-    FacilityType,
-    name="facility_type",
-    create_constraint=True,
-    native_enum=True,
-)

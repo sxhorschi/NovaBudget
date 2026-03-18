@@ -67,7 +67,6 @@ async def clone_facility(
         name=name,
         location=source.location,
         description=source.description,
-        source_facility_id=source.id,
     )
     session.add(new_facility)
     await session.flush()  # get new_facility.id

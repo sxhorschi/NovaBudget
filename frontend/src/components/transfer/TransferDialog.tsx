@@ -1,9 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { X, ArrowRightLeft, ChevronRight } from 'lucide-react';
-import {
-  FACILITY_STATUS_LABELS,
-  FACILITY_STATUS_COLORS,
-} from '../../types/budget';
 import { useBudgetData } from '../../context/BudgetDataContext';
 import { useFacility } from '../../context/FacilityContext';
 
@@ -58,10 +54,10 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
   const [resetStatus, setResetStatus] = useState(false);
   const [resetAmounts, setResetAmounts] = useState(false);
 
-  // Available target facilities (exclude current, exclude completed)
+  // Available target facilities (exclude current)
   const targetFacilities = useMemo(() => {
     return allFacilities.filter(
-      (f) => f.id !== sourceFacilityId && f.status !== 'completed',
+      (f) => f.id !== sourceFacilityId,
     );
   }, [allFacilities, sourceFacilityId]);
 
@@ -245,11 +241,6 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
                         </div>
                         <div className="text-xs text-gray-500">{f.location}</div>
                       </div>
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${FACILITY_STATUS_COLORS[f.status]}`}
-                      >
-                        {FACILITY_STATUS_LABELS[f.status]}
-                      </span>
                     </label>
                   ))}
                 </div>

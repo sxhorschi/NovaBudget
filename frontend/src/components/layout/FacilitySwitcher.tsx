@@ -2,47 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, Plus, Building2 } from 'lucide-react';
 import { useFacility } from '../../context/FacilityContext';
-import type { Facility, FacilityStatus } from '../../types/budget';
-import { FACILITY_STATUS_LABELS } from '../../types/budget';
-
-// ---------------------------------------------------------------------------
-// Status dot colors
-// ---------------------------------------------------------------------------
-
-const STATUS_DOT: Record<FacilityStatus, string> = {
-  active: 'bg-emerald-500',
-  planning: 'bg-blue-500',
-  completed: 'bg-gray-400',
-  archived: 'bg-gray-400',
-};
-
-// ---------------------------------------------------------------------------
-// Status badge colors (for current facility badge)
-// ---------------------------------------------------------------------------
-
-const STATUS_BADGE: Record<FacilityStatus, string> = {
-  active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  planning: 'bg-blue-50 text-blue-700 border-blue-200',
-  completed: 'bg-gray-50 text-gray-600 border-gray-200',
-  archived: 'bg-gray-50 text-gray-500 border-gray-200',
-};
-
-// ---------------------------------------------------------------------------
-// Group facilities by status (order: active, planning, completed, archived)
-// ---------------------------------------------------------------------------
-
-const STATUS_ORDER: FacilityStatus[] = ['active', 'planning', 'completed', 'archived'];
-
-function groupByStatus(facilities: Facility[]): { status: FacilityStatus; items: Facility[] }[] {
-  const groups: { status: FacilityStatus; items: Facility[] }[] = [];
-  for (const status of STATUS_ORDER) {
-    const items = facilities.filter((f) => f.status === status);
-    if (items.length > 0) {
-      groups.push({ status, items });
-    }
-  }
-  return groups;
-}
 
 // ---------------------------------------------------------------------------
 // Create Facility Inline Form
@@ -131,8 +90,6 @@ const FacilitySwitcher: React.FC = () => {
 
   if (!currentFacility) return null;
 
-  const groups = groupByStatus(facilities);
-
   const handleSelect = (id: string) => {
     setCurrentFacility(id);
     navigate(`/f/${id}/costbook`);
@@ -157,15 +114,9 @@ const FacilitySwitcher: React.FC = () => {
         aria-label={`Switch facility. Current: ${currentFacility.name}`}
         aria-expanded={open}
       >
-        {/* Status dot */}
-        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[currentFacility.status]}`} />
         {/* Name */}
         <span className="text-sm font-semibold text-gray-700 truncate max-w-[180px]">
           {currentFacility.name}
-        </span>
-        {/* Status badge */}
-        <span className={`hidden sm:inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${STATUS_BADGE[currentFacility.status]}`}>
-          {FACILITY_STATUS_LABELS[currentFacility.status]}
         </span>
         {/* Chevron */}
         <ChevronDown
@@ -177,44 +128,32 @@ const FacilitySwitcher: React.FC = () => {
       {/* Dropdown */}
       {open && (
         <div className="absolute left-0 top-full mt-1.5 w-72 rounded-xl bg-white shadow-xl border border-gray-100 py-1 z-[200] animate-in fade-in slide-in-from-top-1 duration-100">
-          {/* Facility groups */}
-          {groups.map((group) => (
-            <div key={group.status}>
-              {/* Group header */}
-              <div className="px-3 pt-2 pb-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                  {FACILITY_STATUS_LABELS[group.status]}
-                </span>
-              </div>
-              {/* Items */}
-              {group.items.map((facility) => {
-                const isActive = facility.id === currentFacility.id;
-                return (
-                  <button
-                    key={facility.id}
-                    type="button"
-                    onClick={() => handleSelect(facility.id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
-                      isActive
-                        ? 'bg-indigo-50'
-                        : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[facility.status]}`} />
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-sm truncate ${isActive ? 'font-semibold text-indigo-700' : 'font-medium text-gray-700'}`}>
-                        {facility.name}
-                      </p>
-                      <p className="text-xs text-gray-400 truncate">{facility.location}</p>
-                    </div>
-                    {isActive && (
-                      <span className="text-[10px] font-medium text-indigo-500 flex-shrink-0">Current</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+          {/* Facility list */}
+          {facilities.map((facility) => {
+            const isActive = facility.id === currentFacility.id;
+            return (
+              <button
+                key={facility.id}
+                type="button"
+                onClick={() => handleSelect(facility.id)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
+                  isActive
+                    ? 'bg-indigo-50'
+                    : 'hover:bg-gray-50'
+                }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm truncate ${isActive ? 'font-semibold text-indigo-700' : 'font-medium text-gray-700'}`}>
+                    {facility.name}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate">{facility.location}</p>
+                </div>
+                {isActive && (
+                  <span className="text-[10px] font-medium text-indigo-500 flex-shrink-0">Current</span>
+                )}
+              </button>
+            );
+          })}
 
           {/* Divider + Create button / form */}
           {showCreate ? (

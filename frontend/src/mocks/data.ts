@@ -24,9 +24,6 @@ export const mockFacility: Facility = {
   name: '3k Factory',
   location: 'Augsburg, Germany',
   description: 'NovaDrive Motors — Main CAPEX facility for EV drivetrain and vehicle assembly',
-  status: 'active',
-  facility_type: 'production',
-  sort_order: 0,
 };
 
 export const mockFacility2: Facility = {
@@ -34,9 +31,6 @@ export const mockFacility2: Facility = {
   name: '5k Factory',
   location: 'Munich, Germany',
   description: 'NovaDrive Motors — Expansion facility for high-volume EV production',
-  status: 'planning',
-  facility_type: 'expansion',
-  sort_order: 1,
 };
 
 export const mockFacility3: Facility = {
@@ -44,9 +38,6 @@ export const mockFacility3: Facility = {
   name: 'Retrofit — Stuttgart',
   location: 'Stuttgart, Germany',
   description: 'Legacy plant retrofit for Orion EV line conversion',
-  status: 'planning',
-  facility_type: 'retrofit',
-  sort_order: 2,
 };
 
 export const mockFacility4: Facility = {
@@ -54,10 +45,6 @@ export const mockFacility4: Facility = {
   name: 'Prototype Lab — Berlin',
   location: 'Berlin, Germany',
   description: 'Rapid prototyping and validation center for Vega concept',
-  status: 'completed',
-  facility_type: 'prototype',
-  completion_date: '2025-12-15',
-  sort_order: 3,
 };
 
 export const mockFacilities: Facility[] = [mockFacility, mockFacility2, mockFacility3, mockFacility4];

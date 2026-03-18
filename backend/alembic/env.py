@@ -13,8 +13,6 @@ from app.models import (  # noqa: F401
     CostItem,
     Department,
     Facility,
-    FacilityStatus,
-    FacilityType,
     TransferLog,
     User,
     WorkArea,

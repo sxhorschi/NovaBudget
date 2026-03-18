@@ -11,8 +11,6 @@ from app.models.enums import (
     ApprovalStatus,
     CostBasis,
     CostDriver,
-    FacilityStatus,
-    FacilityType,
     Product,
     ProjectPhase,
 )
@@ -33,8 +31,6 @@ __all__ = [
     "ApprovalStatus",
     "CostBasis",
     "CostDriver",
-    "FacilityStatus",
-    "FacilityType",
     "Product",
     "ProjectPhase",
     "Facility",
