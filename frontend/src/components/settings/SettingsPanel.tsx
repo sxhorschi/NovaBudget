@@ -1,14 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, Building2, Calculator, Eye, PlayCircle, Info, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Building2, Calculator, Eye, Info, TrendingUp } from 'lucide-react';
 import { useDisplaySettings } from '../../context/DisplaySettingsContext';
 import { useBudgetData } from '../../context/BudgetDataContext';
-
-// ---------------------------------------------------------------------------
-// localStorage keys
-// ---------------------------------------------------------------------------
-
-const LS_HIGHLIGHT_ZA = 'settings_highlight_zielanpassung';
-const LS_ONBOARDING = 'capex-planner:onboarding-completed';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -86,14 +79,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
   const { facility } = useBudgetData();
   const [isVisible, setIsVisible] = useState(false);
 
-  // --- Display prefs ---
-  const [highlightZA, setHighlightZA] = useState(() =>
-    localStorage.getItem(LS_HIGHLIGHT_ZA) !== 'false',
-  );
-
-  // --- Onboarding reset feedback ---
-  const [onboardingReset, setOnboardingReset] = useState(false);
-
   // --- Local string state for finance factor number input to allow typing decimals ---
   const [factorInputStr, setFactorInputStr] = useState(() =>
     financeBudgetFactor.toFixed(2),
@@ -122,18 +107,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [open, onClose]);
-
-  // Persist display prefs
-  useEffect(() => {
-    localStorage.setItem(LS_HIGHLIGHT_ZA, String(highlightZA));
-  }, [highlightZA]);
-
-  const handleResetOnboarding = useCallback(() => {
-    localStorage.removeItem(LS_ONBOARDING);
-    setOnboardingReset(true);
-    // Reload the page so onboarding triggers on next mount
-    setTimeout(() => window.location.reload(), 600);
-  }, []);
 
   // --- Finance factor helpers ---
   const factorPct = Math.round(financeBudgetFactor * 100);
@@ -350,23 +323,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
               checked={showThousands}
               onChange={setShowThousands}
             />
-            <Toggle
-              label="Highlight target adjustments"
-              checked={highlightZA}
-              onChange={setHighlightZA}
-            />
           </div>
-
-          <Divider />
-
-          {/* ============ 5. Onboarding ============ */}
-          <SectionTitle icon={<PlayCircle size={16} />} title="Onboarding" />
-          <button
-            onClick={handleResetOnboarding}
-            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            {onboardingReset ? 'Will start on next load' : 'Restart introduction'}
-          </button>
 
           <Divider />
 

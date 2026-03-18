@@ -348,48 +348,24 @@ const ImportPage: React.FC = () => {
     setRawFile(file);
     setDryRunResult(null);
 
-    if (USE_MOCKS) {
-      // Client-side parsing with xlsx library
-      try {
-        const buffer = await file.arrayBuffer();
-        const result = parseExcelFile(buffer, selectedFacilityId);
-        setParseResult(result);
+    try {
+      const buffer = await file.arrayBuffer();
+      const result = parseExcelFile(buffer, selectedFacilityId);
+      setParseResult(result);
 
-        if (result.costItems.length === 0) {
-          setStep('error');
-          setErrorMessage('No importable data found. Please check the file format.');
-        } else {
-          setStep('preview');
-        }
-      } catch (err: unknown) {
+      if (result.costItems.length === 0) {
         setStep('error');
-        setErrorMessage(
-          err instanceof Error
-            ? `Error reading file: ${err.message}`
-            : 'Unknown error reading file.',
-        );
+        setErrorMessage('No importable data found. Please check the file format.');
+      } else {
+        setStep('preview');
       }
-    } else {
-      // Real API mode — parse client-side for preview, upload on confirm
-      try {
-        const buffer = await file.arrayBuffer();
-        const result = parseExcelFile(buffer, selectedFacilityId);
-        setParseResult(result);
-
-        if (result.costItems.length === 0) {
-          setStep('error');
-          setErrorMessage('No importable data found. Please check the file format.');
-        } else {
-          setStep('preview');
-        }
-      } catch (err: unknown) {
-        setStep('error');
-        setErrorMessage(
-          err instanceof Error
-            ? `Error reading file: ${err.message}`
-            : 'Unknown error reading file.',
-        );
-      }
+    } catch (err: unknown) {
+      setStep('error');
+      setErrorMessage(
+        err instanceof Error
+          ? `Error reading file: ${err.message}`
+          : 'Unknown error reading file.',
+      );
     }
   }, [toast, selectedFacilityId]);
 

@@ -12,7 +12,6 @@ interface SummaryStripProps {
   committed: number;
   forecast: number;
   remaining: number;
-  itemCount: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,7 +74,6 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
   committed,
   forecast,
   remaining,
-  itemCount: _itemCount,
 }) => {
   const remColor = remainingColor(remaining, budget);
   const format = useAmountFormatter();
@@ -131,17 +129,6 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
           barMax={budget || 1}
           barColor={remColor}
           tooltip="Remaining budget = Budget - Forecast"
-        />
-
-        {/* CoC */}
-        <KPICard
-          label="CoC"
-          value={format(forecast)}
-          textColor="text-violet-700"
-          barValue={forecast}
-          barMax={budget || 1}
-          barColor="indigo"
-          tooltip="Cost at Completion = Forecast"
         />
       </div>
     </div>

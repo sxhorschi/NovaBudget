@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Download, ChevronDown, FileSpreadsheet, PieChart, ClipboardList, Loader2, Upload, GitCompareArrows, Filter } from 'lucide-react';
+import { Download, ChevronDown, FileSpreadsheet, PieChart, ClipboardList, Loader2, Upload, Filter } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { USE_MOCKS } from '../../mocks/data';
 import { useBudgetData } from '../../context/BudgetDataContext';
+import { useDisplaySettings } from '../../context/DisplaySettingsContext';
 import client from '../../api/client';
 import { exportStandard, exportFinance, exportSteeringCommittee } from '../../services/clientExport';
 import { useToast } from '../common/ToastProvider';
@@ -13,7 +14,7 @@ import type { ProjectPhase, ApprovalStatus } from '../../types/budget';
 // Types
 // ---------------------------------------------------------------------------
 
-type ExportType = 'standard' | 'finance' | 'steering-committee' | 'compare';
+type ExportType = 'standard' | 'finance' | 'steering-committee';
 
 // ---------------------------------------------------------------------------
 // Helper: detect active filters from URL params
@@ -62,8 +63,8 @@ function useActiveFilterLabels(): string | null {
 // Helper: build export URL from current filter params
 // ---------------------------------------------------------------------------
 
-function buildExportPath(type: ExportType, facilityId: string, budgetFactor?: number, compareFacilityId?: string): string {
-  const base = type === 'compare' ? '/export/compare' : `/export/${type}`;
+function buildExportPath(type: ExportType, facilityId: string, budgetFactor?: number): string {
+  const base = `/export/${type}`;
   const params = new URLSearchParams(window.location.search);
 
   // For the standard export, forward dept & phase filters
@@ -82,10 +83,6 @@ function buildExportPath(type: ExportType, facilityId: string, budgetFactor?: nu
     exportParams.set('budget_factor', budgetFactor.toString());
   }
 
-  if (type === 'compare' && compareFacilityId) {
-    exportParams.set('compare_facility_id', compareFacilityId);
-  }
-
   return `${base}?${exportParams.toString()}`;
 }
 
@@ -95,11 +92,9 @@ function buildExportPath(type: ExportType, facilityId: string, budgetFactor?: nu
 
 const ExportMenu: React.FC = () => {
   const { facility, departments: allDepartments, workAreas: allWorkAreas, costItems: allCostItems } = useBudgetData();
-  const financeBudgetFactor = 1.0;
+  const { financeBudgetFactor } = useDisplaySettings();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState<ExportType | null>(null);
-  const [showCompareDialog, setShowCompareDialog] = useState(false);
-  const [compareFacilityId, setCompareFacilityId] = useState('');
   const toast = useToast();
   const navigate = useNavigate();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -110,32 +105,14 @@ const ExportMenu: React.FC = () => {
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setOpen(false);
-        setShowCompareDialog(false);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Keyboard shortcut: Cmd+E / Ctrl+E
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
-        e.preventDefault();
-        setOpen((prev) => !prev);
-      }
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, []);
-
   const handleExport = useCallback(
     async (type: ExportType) => {
-      if (type === 'compare') {
-        setShowCompareDialog(true);
-        return;
-      }
-
       setOpen(false);
 
       // Mock mode: client-side export with mock data
@@ -219,55 +196,6 @@ const ExportMenu: React.FC = () => {
     [toast, allDepartments, allWorkAreas, allCostItems, financeBudgetFactor],
   );
 
-  const handleCompareExport = useCallback(async () => {
-    if (!compareFacilityId.trim()) {
-      toast.error('Please enter a facility ID to compare against.');
-      return;
-    }
-
-    setShowCompareDialog(false);
-    setOpen(false);
-    setLoading('compare');
-
-    try {
-      if (USE_MOCKS) {
-        // Mock mode: compare export not available
-        toast.error('Compare Export requires API mode. Not available in demo mode.');
-        return;
-      }
-
-      const path = buildExportPath('compare', facility.id, undefined, compareFacilityId.trim());
-      const response = await client.get(path, { responseType: 'blob' });
-
-      const disposition = response.headers['content-disposition'];
-      let filename = `compare_export.xlsx`;
-      if (disposition) {
-        const match = disposition.match(/filename="?([^"]+)"?/);
-        if (match) filename = match[1];
-      }
-
-      const blob = new Blob([response.data], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      });
-      const downloadUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(downloadUrl);
-
-      toast.success('Compare export downloaded');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Compare export failed';
-      toast.error(msg);
-    } finally {
-      setLoading(null);
-      setCompareFacilityId('');
-    }
-  }, [compareFacilityId, toast]);
-
   // Build export options with dynamic label showing filter context
   const exportOptions = useMemo(() => {
     const standardLabel = activeFilterLabel
@@ -292,12 +220,6 @@ const ExportMenu: React.FC = () => {
         label: 'Steering Committee Report',
         description: 'Budget overview, top items, risks, cash-out',
         icon: <ClipboardList size={16} className="text-indigo-600" />,
-      },
-      {
-        key: 'compare' as ExportType,
-        label: 'Compare Export',
-        description: 'KPIs side-by-side vs. another facility',
-        icon: <GitCompareArrows size={16} className="text-purple-600" />,
       },
     ];
   }, [activeFilterLabel]);
@@ -361,42 +283,6 @@ const ExportMenu: React.FC = () => {
                 </button>
               ))}
 
-              {/* Compare dialog inline */}
-              {showCompareDialog && (
-                <div className="border-t border-gray-200 mx-3 mt-1 pt-2 pb-2">
-                  <p className="text-xs font-medium text-gray-600 mb-1.5">
-                    Compare "{facility.name}" against:
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={compareFacilityId}
-                      onChange={(e) => setCompareFacilityId(e.target.value)}
-                      placeholder="Enter facility ID..."
-                      className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-200"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleCompareExport();
-                        if (e.key === 'Escape') setShowCompareDialog(false);
-                      }}
-                    />
-                    <button
-                      onClick={handleCompareExport}
-                      disabled={!compareFacilityId.trim()}
-                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
-                    >
-                      Export
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => setShowCompareDialog(false)}
-                    className="mt-1 text-[10px] text-gray-400 hover:text-gray-600 underline"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-
               <div className="border-t border-dashed border-gray-200 mt-1 pt-1" />
               <button
                 type="button"
@@ -412,11 +298,6 @@ const ExportMenu: React.FC = () => {
                   <div className="text-xs text-gray-500 mt-0.5">Import budget data from an Excel file</div>
                 </div>
               </button>
-            </div>
-            <div className="px-4 py-2 border-t border-gray-100 bg-gray-50/50">
-              <span className="text-[10px] text-gray-400">
-                Shortcut: Ctrl+E
-              </span>
             </div>
           </div>
         )}

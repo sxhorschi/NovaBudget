@@ -147,8 +147,8 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
           style={{
             top: dropdownPos.top,
             left: dropdownPos.left,
-            borderColor: 'var(--border-default)',
-            boxShadow: 'var(--shadow-dropdown)',
+            borderColor: '#e2e8f0',
+            boxShadow: '0 10px 30px -5px rgba(0,0,0,0.1), 0 4px 10px -4px rgba(0,0,0,0.04)',
           }}
         >
           {ALL_STATUSES.map((s) => {
@@ -165,7 +165,7 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-slate-50"
                 style={{
                   fontWeight: isActive ? 600 : 400,
-                  color: isActive ? sStyle.text : 'var(--text-primary)',
+                  color: isActive ? sStyle.text : '#1e293b',
                 }}
               >
                 <span
@@ -183,7 +183,7 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
       {pendingStatus && (
         <div
           className="fixed z-50 w-[240px] rounded-lg border bg-white p-3 shadow-lg"
-          style={{ top: dropdownPos.top, left: dropdownPos.left, borderColor: 'var(--border-default)' }}
+          style={{ top: dropdownPos.top, left: dropdownPos.left, borderColor: '#e2e8f0' }}
           onClick={(e) => e.stopPropagation()}
         >
           <p className="text-sm font-medium text-gray-900 mb-1">

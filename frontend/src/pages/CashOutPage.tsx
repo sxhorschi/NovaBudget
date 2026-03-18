@@ -38,7 +38,7 @@ import SummaryStrip from '../components/summary/SummaryStrip';
 // Constants
 // ---------------------------------------------------------------------------
 
-const CURRENT_MONTH = '2026-03';
+const CURRENT_MONTH = new Date().toISOString().slice(0, 7);
 
 const MONTHS = [
   '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07',
@@ -387,7 +387,6 @@ const CashOutPage: React.FC = () => {
           committed={summary.committed}
           forecast={summary.forecast}
           remaining={summary.remaining}
-          itemCount={summary.itemCount}
         />
       </div>
 

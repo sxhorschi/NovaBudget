@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ArrowUp, ArrowDown, SearchX, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
-import type { Department, WorkArea, CostItem, ApprovalStatus } from '../../types/budget';
+import type { Department, WorkAreaWithItems, CostItem, ApprovalStatus } from '../../types/budget';
 import { getDeptColor } from '../../styles/design-tokens';
 import DepartmentRow from './DepartmentRow';
 import WorkAreaRow from './WorkAreaRow';
@@ -69,7 +69,7 @@ const COLUMNS: ColumnDef[] = [
 
 export interface CostbookTableProps {
   departments: Department[];
-  workAreas: WorkArea[];
+  workAreas: WorkAreaWithItems[];
   departmentCommittedTotals?: Record<string, number>;
   onSelectItem: (item: CostItem) => void;
   selectedItemId: string | null;
@@ -162,7 +162,7 @@ export default function CostbookTable({
 
   // -- Precompute: group work areas by department ------------------------------
   const waByDept = useMemo(() => {
-    const map = new Map<string, WorkArea[]>();
+    const map = new Map<string, WorkAreaWithItems[]>();
     for (const wa of workAreas) {
       const list = map.get(wa.department_id) ?? [];
       list.push(wa);
@@ -200,7 +200,7 @@ export default function CostbookTable({
   const allItems = useMemo(() => {
     const items: CostItem[] = [];
     for (const wa of workAreas) {
-      if (wa.cost_items) items.push(...wa.cost_items);
+      items.push(...wa.cost_items);
     }
     return items;
   }, [workAreas]);
@@ -288,7 +288,7 @@ export default function CostbookTable({
             const deptWAs = waByDept.get(dept.id) ?? [];
             const deptItems: CostItem[] = [];
             for (const wa of deptWAs) {
-              if (wa.cost_items) deptItems.push(...wa.cost_items);
+              deptItems.push(...wa.cost_items);
             }
             // Committed = only approved items (consistent with useFilteredData source of truth)
             const visibleCommitted = deptItems
@@ -319,7 +319,7 @@ export default function CostbookTable({
                 {/* Work areas (visible when department expanded) */}
                 {isDeptExpanded &&
                   deptWAs.map((wa) => {
-                    const items = wa.cost_items ?? [];
+                    const items = wa.cost_items;
                     const waTotal = items.reduce((s, ci) => s + ci.current_amount, 0);
                     const isWAExpanded = expandedWAs.has(wa.id);
                     const sortedItems = [...items].sort((a, b) => compareCostItems(a, b, sort));

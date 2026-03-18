@@ -49,7 +49,11 @@ export interface WorkArea {
   id: string;
   department_id: string;
   name: string;
-  cost_items?: CostItem[];
+}
+
+/** WorkArea with cost_items populated (used by CostbookTable). */
+export interface WorkAreaWithItems extends WorkArea {
+  cost_items: CostItem[];
 }
 
 export interface CostItem {

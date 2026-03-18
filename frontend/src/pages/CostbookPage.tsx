@@ -8,6 +8,7 @@ import type {
   Product,
   Department,
   WorkArea,
+  WorkAreaWithItems,
 } from '../types/budget';
 import {
   PHASE_LABELS,
@@ -30,21 +31,11 @@ import DeleteConfirmDialog from '../components/costbook/DeleteConfirmDialog';
 import TransferDialog from '../components/transfer/TransferDialog';
 import { useToast } from '../components/common/ToastProvider';
 import { useAuth } from '../context/AuthContext';
+import { formatThousands, parseGermanNumber } from '../components/costbook/AmountCell';
 
 // ---------------------------------------------------------------------------
-// Helpers for formatted EUR amount input in modals
+// Formatted EUR amount input for modals
 // ---------------------------------------------------------------------------
-
-function formatModalThousands(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  if (digits === '') return '';
-  return Number(digits).toLocaleString('de-DE');
-}
-
-function parseModalGermanNumber(formatted: string): number {
-  const digits = formatted.replace(/\D/g, '');
-  return digits === '' ? 0 : Number(digits);
-}
 
 interface ModalAmountInputProps {
   value: string; // raw string state (numeric string like "125000")
@@ -55,23 +46,23 @@ interface ModalAmountInputProps {
 
 /** Formatted EUR amount input for modals — shows German thousand separators and EUR prefix. */
 const ModalAmountInput: React.FC<ModalAmountInputProps> = ({ value, onChange, placeholder, className }) => {
-  const [display, setDisplay] = useState(() => formatModalThousands(value));
+  const [display, setDisplay] = useState(() => formatThousands(value));
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Sync display when value changes externally (e.g. reset)
   useEffect(() => {
-    setDisplay(formatModalThousands(value));
+    setDisplay(formatThousands(value));
   }, [value]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/[^\d.]/g, '');
-    const formatted = formatModalThousands(raw);
+    const formatted = formatThousands(raw);
     setDisplay(formatted);
-    onChange(String(parseModalGermanNumber(formatted)));
+    onChange(String(parseGermanNumber(formatted)));
   }, [onChange]);
 
   const handleBlur = useCallback(() => {
-    setDisplay(formatModalThousands(value));
+    setDisplay(formatThousands(value));
   }, [value]);
 
   return (
@@ -198,7 +189,7 @@ const CostbookPage: React.FC = () => {
   }, [workAreasForSelectedDept, newItemWorkAreaId]);
 
   // Build work areas with items attached (respects context edits)
-  const workAreasWithItems = useMemo(() => {
+  const workAreasWithItems: WorkAreaWithItems[] = useMemo(() => {
     return filteredWorkAreas.map((wa) => ({
       ...wa,
       cost_items: costItems.filter(
@@ -545,21 +536,6 @@ const CostbookPage: React.FC = () => {
     toast.success('New department created.');
   }, [newDeptBudget, createDepartment, newDeptName, setAllFilters, closeCreate, toast]);
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const isTyping = target
-        ? ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable
-        : false;
-      if (!isTyping && e.key.toLowerCase() === 'n') {
-        e.preventDefault();
-        openCreate('item');
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [openCreate]);
-
   return (
     <>
       {/* ---- Sticky container: SavedViews + FilterBar + SummaryStrip ---- */}
@@ -672,7 +648,6 @@ const CostbookPage: React.FC = () => {
           committed={summary.committed}
           forecast={summary.forecast}
           remaining={summary.remaining}
-          itemCount={summary.itemCount}
         />
       </div>
 

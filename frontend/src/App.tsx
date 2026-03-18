@@ -5,7 +5,6 @@ import StandaloneLayout from './components/layout/StandaloneLayout';
 import CostbookPage from './pages/CostbookPage';
 import CashOutPage from './pages/CashOutPage';
 import ImportPage from './pages/ImportPage';
-import BudgetOverviewPage from './pages/BudgetOverviewPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ToastProvider from './components/common/ToastProvider';
 import { BudgetDataProvider } from './context/BudgetDataContext';
@@ -52,7 +51,6 @@ const App: React.FC = () => {
                       <Route path="/f/:facilityId" element={<FacilityLayout />}>
                         <Route path="costbook" element={<CostbookPage />} />
                         <Route path="cashout" element={<CashOutPage />} />
-                        <Route path="overview" element={<BudgetOverviewPage />} />
                         <Route path="import" element={<ImportPage />} />
                         <Route index element={<Navigate to="costbook" replace />} />
                       </Route>

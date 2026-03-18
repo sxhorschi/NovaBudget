@@ -5,14 +5,7 @@ import type { Facility } from '../types/budget';
 import { useBudgetData } from '../context/BudgetDataContext';
 import { useFacility } from '../context/FacilityContext';
 import { useAuth } from '../context/AuthContext';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatEur(amount: number): string {
-  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount);
-}
+import { formatEUR } from '../components/costbook/AmountCell';
 
 // ---------------------------------------------------------------------------
 // Edit/Create Modal
@@ -127,7 +120,7 @@ function FacilityModal({
 
 const FacilitiesPage: React.FC = () => {
   const navigate = useNavigate();
-  const { departments, costItems } = useBudgetData();
+  const { departments } = useBudgetData();
   const { facilities, setCurrentFacility, createFacility, updateFacility, deleteFacility } = useFacility();
   const { canEdit } = useAuth();
 
@@ -135,14 +128,14 @@ const FacilitiesPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const facilityKpis = useMemo(() => {
-    const kpis: Record<string, { budgetTotal: number; itemCount: number }> = {};
+    const kpis: Record<string, { budgetTotal: number; departmentCount: number }> = {};
     for (const f of facilities) {
       const facilityDepts = departments.filter((d) => d.facility_id === f.id);
       const budgetTotal = facilityDepts.reduce((sum, d) => sum + d.budget_total, 0);
-      kpis[f.id] = { budgetTotal, itemCount: facilityDepts.length > 0 ? costItems.length : 0 };
+      kpis[f.id] = { budgetTotal, departmentCount: facilityDepts.length };
     }
     return kpis;
-  }, [facilities, departments, costItems]);
+  }, [facilities, departments]);
 
   const handleOpen = useCallback((f: Facility) => {
     setCurrentFacility(f.id);
@@ -188,7 +181,7 @@ const FacilitiesPage: React.FC = () => {
       {/* Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {facilities.map((f) => {
-          const kpi = facilityKpis[f.id] ?? { budgetTotal: 0, itemCount: 0 };
+          const kpi = facilityKpis[f.id] ?? { budgetTotal: 0, departmentCount: 0 };
           return (
             <div key={f.id} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
               {/* Header */}
@@ -215,9 +208,9 @@ const FacilitiesPage: React.FC = () => {
 
               {/* KPIs */}
               <div className="flex items-center gap-4 text-sm text-slate-600 mb-3">
-                <span className="tabular-nums font-medium">{formatEur(kpi.budgetTotal)}</span>
+                <span className="tabular-nums font-medium">{formatEUR(kpi.budgetTotal)}</span>
                 <span className="text-slate-300">|</span>
-                <span>{kpi.itemCount} items</span>
+                <span>{kpi.departmentCount} {kpi.departmentCount === 1 ? 'department' : 'departments'}</span>
               </div>
 
               {f.description && <p className="text-xs text-gray-400 mb-3 line-clamp-2">{f.description}</p>}

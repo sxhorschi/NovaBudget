@@ -41,6 +41,25 @@ export function formatKEUR(value: number): string {
 }
 
 /**
+ * Format a raw numeric string with German thousand separators.
+ * E.g. "125000" -> "125.000"
+ */
+export function formatThousands(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (digits === '') return '';
+  return Number(digits).toLocaleString('de-DE');
+}
+
+/**
+ * Parse a German-formatted number string back to a number.
+ * E.g. "125.000" -> 125000
+ */
+export function parseGermanNumber(formatted: string): number {
+  const digits = formatted.replace(/\D/g, '');
+  return digits === '' ? 0 : Number(digits);
+}
+
+/**
  * Hook that returns the currently active amount formatter based on display settings.
  * Use this in any component that shows monetary values.
  */

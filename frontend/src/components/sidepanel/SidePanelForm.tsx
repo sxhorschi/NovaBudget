@@ -16,7 +16,7 @@ import {
   STATUS_LABELS,
   STATUS_DOT_COLORS,
 } from '../../types/budget';
-import { formatEUR as formatEur } from '../costbook/AmountCell';
+import { formatEUR as formatEur, formatThousands, parseGermanNumber } from '../costbook/AmountCell';
 import { getUsersBrief } from '../../api/users';
 import type { UserBrief } from '../../api/users';
 
@@ -32,26 +32,6 @@ function deltaColor(delta: number): string {
 
 function deltaPrefix(delta: number): string {
   return delta > 0 ? '+' : '';
-}
-
-/**
- * Formats a raw number string with German thousand separators.
- * E.g. "125000" -> "125.000"
- */
-function formatThousands(raw: string): string {
-  // Strip everything that's not a digit
-  const digits = raw.replace(/\D/g, '');
-  if (digits === '') return '';
-  return Number(digits).toLocaleString('de-DE');
-}
-
-/**
- * Parses a German-formatted number string back to a number.
- * E.g. "125.000" -> 125000
- */
-function parseGermanNumber(formatted: string): number {
-  const digits = formatted.replace(/\D/g, '');
-  return digits === '' ? 0 : Number(digits);
 }
 
 // ---------------------------------------------------------------------------
