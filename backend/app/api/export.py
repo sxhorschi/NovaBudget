@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import UserDep
 from app.db import get_session
-from app.models.enums import ProjectPhase
 from app.rate_limit import limiter
 from app.services.excel_export import (
     DEFAULT_BUDGET_FACTOR,
@@ -52,12 +51,9 @@ async def export_standard(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid department UUID(s)")
 
-    phase_filter: ProjectPhase | None = None
+    phase_filter: str | None = None
     if phase:
-        try:
-            phase_filter = ProjectPhase(phase.strip().upper())
-        except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid phase: {phase}")
+        phase_filter = phase.strip()
 
     try:
         content, filename = await generate_standard_export(

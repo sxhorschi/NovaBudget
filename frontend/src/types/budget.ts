@@ -10,22 +10,12 @@ export type ApprovalStatus =
   | 'pending_technical_clarification'
   | 'obsolete';
 
-export type ProjectPhase = 'phase_1' | 'phase_2' | 'phase_3' | 'phase_4';
-
-export type Product = 'atlas' | 'orion' | 'vega' | 'overall';
-
-export type CostBasis =
-  | 'cost_estimation'
-  | 'initial_supplier_offer'
-  | 'revised_supplier_offer'
-  | 'change_cost';
-
-export type CostDriver =
-  | 'product'
-  | 'process'
-  | 'new_req_assembly'
-  | 'new_req_testing'
-  | 'initial_setup';
+// Classification types are now plain strings driven by config.
+// Kept as type aliases for readability — they accept any string value.
+export type ProjectPhase = string;
+export type Product = string;
+export type CostBasis = string;
+export type CostDriver = string;
 
 // --- Interfaces ---
 
@@ -171,13 +161,8 @@ export interface CashOutEntry {
 }
 
 // --- Display label maps ---
-
-export const PHASE_LABELS: Record<ProjectPhase, string> = {
-  phase_1: 'Phase 1',
-  phase_2: 'Phase 2',
-  phase_3: 'Phase 3',
-  phase_4: 'Phase 4',
-};
+// PHASE_LABELS, PRODUCT_LABELS, COST_BASIS_LABELS, COST_DRIVER_LABELS
+// have been removed. Use useConfig().getLabel(config.phases, id) instead.
 
 export const STATUS_LABELS: Record<ApprovalStatus, string> = {
   open: 'Open',
@@ -213,25 +198,4 @@ export const STATUS_DOT_COLORS: Record<ApprovalStatus, string> = {
   obsolete: '#6b7280',
 };
 
-export const PRODUCT_LABELS: Record<Product, string> = {
-  atlas: 'Atlas',
-  orion: 'Orion',
-  vega: 'Vega',
-  overall: 'Overall',
-};
-
-export const COST_BASIS_LABELS: Record<CostBasis, string> = {
-  cost_estimation: 'Cost Estimation',
-  initial_supplier_offer: 'Initial Supplier Offer',
-  revised_supplier_offer: 'Revised Supplier Offer',
-  change_cost: 'Change Cost',
-};
-
-export const COST_DRIVER_LABELS: Record<CostDriver, string> = {
-  product: 'Product',
-  process: 'Process',
-  new_req_assembly: 'Assembly Requirements',
-  new_req_testing: 'Testing Requirements',
-  initial_setup: 'Initial Setup',
-};
 

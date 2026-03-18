@@ -9,12 +9,10 @@ from app.models.department import Department
 from app.models.enums import (
     AdjustmentCategory,
     ApprovalStatus,
-    CostBasis,
-    CostDriver,
-    Product,
-    ProjectPhase,
 )
 from app.models.facility import Facility
+from app.models.group_mapping import EntraGroupMapping
+from app.models.permission import FacilityPermission
 from app.models.transfer_log import TransferLog
 from app.models.user import User
 from app.models.work_area import WorkArea
@@ -29,10 +27,8 @@ __all__ = [
     "TimestampMixin",
     "UUIDPrimaryKeyMixin",
     "ApprovalStatus",
-    "CostBasis",
-    "CostDriver",
-    "Product",
-    "ProjectPhase",
+    "EntraGroupMapping",
+    "FacilityPermission",
     "Facility",
     "Department",
     "TransferLog",

@@ -10,7 +10,7 @@ from app.schemas.work_area import WorkAreaRead
 class DepartmentCreate(BaseModel):
     name: str
     facility_id: UUID
-    budget_total: Decimal | None = None
+    budget_total: Decimal = Decimal("0")
 
 
 class DepartmentRead(BaseModel):

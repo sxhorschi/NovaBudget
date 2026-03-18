@@ -2,20 +2,13 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Percent, Euro, TrendingUp, TrendingDown, Minus, Search, X } from 'lucide-react';
 import type {
   CostItem,
-  ProjectPhase,
-  Product,
-  CostBasis,
-  CostDriver,
   ApprovalStatus,
 } from '../../types/budget';
 import {
-  PHASE_LABELS,
-  PRODUCT_LABELS,
-  COST_BASIS_LABELS,
-  COST_DRIVER_LABELS,
   STATUS_LABELS,
   STATUS_DOT_COLORS,
 } from '../../types/budget';
+import { useConfig } from '../../context/ConfigContext';
 import { formatEUR as formatEur, formatThousands, parseGermanNumber } from '../costbook/AmountCell';
 import { getUsersBrief } from '../../api/users';
 import type { UserBrief } from '../../api/users';
@@ -408,6 +401,7 @@ interface SidePanelFormProps {
 // ---------------------------------------------------------------------------
 
 const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onChange }) => {
+  const { config } = useConfig();
   const delta = item.current_amount - item.original_amount;
   const [amountMode, setAmountMode] = useState<'absolute' | 'percent'>('absolute');
 
@@ -514,12 +508,12 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
               className={`${selectClass}${dirtyRing('project_phase')}`}
               value={item.project_phase}
               onChange={(e) =>
-                onChange('project_phase', e.target.value as ProjectPhase)
+                onChange('project_phase', e.target.value)
               }
             >
-              {(Object.keys(PHASE_LABELS) as ProjectPhase[]).map((p) => (
-                <option key={p} value={p}>
-                  {PHASE_LABELS[p]}
+              {config.phases.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
                 </option>
               ))}
             </select>
@@ -530,11 +524,11 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
             <select
               className={`${selectClass}${dirtyRing('product')}`}
               value={item.product}
-              onChange={(e) => onChange('product', e.target.value as Product)}
+              onChange={(e) => onChange('product', e.target.value)}
             >
-              {(Object.keys(PRODUCT_LABELS) as Product[]).map((p) => (
-                <option key={p} value={p}>
-                  {PRODUCT_LABELS[p]}
+              {config.products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
                 </option>
               ))}
             </select>
@@ -546,12 +540,12 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
               className={`${selectClass}${dirtyRing('cost_basis')}`}
               value={item.cost_basis}
               onChange={(e) =>
-                onChange('cost_basis', e.target.value as CostBasis)
+                onChange('cost_basis', e.target.value)
               }
             >
-              {(Object.keys(COST_BASIS_LABELS) as CostBasis[]).map((cb) => (
-                <option key={cb} value={cb}>
-                  {COST_BASIS_LABELS[cb]}
+              {config.cost_bases.map((cb) => (
+                <option key={cb.id} value={cb.id}>
+                  {cb.label}
                 </option>
               ))}
             </select>
@@ -563,12 +557,12 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
               className={`${selectClass}${dirtyRing('cost_driver')}`}
               value={item.cost_driver}
               onChange={(e) =>
-                onChange('cost_driver', e.target.value as CostDriver)
+                onChange('cost_driver', e.target.value)
               }
             >
-              {(Object.keys(COST_DRIVER_LABELS) as CostDriver[]).map((cd) => (
-                <option key={cd} value={cd}>
-                  {COST_DRIVER_LABELS[cd]}
+              {config.cost_drivers.map((cd) => (
+                <option key={cd.id} value={cd.id}>
+                  {cd.label}
                 </option>
               ))}
             </select>

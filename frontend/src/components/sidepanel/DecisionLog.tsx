@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { CheckCircle2, DollarSign, FileText, Clock, AlertTriangle } from 'lucide-react';
 import type { CostItem } from '../../types/budget';
-import { STATUS_LABELS, COST_BASIS_LABELS } from '../../types/budget';
+import { STATUS_LABELS } from '../../types/budget';
+import { useConfig } from '../../context/ConfigContext';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -19,7 +20,7 @@ interface DecisionEntry {
 // Derive timeline from CostItem fields (MVP)
 // ---------------------------------------------------------------------------
 
-function deriveDecisions(item: CostItem): DecisionEntry[] {
+function deriveDecisions(item: CostItem, costBasisLabel: string): DecisionEntry[] {
   const entries: DecisionEntry[] = [];
 
   // 1. Created
@@ -28,7 +29,7 @@ function deriveDecisions(item: CostItem): DecisionEntry[] {
     icon: FileText,
     iconColor: 'text-gray-400',
     text: 'Item created',
-    detail: `Basis: ${COST_BASIS_LABELS[item.cost_basis]}`,
+    detail: `Basis: ${costBasisLabel}`,
   });
 
   // 2. Amount changed?
@@ -108,7 +109,11 @@ interface DecisionLogProps {
 // ---------------------------------------------------------------------------
 
 const DecisionLog: React.FC<DecisionLogProps> = ({ item }) => {
-  const entries = useMemo(() => deriveDecisions(item), [item]);
+  const { config, getLabel } = useConfig();
+  const entries = useMemo(
+    () => deriveDecisions(item, getLabel(config.cost_bases, item.cost_basis)),
+    [item, config.cost_bases, getLabel],
+  );
 
   if (entries.length === 0) return null;
 

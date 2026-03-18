@@ -1,6 +1,6 @@
 import { Pencil, Trash2 } from 'lucide-react';
 import type { CostItem, ApprovalStatus } from '../../types/budget';
-import { PHASE_LABELS, PRODUCT_LABELS } from '../../types/budget';
+import { useConfig } from '../../context/ConfigContext';
 import AmountCell from './AmountCell';
 import StatusBadge from './StatusBadge';
 
@@ -41,6 +41,7 @@ export default function CostItemRow({
   onStatusChange,
   onDelete,
 }: CostItemRowProps) {
+  const { config, getLabel } = useConfig();
   return (
     <tr
       onClick={onClick}
@@ -67,13 +68,13 @@ export default function CostItemRow({
       {/* Phase */}
       <td className="px-4 py-2.5 whitespace-nowrap">
         <span className="inline-block rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
-          {PHASE_LABELS[item.project_phase]}
+          {getLabel(config.phases, item.project_phase)}
         </span>
       </td>
 
       {/* Product */}
       <td className="px-4 py-2.5 text-sm text-slate-600 whitespace-nowrap">
-        {PRODUCT_LABELS[item.product]}
+        {getLabel(config.products, item.product)}
       </td>
 
       {/* Status */}

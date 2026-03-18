@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.cost_item import CostItem
 from app.models.department import Department
-from app.models.enums import ApprovalStatus, CostBasis, Product, ProjectPhase
+from app.models.enums import ApprovalStatus
 from app.models.work_area import WorkArea
 
 
@@ -28,10 +28,10 @@ class CostItemSearchParams:
     # multi-value filters (comma-separated → list)
     department_ids: list[uuid.UUID] = field(default_factory=list)
     work_area_id: uuid.UUID | None = None
-    phases: list[ProjectPhase] = field(default_factory=list)
-    products: list[Product] = field(default_factory=list)
+    phases: list[str] = field(default_factory=list)
+    products: list[str] = field(default_factory=list)
     statuses: list[ApprovalStatus] = field(default_factory=list)
-    cost_bases: list[CostBasis] = field(default_factory=list)
+    cost_bases: list[str] = field(default_factory=list)
 
     # free-text search
     q: str | None = None
@@ -207,7 +207,7 @@ async def _compute_aggregations(
     )
     phase_result = await session.execute(phase_stmt)
     by_phase = {
-        (row[0].value if row[0] else "UNASSIGNED"): row[1]
+        (row[0] if row[0] else "UNASSIGNED"): row[1]
         for row in phase_result.all()
     }
 

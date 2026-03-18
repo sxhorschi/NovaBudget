@@ -4,17 +4,14 @@ import HelpTooltip from '../components/help/HelpTooltip';
 import type {
   CostItem,
   ApprovalStatus,
-  ProjectPhase,
-  Product,
   Department,
   WorkArea,
   WorkAreaWithItems,
 } from '../types/budget';
 import {
-  PHASE_LABELS,
-  PRODUCT_LABELS,
   STATUS_LABELS,
 } from '../types/budget';
+import { useConfig } from '../context/ConfigContext';
 import { useBudgetData } from '../context/BudgetDataContext';
 import { EMPTY_FILTER, useFilterState } from '../hooks/useFilterState';
 import { useFilteredData } from '../hooks/useFilteredData';
@@ -88,16 +85,6 @@ const ModalAmountInput: React.FC<ModalAmountInputProps> = ({ value, onChange, pl
 // Filter options (static from enum labels)
 // ---------------------------------------------------------------------------
 
-const phaseOptions = (Object.keys(PHASE_LABELS) as ProjectPhase[]).map((p) => ({
-  value: p,
-  label: PHASE_LABELS[p],
-}));
-
-const productOptions = (Object.keys(PRODUCT_LABELS) as Product[]).map((p) => ({
-  value: p,
-  label: PRODUCT_LABELS[p],
-}));
-
 const statusOptions = (Object.keys(STATUS_LABELS) as ApprovalStatus[]).map((s) => ({
   value: s,
   label: STATUS_LABELS[s],
@@ -108,6 +95,9 @@ const statusOptions = (Object.keys(STATUS_LABELS) as ApprovalStatus[]).map((s) =
 // ---------------------------------------------------------------------------
 
 const CostbookPage: React.FC = () => {
+  const { config } = useConfig();
+  const phaseOptions = useMemo(() => config.phases.map((p) => ({ value: p.id, label: p.label })), [config.phases]);
+  const productOptions = useMemo(() => config.products.map((p) => ({ value: p.id, label: p.label })), [config.products]);
   const { user, canEdit } = useAuth();
   const {
     facility,
@@ -559,7 +549,7 @@ const CostbookPage: React.FC = () => {
               options={phaseOptions}
               selected={filters.phases}
               onChange={(vals) =>
-                setFilter('phases', vals as ProjectPhase[])
+                setFilter('phases', vals)
               }
             />
             <FilterChip
@@ -567,7 +557,7 @@ const CostbookPage: React.FC = () => {
               options={productOptions}
               selected={filters.products}
               onChange={(vals) =>
-                setFilter('products', vals as Product[])
+                setFilter('products', vals)
               }
             />
             <FilterChip

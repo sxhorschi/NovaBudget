@@ -12,7 +12,9 @@ from app.models.base import Base
 from app.models import (  # noqa: F401
     CostItem,
     Department,
+    EntraGroupMapping,
     Facility,
+    FacilityPermission,
     TransferLog,
     User,
     WorkArea,

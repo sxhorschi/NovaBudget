@@ -7,8 +7,9 @@ import { useDisplaySettings } from '../../context/DisplaySettingsContext';
 import client from '../../api/client';
 import { exportStandard, exportFinance, exportSteeringCommittee } from '../../services/clientExport';
 import { useToast } from '../common/ToastProvider';
-import { PHASE_LABELS, STATUS_LABELS } from '../../types/budget';
-import type { ProjectPhase, ApprovalStatus } from '../../types/budget';
+import { STATUS_LABELS } from '../../types/budget';
+import type { ApprovalStatus } from '../../types/budget';
+import { useConfig } from '../../context/ConfigContext';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -22,6 +23,7 @@ type ExportType = 'standard' | 'finance' | 'steering-committee';
 
 function useActiveFilterLabels(): string | null {
   const [searchParams] = useSearchParams();
+  const { config, getLabel } = useConfig();
 
   return useMemo(() => {
     const parts: string[] = [];
@@ -29,8 +31,7 @@ function useActiveFilterLabels(): string | null {
     const phase = searchParams.get('phase');
     if (phase) {
       const phases = phase.split(',').map(p => {
-        const key = p.trim() as ProjectPhase;
-        return PHASE_LABELS[key] ?? key;
+        return getLabel(config.phases, p.trim());
       });
       parts.push(phases.join(', '));
     }
@@ -56,7 +57,7 @@ function useActiveFilterLabels(): string | null {
     }
 
     return parts.length > 0 ? parts.join(', ') : null;
-  }, [searchParams]);
+  }, [searchParams, config.phases, getLabel]);
 }
 
 // ---------------------------------------------------------------------------
@@ -92,6 +93,7 @@ function buildExportPath(type: ExportType, facilityId: string, budgetFactor?: nu
 
 const ExportMenu: React.FC = () => {
   const { facility, departments: allDepartments, workAreas: allWorkAreas, costItems: allCostItems } = useBudgetData();
+  const { config } = useConfig();
   const { financeBudgetFactor } = useDisplaySettings();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState<ExportType | null>(null);
@@ -125,10 +127,10 @@ const ExportMenu: React.FC = () => {
 
           switch (type) {
             case 'standard':
-              exportStandard(departments, workAreas, items);
+              exportStandard(departments, workAreas, items, config);
               break;
             case 'finance':
-              exportFinance(departments, workAreas, items, financeBudgetFactor);
+              exportFinance(departments, workAreas, items, financeBudgetFactor, config);
               break;
             case 'steering-committee': {
               const approved = items.filter(i => i.approval_status === 'approved');
@@ -193,7 +195,7 @@ const ExportMenu: React.FC = () => {
         setLoading(null);
       }
     },
-    [toast, allDepartments, allWorkAreas, allCostItems, financeBudgetFactor],
+    [toast, allDepartments, allWorkAreas, allCostItems, financeBudgetFactor, config],
   );
 
   // Build export options with dynamic label showing filter context

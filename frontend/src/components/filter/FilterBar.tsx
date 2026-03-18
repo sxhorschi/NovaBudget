@@ -6,13 +6,10 @@ import HelpTooltip from '../help/HelpTooltip';
 import type { FilterState } from '../../hooks/useFilterState';
 import { useBudgetData } from '../../context/BudgetDataContext';
 import {
-  PHASE_LABELS,
-  PRODUCT_LABELS,
   STATUS_LABELS,
-  type ProjectPhase,
-  type Product,
   type ApprovalStatus,
 } from '../../types/budget';
+import { useConfig } from '../../context/ConfigContext';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -35,18 +32,6 @@ interface FilterBarProps {
 // Option builders (stable)
 // ---------------------------------------------------------------------------
 
-function buildPhaseOptions() {
-  return (Object.entries(PHASE_LABELS) as [ProjectPhase, string][]).map(
-    ([value, label]) => ({ value, label }),
-  );
-}
-
-function buildProductOptions() {
-  return (Object.entries(PRODUCT_LABELS) as [Product, string][]).map(
-    ([value, label]) => ({ value, label }),
-  );
-}
-
 function buildStatusOptions() {
   return (Object.entries(STATUS_LABELS) as [ApprovalStatus, string][]).map(
     ([value, label]) => ({ value, label }),
@@ -66,12 +51,13 @@ const FilterBar: React.FC<FilterBarProps> = ({
   totalCount,
 }) => {
   const { departments } = useBudgetData();
+  const { config } = useConfig();
   const deptOptions = useMemo(
     () => departments.map((d) => ({ value: String(d.id), label: d.name })),
     [departments],
   );
-  const phaseOptions = useMemo(buildPhaseOptions, []);
-  const productOptions = useMemo(buildProductOptions, []);
+  const phaseOptions = useMemo(() => config.phases.map((p) => ({ value: p.id, label: p.label })), [config.phases]);
+  const productOptions = useMemo(() => config.products.map((p) => ({ value: p.id, label: p.label })), [config.products]);
   const statusOptions = useMemo(buildStatusOptions, []);
 
   return (
@@ -93,7 +79,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
           options={phaseOptions}
           selected={filters.phases}
           onChange={(vals) =>
-            onFilterChange('phases', vals as ProjectPhase[])
+            onFilterChange('phases', vals)
           }
         />
 
@@ -103,7 +89,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
           options={productOptions}
           selected={filters.products}
           onChange={(vals) =>
-            onFilterChange('products', vals as Product[])
+            onFilterChange('products', vals)
           }
         />
 

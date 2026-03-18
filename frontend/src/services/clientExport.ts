@@ -1,16 +1,19 @@
 import * as XLSX from 'xlsx';
 import type { Department, WorkArea, CostItem } from '../types/budget';
 import {
-  PHASE_LABELS,
-  PRODUCT_LABELS,
   STATUS_LABELS,
-  COST_BASIS_LABELS,
 } from '../types/budget';
+import type { AppConfig, ConfigOption } from '../context/ConfigContext';
 import type { FilteredSummary } from '../hooks/useFilteredData';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function _getLabel(list: ConfigOption[], id: string): string {
+  const found = list.find((opt) => opt.id === id);
+  return found ? found.label : id;
+}
 
 function triggerDownload(workbook: XLSX.WorkBook, filename: string): void {
   const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
@@ -110,6 +113,7 @@ export function exportStandard(
   departments: Department[],
   workAreas: WorkArea[],
   items: CostItem[],
+  appConfig?: AppConfig,
 ): void {
   const wb = XLSX.utils.book_new();
   const waMap = indexById(workAreas);
@@ -182,12 +186,12 @@ export function exportStandard(
       for (const item of waItems) {
         rows.push([
           '',
-          PHASE_LABELS[item.project_phase],
-          PRODUCT_LABELS[item.product],
+          appConfig ? _getLabel(appConfig.phases, item.project_phase) : item.project_phase,
+          appConfig ? _getLabel(appConfig.products, item.product) : item.product,
           item.description,
           fmt(item.current_amount),
           item.expected_cash_out,
-          COST_BASIS_LABELS[item.cost_basis],
+          appConfig ? _getLabel(appConfig.cost_bases, item.cost_basis) : item.cost_basis,
           STATUS_LABELS[item.approval_status],
           item.zielanpassung ? 'Yes' : 'No',
         ]);
@@ -232,6 +236,7 @@ export function exportFinance(
   workAreas: WorkArea[],
   items: CostItem[],
   budgetFactor: number = 0.85,
+  appConfig?: AppConfig,
 ): void {
   const wb = XLSX.utils.book_new();
   const waMap = indexById(workAreas);
@@ -332,8 +337,8 @@ export function exportFinance(
       deptName,
       wa?.name ?? 'No Category',
       item.description,
-      PHASE_LABELS[item.project_phase],
-      PRODUCT_LABELS[item.product],
+      appConfig ? _getLabel(appConfig.phases, item.project_phase) : item.project_phase,
+      appConfig ? _getLabel(appConfig.products, item.product) : item.product,
       STATUS_LABELS[item.approval_status],
       item.expected_cash_out,
       fmt(originalAmount),
@@ -456,6 +461,7 @@ export function exportSteeringCommittee(
   workAreas: WorkArea[],
   items: CostItem[],
   summary: FilteredSummary,
+  _appConfig?: AppConfig,
 ): void {
   const wb = XLSX.utils.book_new();
   const waMap = indexById(workAreas);

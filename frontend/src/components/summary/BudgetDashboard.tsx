@@ -10,8 +10,8 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-import type { CostItem, CostDriver, ProjectPhase } from '../../types/budget';
-import { COST_DRIVER_LABELS, PHASE_LABELS } from '../../types/budget';
+import type { CostItem } from '../../types/budget';
+import { useConfig, getLabel } from '../../context/ConfigContext';
 import { useAmountFormatter } from '../costbook/AmountCell';
 
 // ---------------------------------------------------------------------------
@@ -35,30 +35,31 @@ type SubdivisionMode = 'total' | 'cost_driver' | 'phase';
 // Constants
 // ---------------------------------------------------------------------------
 
-const COST_DRIVERS: CostDriver[] = [
-  'product',
-  'process',
-  'new_req_assembly',
-  'new_req_testing',
-  'initial_setup',
+// Color palettes for dynamic config lists
+const SUBDIVISION_PALETTE = [
+  '#6366f1', // indigo
+  '#0ea5e9', // sky
+  '#10b981', // emerald
+  '#f59e0b', // amber
+  '#ef4444', // red
+  '#8b5cf6', // violet
+  '#ec4899', // pink
+  '#14b8a6', // teal
 ];
 
-const PHASES: ProjectPhase[] = ['phase_1', 'phase_2', 'phase_3', 'phase_4'];
+function buildColorMap(ids: string[]): Record<string, string> {
+  const map: Record<string, string> = {};
+  ids.forEach((id, i) => {
+    map[id] = SUBDIVISION_PALETTE[i % SUBDIVISION_PALETTE.length];
+  });
+  return map;
+}
 
-const DRIVER_COLORS: Record<CostDriver, string> = {
-  product:          '#6366f1', // indigo
-  process:          '#0ea5e9', // sky
-  new_req_assembly: '#10b981', // emerald
-  new_req_testing:  '#f59e0b', // amber
-  initial_setup:    '#ef4444', // red
-};
-
-const PHASE_COLORS: Record<ProjectPhase, string> = {
-  phase_1: '#6366f1',
-  phase_2: '#0ea5e9',
-  phase_3: '#10b981',
-  phase_4: '#f59e0b',
-};
+function buildZeroMap(ids: string[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  for (const id of ids) map[id] = 0;
+  return map;
+}
 
 // Solid accent colors (for reference lines, chips, KPI cards)
 const COLORS = {
@@ -82,13 +83,6 @@ const TOTAL_BAR_FILL: Record<string, string> = {
   CoC:      '#7c3aed',
 };
 
-const ZERO_DRIVERS: Record<CostDriver, number> = {
-  product: 0, process: 0, new_req_assembly: 0, new_req_testing: 0, initial_setup: 0,
-};
-
-const ZERO_PHASES: Record<ProjectPhase, number> = {
-  phase_1: 0, phase_2: 0, phase_3: 0, phase_4: 0,
-};
 
 const SUBDIVISION_TABS: { id: SubdivisionMode; label: string }[] = [
   { id: 'total',       label: 'None'        },
@@ -138,8 +132,7 @@ const WaterfallTooltip: React.FC<WaterfallTooltipProps> = ({
   const getSegmentLabel = (dataKey: string): string => {
     if (dataKey === 'anchor') return label === 'CoC' ? 'Cost at Completion' : 'Budget';
     if (dataKey === 'bar') return label ?? '';
-    if (subdivisionMode === 'cost_driver') return COST_DRIVER_LABELS[dataKey as CostDriver] ?? dataKey;
-    if (subdivisionMode === 'phase') return PHASE_LABELS[dataKey as ProjectPhase] ?? dataKey;
+    // dataKey is a config id — look it up via label fallback
     return dataKey;
   };
 
@@ -203,7 +196,16 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
   hasItemLevelFilters = false,
 }) => {
   const format = useAmountFormatter();
+  const { config } = useConfig();
   const [subdivisionMode, setSubdivisionMode] = useState<SubdivisionMode>('total');
+
+  // Build dynamic IDs, colors, and zero maps from config
+  const COST_DRIVERS = useMemo(() => config.cost_drivers.map((d) => d.id), [config.cost_drivers]);
+  const PHASES = useMemo(() => config.phases.map((p) => p.id), [config.phases]);
+  const DRIVER_COLORS = useMemo(() => buildColorMap(COST_DRIVERS), [COST_DRIVERS]);
+  const PHASE_COLORS = useMemo(() => buildColorMap(PHASES), [PHASES]);
+  const ZERO_DRIVERS = useMemo(() => buildZeroMap(COST_DRIVERS), [COST_DRIVERS]);
+  const ZERO_PHASES = useMemo(() => buildZeroMap(PHASES), [PHASES]);
 
   // spent = committed (approved items sum)
   const spent = committed;
@@ -214,7 +216,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
   // Per-driver breakdowns (for subdivision modes)
   // ---------------------------------------------------------------------------
 
-  const spentByDriver = useMemo((): Record<CostDriver, number> => {
+  const spentByDriver = useMemo((): Record<string, number> => {
     const result = { ...ZERO_DRIVERS };
     for (const item of items) {
       if (item.approval_status === 'approved') {
@@ -222,9 +224,9 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
       }
     }
     return result;
-  }, [items]);
+  }, [items, ZERO_DRIVERS]);
 
-  const pendingByDriver = useMemo((): Record<CostDriver, number> => {
+  const pendingByDriver = useMemo((): Record<string, number> => {
     const result = { ...ZERO_DRIVERS };
     for (const item of items) {
       if (item.approval_status !== 'approved' && item.approval_status !== 'rejected' && item.approval_status !== 'obsolete') {
@@ -232,9 +234,9 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
       }
     }
     return result;
-  }, [items]);
+  }, [items, ZERO_DRIVERS]);
 
-  const spentByPhase = useMemo((): Record<ProjectPhase, number> => {
+  const spentByPhase = useMemo((): Record<string, number> => {
     const result = { ...ZERO_PHASES };
     for (const item of items) {
       if (item.approval_status === 'approved') {
@@ -242,9 +244,9 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
       }
     }
     return result;
-  }, [items]);
+  }, [items, ZERO_PHASES]);
 
-  const pendingByPhase = useMemo((): Record<ProjectPhase, number> => {
+  const pendingByPhase = useMemo((): Record<string, number> => {
     const result = { ...ZERO_PHASES };
     for (const item of items) {
       if (item.approval_status !== 'approved' && item.approval_status !== 'rejected' && item.approval_status !== 'obsolete') {
@@ -252,7 +254,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
       }
     }
     return result;
-  }, [items]);
+  }, [items, ZERO_PHASES]);
 
   // ---------------------------------------------------------------------------
   // Chart data shape — same 4-bar waterfall, bars split internally
@@ -262,13 +264,16 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
   const cocWithinBudget = Math.min(forecast, budget);
   const cocOverBudget = Math.max(0, forecast - budget);
 
+  // WaterfallRow uses [key: string]: unknown to allow dynamic driver/phase keys
+  // alongside the fixed string 'label' field.
   type WaterfallRow = {
     label: string;
     spacer: number;
     bar: number;
     barOver: number; // red portion above budget (only for CoC)
     anchor: number;
-  } & Record<CostDriver, number> & Record<ProjectPhase, number>;
+    [key: string]: string | number;
+  };
 
   const chartData = useMemo((): WaterfallRow[] => {
     if (subdivisionMode === 'total') {
@@ -374,7 +379,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
             <Bar
               key={driver}
               dataKey={driver}
-              name={COST_DRIVER_LABELS[driver]}
+              name={getLabel(config.cost_drivers, driver)}
               stackId="a"
               fill={DRIVER_COLORS[driver]}
               maxBarSize={72}
@@ -419,7 +424,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
           <Bar
             key={phase}
             dataKey={phase}
-            name={PHASE_LABELS[phase]}
+            name={getLabel(config.phases, phase)}
             stackId="a"
             fill={PHASE_COLORS[phase]}
             maxBarSize={72}
@@ -464,7 +469,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
         <div className="flex flex-wrap items-center gap-3 pt-0.5">
           <LegendDot color={ANCHOR_BAR_COLOR['Budget']} label="Budget / CoC" />
           {COST_DRIVERS.map((d) => (
-            <LegendDot key={d} color={DRIVER_COLORS[d]} label={COST_DRIVER_LABELS[d]} />
+            <LegendDot key={d} color={DRIVER_COLORS[d]} label={getLabel(config.cost_drivers, d)} />
           ))}
         </div>
       );
@@ -473,7 +478,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
       <div className="flex flex-wrap items-center gap-3 pt-0.5">
         <LegendDot color={ANCHOR_BAR_COLOR['Budget']} label="Budget / CoC" />
         {PHASES.map((p) => (
-          <LegendDot key={p} color={PHASE_COLORS[p]} label={PHASE_LABELS[p]} />
+          <LegendDot key={p} color={PHASE_COLORS[p]} label={getLabel(config.phases, p)} />
         ))}
       </div>
     );

@@ -23,7 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import CostItem, Department, WorkArea
-from app.models.enums import ApprovalStatus, CostBasis, CostDriver, Product, ProjectPhase
+from app.models.enums import ApprovalStatus
 from app.services.import_report import DepartmentReport, ImportReport
 
 logger = logging.getLogger(__name__)
@@ -151,18 +151,6 @@ def _parse_enum(enum_class, value, default=None):
 
     normalized = str_val.upper().replace(" ", "_").replace("-", "_")
 
-    # Legacy product name mapping (old Excel files used Bryan/Guenther/Gin-Tonic)
-    if enum_class is Product:
-        _LEGACY_PRODUCT_MAP = {
-            "BRYAN": Product.ATLAS,
-            "GUENTHER": Product.ORION,
-            "GÜNTHER": Product.ORION,
-            "GIN_TONIC": Product.VEGA,
-            "GIN__TONIC": Product.VEGA,
-        }
-        if normalized in _LEGACY_PRODUCT_MAP:
-            return _LEGACY_PRODUCT_MAP[normalized], None
-
     # Exact match on value or name
     for member in enum_class:
         member_norm = member.value.upper().replace(" ", "_").replace("-", "_")
@@ -176,6 +164,77 @@ def _parse_enum(enum_class, value, default=None):
             return member, None
 
     return default, f"Unknown {enum_class.__name__} value '{str_val}'"
+
+
+# ── String-based config field parsing (replaces enum parsing for flexible fields) ─
+
+# Maps for fuzzy-matching Excel values to config string ids
+_PRODUCT_ALIASES: dict[str, str] = {
+    "ATLAS": "atlas", "ORION": "orion", "VEGA": "vega", "OVERALL": "overall",
+    # Legacy names from old Excel files
+    "BRYAN": "atlas", "GUENTHER": "orion", "GÜNTHER": "orion",
+    "GIN_TONIC": "vega", "GIN__TONIC": "vega",
+}
+
+_PHASE_ALIASES: dict[str, str] = {
+    "PHASE_1": "phase_1", "PHASE_2": "phase_2", "PHASE_3": "phase_3", "PHASE_4": "phase_4",
+    "PHASE 1": "phase_1", "PHASE 2": "phase_2", "PHASE 3": "phase_3", "PHASE 4": "phase_4",
+    "1": "phase_1", "2": "phase_2", "3": "phase_3", "4": "phase_4",
+}
+
+_COST_BASIS_ALIASES: dict[str, str] = {
+    "COST_ESTIMATION": "cost_estimation", "COST ESTIMATION": "cost_estimation",
+    "INITIAL_SUPPLIER_OFFER": "initial_supplier_offer", "INITIAL SUPPLIER OFFER": "initial_supplier_offer",
+    "REVISED_SUPPLIER_OFFER": "revised_supplier_offer", "REVISED SUPPLIER OFFER": "revised_supplier_offer",
+    "CHANGE_COST": "change_cost", "CHANGE COST": "change_cost",
+}
+
+_COST_DRIVER_ALIASES: dict[str, str] = {
+    "PRODUCT": "product", "PROCESS": "process",
+    "NEW_REQ_ASSEMBLY": "new_req_assembly", "NEW REQ ASSEMBLY": "new_req_assembly",
+    "NEW_REQ_TESTING": "new_req_testing", "NEW REQ TESTING": "new_req_testing",
+    "INITIAL_SETUP": "initial_setup", "INITIAL SETUP": "initial_setup",
+}
+
+
+def _parse_config_field(
+    alias_map: dict[str, str],
+    field_name: str,
+    value,
+    default: str,
+) -> tuple[str, str | None]:
+    """Fuzzy-match a cell value to a config string id using an alias map.
+
+    Returns (matched_id, error_msg|None).
+    """
+    if value is None:
+        return default, None
+    str_val = str(value).strip()
+    if not str_val:
+        return default, None
+
+    normalized = str_val.upper().replace(" ", "_").replace("-", "_")
+
+    # Exact match
+    if normalized in alias_map:
+        return alias_map[normalized], None
+
+    # Try with spaces
+    str_upper = str_val.strip().upper()
+    if str_upper in alias_map:
+        return alias_map[str_upper], None
+
+    # Partial match
+    for key, mapped_id in alias_map.items():
+        if normalized in key or key in normalized:
+            return mapped_id, None
+
+    # If the lowercased value itself looks like a valid config id, accept it
+    lower_val = str_val.strip().lower().replace(" ", "_").replace("-", "_")
+    if lower_val in alias_map.values():
+        return lower_val, None
+
+    return default, f"Unknown {field_name} value '{str_val}'"
 
 
 def _normalize_header(value: object) -> str:
@@ -546,34 +605,34 @@ async def import_excel_file(
                 if approval_err:
                     report.add_warning(f"{dept_display_name}, Row {row}: {approval_err}")
 
-                cost_basis, cb_err = _parse_enum(
-                    CostBasis,
+                cost_basis, cb_err = _parse_config_field(
+                    _COST_BASIS_ALIASES, "CostBasis",
                     _cell_value(ws, row, col_map, "cost_basis"),
-                    CostBasis.COST_ESTIMATION,
+                    "cost_estimation",
                 )
                 if cb_err:
                     report.add_warning(f"{dept_display_name}, Row {row}: {cb_err}")
 
-                cost_driver, cd_err = _parse_enum(
-                    CostDriver,
+                cost_driver, cd_err = _parse_config_field(
+                    _COST_DRIVER_ALIASES, "CostDriver",
                     _cell_value(ws, row, col_map, "cost_driver"),
-                    CostDriver.INITIAL_SETUP,
+                    "initial_setup",
                 )
                 if cd_err:
                     report.add_warning(f"{dept_display_name}, Row {row}: {cd_err}")
 
-                phase, ph_err = _parse_enum(
-                    ProjectPhase,
+                phase, ph_err = _parse_config_field(
+                    _PHASE_ALIASES, "ProjectPhase",
                     _cell_value(ws, row, col_map, "phase"),
-                    ProjectPhase.PHASE_1,
+                    "phase_1",
                 )
                 if ph_err:
                     report.add_warning(f"{dept_display_name}, Row {row}: {ph_err}")
 
-                product, pr_err = _parse_enum(
-                    Product,
+                product, pr_err = _parse_config_field(
+                    _PRODUCT_ALIASES, "Product",
                     _cell_value(ws, row, col_map, "product"),
-                    Product.OVERALL,
+                    "overall",
                 )
                 if pr_err:
                     report.add_warning(f"{dept_display_name}, Row {row}: {pr_err}")

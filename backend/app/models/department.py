@@ -27,9 +27,11 @@ class Department(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    budget_total: Mapped[Decimal | None] = mapped_column(
+    budget_total: Mapped[Decimal] = mapped_column(
         Numeric(precision=15, scale=2),
-        nullable=True,
+        nullable=False,
+        default=Decimal("0"),
+        server_default="0",
     )
 
     # relationships

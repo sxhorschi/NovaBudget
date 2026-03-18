@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import UserDep
 from app.db import get_session
 from app.models import AuditLog, CostItem, WorkArea
-from app.models.enums import ApprovalStatus, CostBasis, Product, ProjectPhase
+from app.models.enums import ApprovalStatus
 from app.schemas.approval import AuditLogRead, StatusChangeRequest, StatusChangeWithComment
 from app.schemas.cost_item import (
     CostItemCreate,
@@ -44,6 +44,13 @@ def _parse_uuids(raw: str | None) -> list[UUID]:
                 detail=f"Invalid UUID value: {cleaned}",
             ) from exc
     return values
+
+
+def _parse_csv(raw: str | None) -> list[str]:
+    """Split a comma-separated string into a list of non-empty stripped strings."""
+    if not raw:
+        return []
+    return [token.strip() for token in raw.split(",") if token.strip()]
 
 
 def _parse_enums(raw: str | None, enum_cls: type) -> list:
@@ -92,10 +99,10 @@ async def list_cost_items(
         facility_id=facility_id,
         department_ids=_parse_uuids(department_id),
         work_area_id=work_area_id,
-        phases=_parse_enums(phase, ProjectPhase),
-        products=_parse_enums(product, Product),
+        phases=_parse_csv(phase),
+        products=_parse_csv(product),
         statuses=_parse_enums(status, ApprovalStatus),
-        cost_bases=_parse_enums(cost_basis, CostBasis),
+        cost_bases=_parse_csv(cost_basis),
         q=q,
         min_amount=min_amount,
         max_amount=max_amount,

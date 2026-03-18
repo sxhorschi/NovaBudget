@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import CostItem, Department, Facility, WorkArea
-from app.models.enums import ApprovalStatus, CostBasis, ProjectPhase
+from app.models.enums import ApprovalStatus
 from app.services.aggregation import EXCLUDED_STATUSES
 
 # ---------------------------------------------------------------------------
@@ -127,7 +127,7 @@ def _dept_effective_budget(dept: Department) -> Decimal:
 
 def _filter_items(
     items: Sequence[CostItem],
-    phase: ProjectPhase | None = None,
+    phase: str | None = None,
 ) -> list[CostItem]:
     """Apply optional phase filter to items."""
     filtered = list(items)
@@ -145,7 +145,7 @@ async def generate_standard_export(
     session: AsyncSession,
     facility_id: UUID,
     department_ids: list[UUID] | None = None,
-    phase: ProjectPhase | None = None,
+    phase: str | None = None,
 ) -> tuple[bytes, str]:
     """Generate a standard department-based Excel export.
 
@@ -855,7 +855,7 @@ async def generate_steering_committee_export(
     # Risk = cost_estimation basis (no supplier offer) + in open statuses
     risk_items = [
         (i, dn) for i, dn in all_items
-        if i.cost_basis == CostBasis.COST_ESTIMATION and i.approval_status in open_statuses
+        if i.cost_basis == "cost_estimation" and i.approval_status in open_statuses
     ]
     risk_items.sort(key=lambda x: x[0].current_amount, reverse=True)
 

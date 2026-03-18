@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.enums import ApprovalStatus, CostBasis, CostDriver, Product, ProjectPhase
+from app.models.enums import ApprovalStatus
 
 
 class CostItemCreate(BaseModel):
@@ -13,14 +13,14 @@ class CostItemCreate(BaseModel):
     original_amount: Decimal = Field(ge=0, max_digits=15, decimal_places=2)
     current_amount: Decimal = Field(ge=0, max_digits=15, decimal_places=2)
     expected_cash_out: date | None = None
-    cost_basis: CostBasis | None = None
-    cost_driver: CostDriver | None = None
+    cost_basis: str | None = None
+    cost_driver: str | None = None
     basis_description: str | None = Field(default=None, max_length=1000)
     assumptions: str | None = Field(default=None, max_length=2000)
     approval_status: ApprovalStatus = ApprovalStatus.OPEN
     approval_date: date | None = None
-    project_phase: ProjectPhase | None = None
-    product: Product | None = None
+    project_phase: str | None = None
+    product: str | None = None
     zielanpassung: Decimal | None = Field(default=None, max_digits=15, decimal_places=2)
     zielanpassung_reason: str | None = Field(default=None, max_length=2000)
     comments: str | None = Field(default=None, max_length=4000)
@@ -36,14 +36,14 @@ class CostItemRead(BaseModel):
     original_amount: Decimal
     current_amount: Decimal
     expected_cash_out: date | None = None
-    cost_basis: CostBasis | None = None
-    cost_driver: CostDriver | None = None
+    cost_basis: str | None = None
+    cost_driver: str | None = None
     basis_description: str | None = None
     assumptions: str | None = None
     approval_status: ApprovalStatus
     approval_date: date | None = None
-    project_phase: ProjectPhase | None = None
-    product: Product | None = None
+    project_phase: str | None = None
+    product: str | None = None
     zielanpassung: Decimal | None = None
     zielanpassung_reason: str | None = None
     comments: str | None = None
@@ -72,14 +72,14 @@ class CostItemUpdate(BaseModel):
     original_amount: Decimal | None = Field(default=None, ge=0, max_digits=15, decimal_places=2)
     current_amount: Decimal | None = Field(default=None, ge=0, max_digits=15, decimal_places=2)
     expected_cash_out: date | None = None
-    cost_basis: CostBasis | None = None
-    cost_driver: CostDriver | None = None
+    cost_basis: str | None = None
+    cost_driver: str | None = None
     basis_description: str | None = Field(default=None, max_length=1000)
     assumptions: str | None = Field(default=None, max_length=2000)
     approval_status: ApprovalStatus | None = None
     approval_date: date | None = None
-    project_phase: ProjectPhase | None = None
-    product: Product | None = None
+    project_phase: str | None = None
+    product: str | None = None
     zielanpassung: Decimal | None = Field(default=None, max_digits=15, decimal_places=2)
     zielanpassung_reason: str | None = Field(default=None, max_length=2000)
     comments: str | None = Field(default=None, max_length=4000)

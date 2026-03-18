@@ -15,14 +15,6 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.enums import (
     ApprovalStatus,
     ApprovalStatusType,
-    CostBasis,
-    CostBasisType,
-    CostDriver,
-    CostDriverType,
-    Product,
-    ProductType,
-    ProjectPhase,
-    ProjectPhaseType,
 )
 
 if TYPE_CHECKING:
@@ -61,13 +53,13 @@ class CostItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     expected_cash_out: Mapped[date | None] = mapped_column(Date, nullable=True)
 
-    # classification enums
-    cost_basis: Mapped[CostBasis | None] = mapped_column(
-        CostBasisType,
+    # classification (flexible strings from config)
+    cost_basis: Mapped[str | None] = mapped_column(
+        String(50),
         nullable=True,
     )
-    cost_driver: Mapped[CostDriver | None] = mapped_column(
-        CostDriverType,
+    cost_driver: Mapped[str | None] = mapped_column(
+        String(50),
         nullable=True,
     )
     basis_description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -81,13 +73,13 @@ class CostItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     approval_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
-    # project context
-    project_phase: Mapped[ProjectPhase | None] = mapped_column(
-        ProjectPhaseType,
+    # project context (flexible strings from config)
+    project_phase: Mapped[str | None] = mapped_column(
+        String(50),
         nullable=True,
     )
-    product: Mapped[Product | None] = mapped_column(
-        ProductType,
+    product: Mapped[str | None] = mapped_column(
+        String(50),
         nullable=True,
     )
 

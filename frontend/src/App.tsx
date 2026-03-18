@@ -11,6 +11,7 @@ import { BudgetDataProvider } from './context/BudgetDataContext';
 import { DisplaySettingsProvider } from './context/DisplaySettingsContext';
 import { FacilityProvider, useFacility } from './context/FacilityContext';
 import { AuthProvider } from './context/AuthContext';
+import { ConfigProvider } from './context/ConfigContext';
 import AuthGuard from './components/auth/AuthGuard';
 
 const FacilitiesPage = lazy(() => import('./pages/FacilitiesPage'));
@@ -37,11 +38,12 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <AuthGuard>
-        <BrowserRouter>
-          <FacilityProvider>
-            <BudgetDataProvider>
-              <DisplaySettingsProvider>
-                <ToastProvider>
+        <ConfigProvider>
+          <BrowserRouter>
+            <FacilityProvider>
+              <BudgetDataProvider>
+                <DisplaySettingsProvider>
+                  <ToastProvider>
                   <Suspense fallback={<div className="p-6 text-sm text-gray-400">Loading...</div>}>
                     <Routes>
                       {/* Redirect root to current facility */}
@@ -69,7 +71,8 @@ const App: React.FC = () => {
               </DisplaySettingsProvider>
             </BudgetDataProvider>
           </FacilityProvider>
-        </BrowserRouter>
+          </BrowserRouter>
+        </ConfigProvider>
       </AuthGuard>
     </AuthProvider>
   );

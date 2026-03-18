@@ -2,8 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Users,
-  Building2,
-  ClipboardList,
   Shield,
   ShieldAlert,
   UserPlus,
@@ -13,8 +11,20 @@ import {
   RefreshCw,
   X,
   ArrowLeft,
+  Plus,
+  Trash2,
+  Key,
+  Network,
+  Settings,
+  Pencil,
+  Check,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useConfig } from '../context/ConfigContext';
+import type { AppConfig, ConfigItem } from '../context/ConfigContext';
+import { useFacility } from '../context/FacilityContext';
 import client from '../api/client';
 
 // ---------------------------------------------------------------------------
@@ -33,22 +43,26 @@ interface ApiUser {
   created_at: string;
 }
 
-interface AuditEntry {
+interface Permission {
   id: string;
-  entity_type: string;
-  entity_id: string;
-  action: string;
-  field_name: string | null;
-  old_value: string | null;
-  new_value: string | null;
-  user_id: string | null;
+  user_id: string;
+  facility_id: string | null;
+  role: string;
   created_at: string;
 }
 
-type Tab = 'users' | 'facilities' | 'audit';
+interface GroupMapping {
+  id: string;
+  entra_group_name: string;
+  app_role: string;
+  facility_id: string | null;
+  created_at: string;
+}
+
+type Tab = 'users' | 'permissions' | 'group-mapping' | 'configuration';
 
 // ---------------------------------------------------------------------------
-// Role dropdown
+// Shared helpers
 // ---------------------------------------------------------------------------
 
 const ROLES = ['admin', 'editor', 'viewer'] as const;
@@ -59,11 +73,23 @@ const ROLE_BADGE: Record<string, string> = {
   viewer: 'bg-gray-100 text-gray-600',
 };
 
+const formatDate = (dateStr: string | null) => {
+  if (!dateStr) return '--';
+  return new Date(dateStr).toLocaleDateString('de-DE', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Role dropdown (reused across tabs)
+// ---------------------------------------------------------------------------
+
 const RoleDropdown: React.FC<{
   currentRole: string;
-  userId: string;
-  onUpdate: (userId: string, role: string) => void;
-}> = ({ currentRole, userId, onUpdate }) => {
+  onChange: (role: string) => void;
+}> = ({ currentRole, onChange }) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -84,7 +110,7 @@ const RoleDropdown: React.FC<{
               <button
                 key={r}
                 onClick={() => {
-                  onUpdate(userId, r);
+                  onChange(r);
                   setOpen(false);
                 }}
                 className={`flex w-full items-center px-3 py-1.5 text-xs hover:bg-gray-50 ${
@@ -231,7 +257,7 @@ const InviteUserForm: React.FC<{
 };
 
 // ---------------------------------------------------------------------------
-// Users Tab
+// Tab 1: Users
 // ---------------------------------------------------------------------------
 
 const UsersTab: React.FC = () => {
@@ -262,7 +288,7 @@ const UsersTab: React.FC = () => {
       const res = await client.put(`/users/${userId}`, { role: newRole });
       setUsers((prev) => prev.map((u) => (u.id === userId ? res.data : u)));
     } catch {
-      // Revert is implicit — we only update on success
+      // Revert is implicit -- we only update on success
     }
   }, []);
 
@@ -278,15 +304,6 @@ const UsersTab: React.FC = () => {
   const handleUserCreated = useCallback((newUser: ApiUser) => {
     setUsers((prev) => [...prev, newUser]);
   }, []);
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '--';
-    return new Date(dateStr).toLocaleDateString('de-DE', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
 
   if (loading) {
     return (
@@ -310,7 +327,6 @@ const UsersTab: React.FC = () => {
 
   return (
     <div>
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-gray-500">
           {users.length} user{users.length !== 1 ? 's' : ''}
@@ -333,29 +349,16 @@ const UsersTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto rounded-lg border border-gray-200">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Name
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Email
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Role
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Department
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Status
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Last Login
-              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Name</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Email</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Role</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Department</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Last Login</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
@@ -363,19 +366,13 @@ const UsersTab: React.FC = () => {
               <tr key={u.id} className={!u.is_active ? 'opacity-50' : ''}>
                 <td className="whitespace-nowrap px-4 py-3">
                   <div className="text-sm font-medium text-gray-900">{u.name}</div>
-                  {u.job_title && (
-                    <div className="text-xs text-gray-400">{u.job_title}</div>
-                  )}
+                  {u.job_title && <div className="text-xs text-gray-400">{u.job_title}</div>}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                  {u.email}
-                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{u.email}</td>
                 <td className="whitespace-nowrap px-4 py-3">
-                  <RoleDropdown currentRole={u.role} userId={u.id} onUpdate={handleRoleUpdate} />
+                  <RoleDropdown currentRole={u.role} onChange={(role) => handleRoleUpdate(u.id, role)} />
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                  {u.department || '--'}
-                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{u.department || '--'}</td>
                 <td className="whitespace-nowrap px-4 py-3">
                   <button
                     type="button"
@@ -390,9 +387,7 @@ const UsersTab: React.FC = () => {
                     {u.is_active ? 'Active' : 'Inactive'}
                   </button>
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                  {formatDate(u.last_login)}
-                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{formatDate(u.last_login)}</td>
               </tr>
             ))}
           </tbody>
@@ -407,85 +402,92 @@ const UsersTab: React.FC = () => {
 };
 
 // ---------------------------------------------------------------------------
-// Facilities Tab — link to /facilities
+// Tab 2: Permissions
 // ---------------------------------------------------------------------------
 
-const FacilitiesTab: React.FC = () => (
-  <div className="text-center py-16">
-    <Building2 size={40} className="mx-auto text-gray-300 mb-4" />
-    <h3 className="text-base font-semibold text-gray-900 mb-2">Facility Management</h3>
-    <p className="text-sm text-gray-500 mb-6">
-      Manage facilities, clone projects, and track status from the dedicated page.
-    </p>
-    <Link
-      to="/facilities"
-      className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-    >
-      <Building2 size={16} />
-      Go to Facilities
-    </Link>
-  </div>
-);
-
-// ---------------------------------------------------------------------------
-// Audit Log Tab
-// ---------------------------------------------------------------------------
-
-const AuditTab: React.FC = () => {
-  const [entries, setEntries] = useState<AuditEntry[]>([]);
+const PermissionsTab: React.FC = () => {
+  const { facilities } = useFacility();
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [users, setUsers] = useState<ApiUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadAudit = useCallback(async () => {
+  // Add form state
+  const [newUserId, setNewUserId] = useState('');
+  const [newFacilityId, setNewFacilityId] = useState('');
+  const [newRole, setNewRole] = useState('viewer');
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await client.get('/audit', { params: { limit: 100 } });
-      setEntries(res.data);
+      const [permRes, userRes] = await Promise.all([
+        client.get('/permissions'),
+        client.get('/users'),
+      ]);
+      setPermissions(permRes.data);
+      setUsers(userRes.data);
     } catch {
-      setError('Failed to load audit log. Make sure the backend is running.');
+      setError('Failed to load permissions.');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadAudit();
-  }, [loadAudit]);
+    load();
+  }, [load]);
 
-  const formatTimestamp = (ts: string) => {
-    const d = new Date(ts);
-    return d.toLocaleString('de-DE', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const userMap = useMemo(() => {
+    const m = new Map<string, ApiUser>();
+    users.forEach((u) => m.set(u.id, u));
+    return m;
+  }, [users]);
 
-  const actionColor = useMemo(
-    () =>
-      (action: string): string => {
-        switch (action.toLowerCase()) {
-          case 'create':
-            return 'bg-green-100 text-green-700';
-          case 'delete':
-            return 'bg-red-100 text-red-700';
-          case 'update':
-            return 'bg-blue-100 text-blue-700';
-          default:
-            return 'bg-gray-100 text-gray-600';
-        }
-      },
-    [],
-  );
+  const facilityMap = useMemo(() => {
+    const m = new Map<string, string>();
+    facilities.forEach((f) => m.set(f.id, f.name));
+    return m;
+  }, [facilities]);
+
+  const handleAdd = useCallback(async () => {
+    if (!newUserId) return;
+    setSubmitting(true);
+    try {
+      const res = await client.post('/permissions', {
+        user_id: newUserId,
+        facility_id: newFacilityId || null,
+        role: newRole,
+      });
+      setPermissions((prev) => [res.data, ...prev]);
+      setNewUserId('');
+      setNewFacilityId('');
+      setNewRole('viewer');
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+        'Failed to add permission';
+      setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [newUserId, newFacilityId, newRole]);
+
+  const handleDelete = useCallback(async (id: string) => {
+    try {
+      await client.delete(`/permissions/${id}`);
+      setPermissions((prev) => prev.filter((p) => p.id !== id));
+    } catch {
+      // silent fail
+    }
+  }, []);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
         <RefreshCw size={20} className="animate-spin text-gray-400" />
-        <span className="ml-2 text-sm text-gray-500">Loading audit log...</span>
+        <span className="ml-2 text-sm text-gray-500">Loading permissions...</span>
       </div>
     );
   }
@@ -494,96 +496,113 @@ const AuditTab: React.FC = () => {
     return (
       <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
         {error}
-        <button onClick={loadAudit} className="ml-3 font-medium underline">
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  if (entries.length === 0) {
-    return (
-      <div className="text-center py-16">
-        <ClipboardList size={40} className="mx-auto text-gray-300 mb-4" />
-        <h3 className="text-base font-semibold text-gray-900 mb-1">No audit entries yet</h3>
-        <p className="text-sm text-gray-500">Changes to cost items, facilities, and budgets will appear here.</p>
+        <button onClick={load} className="ml-3 font-medium underline">Retry</button>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-500">{entries.length} recent entries</p>
+      {/* Add form */}
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <div className="flex-1 min-w-[180px]">
+          <label className="block text-xs font-medium text-gray-500 mb-1">User</label>
+          <select
+            value={newUserId}
+            onChange={(e) => setNewUserId(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">Select user...</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1 min-w-[180px]">
+          <label className="block text-xs font-medium text-gray-500 mb-1">Facility</label>
+          <select
+            value={newFacilityId}
+            onChange={(e) => setNewFacilityId(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">Global (all facilities)</option>
+            {facilities.map((f) => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="w-32">
+          <label className="block text-xs font-medium text-gray-500 mb-1">Role</label>
+          <select
+            value={newRole}
+            onChange={(e) => setNewRole(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            {ROLES.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+        </div>
         <button
-          onClick={loadAudit}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+          onClick={handleAdd}
+          disabled={!newUserId || submitting}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
         >
-          <RefreshCw size={12} />
-          Refresh
+          <Plus size={14} />
+          Add
         </button>
       </div>
 
+      {/* Table */}
       <div className="overflow-x-auto rounded-lg border border-gray-200">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Timestamp
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                User
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Action
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Entity
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Field
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                Change
-              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">User</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Facility</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Role</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Created</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
-            {entries.map((entry) => (
-              <tr key={entry.id}>
-                <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500 tabular-nums">
-                  {formatTimestamp(entry.created_at)}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                  {entry.user_id || '--'}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3">
-                  <span
-                    className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${actionColor(entry.action)}`}
-                  >
-                    {entry.action}
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                  {entry.entity_type}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                  {entry.field_name || '--'}
-                </td>
-                <td className="px-4 py-3 text-xs text-gray-500 max-w-xs truncate">
-                  {entry.old_value || entry.new_value ? (
-                    <span>
-                      {entry.old_value && (
-                        <span className="line-through text-red-400 mr-1">{entry.old_value}</span>
-                      )}
-                      {entry.new_value && <span className="text-green-600">{entry.new_value}</span>}
-                    </span>
-                  ) : (
-                    '--'
-                  )}
+            {permissions.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
+                  No permissions assigned yet. Use the form above to add one.
                 </td>
               </tr>
-            ))}
+            ) : (
+              permissions.map((p) => {
+                const user = userMap.get(p.user_id);
+                return (
+                  <tr key={p.id}>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <div className="text-sm font-medium text-gray-900">{user?.name ?? p.user_id}</div>
+                      {user && <div className="text-xs text-gray-400">{user.email}</div>}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {p.facility_id ? facilityMap.get(p.facility_id) ?? p.facility_id : 'Global'}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium ${ROLE_BADGE[p.role] ?? ROLE_BADGE.viewer}`}>
+                        {p.role}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{formatDate(p.created_at)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                      <button
+                        onClick={() => handleDelete(p.id)}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 size={12} />
+                        Revoke
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
@@ -592,13 +611,438 @@ const AuditTab: React.FC = () => {
 };
 
 // ---------------------------------------------------------------------------
-// Admin Page
+// Tab 3: Group Mapping
+// ---------------------------------------------------------------------------
+
+const GroupMappingTab: React.FC = () => {
+  const { facilities } = useFacility();
+  const [mappings, setMappings] = useState<GroupMapping[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Add form
+  const [groupName, setGroupName] = useState('');
+  const [appRole, setAppRole] = useState('viewer');
+  const [facilityId, setFacilityId] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await client.get('/permissions/group-mappings');
+      setMappings(res.data);
+    } catch {
+      setError('Failed to load group mappings.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const facilityMap = useMemo(() => {
+    const m = new Map<string, string>();
+    facilities.forEach((f) => m.set(f.id, f.name));
+    return m;
+  }, [facilities]);
+
+  const handleAdd = useCallback(async () => {
+    if (!groupName.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await client.post('/permissions/group-mappings', {
+        entra_group_name: groupName.trim(),
+        app_role: appRole,
+        facility_id: facilityId || null,
+      });
+      setMappings((prev) => [res.data, ...prev]);
+      setGroupName('');
+      setAppRole('viewer');
+      setFacilityId('');
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+        'Failed to create mapping';
+      setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [groupName, appRole, facilityId]);
+
+  const handleDelete = useCallback(async (id: string) => {
+    try {
+      await client.delete(`/permissions/group-mappings/${id}`);
+      setMappings((prev) => prev.filter((m) => m.id !== id));
+    } catch {
+      // silent fail
+    }
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <RefreshCw size={20} className="animate-spin text-gray-400" />
+        <span className="ml-2 text-sm text-gray-500">Loading group mappings...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+        {error}
+        <button onClick={load} className="ml-3 font-medium underline">Retry</button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Add form */}
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-xs font-medium text-gray-500 mb-1">Entra Group Name</label>
+          <input
+            type="text"
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            placeholder="e.g. CAPEX-Admins"
+          />
+        </div>
+        <div className="w-32">
+          <label className="block text-xs font-medium text-gray-500 mb-1">App Role</label>
+          <select
+            value={appRole}
+            onChange={(e) => setAppRole(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            {ROLES.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1 min-w-[180px]">
+          <label className="block text-xs font-medium text-gray-500 mb-1">Facility</label>
+          <select
+            value={facilityId}
+            onChange={(e) => setFacilityId(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">Global (all facilities)</option>
+            {facilities.map((f) => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={handleAdd}
+          disabled={!groupName.trim() || submitting}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+        >
+          <Plus size={14} />
+          Add
+        </button>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Entra Group</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">App Role</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Facility</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Created</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {mappings.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
+                  No group mappings yet. Use the form above to add one.
+                </td>
+              </tr>
+            ) : (
+              mappings.map((m) => (
+                <tr key={m.id}>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">{m.entra_group_name}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium ${ROLE_BADGE[m.app_role] ?? ROLE_BADGE.viewer}`}>
+                      {m.app_role}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                    {m.facility_id ? facilityMap.get(m.facility_id) ?? m.facility_id : 'Global'}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{formatDate(m.created_at)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right">
+                    <button
+                      onClick={() => handleDelete(m.id)}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 size={12} />
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Tab 4: Configuration
+// ---------------------------------------------------------------------------
+
+/** A single editable config section (Products, Phases, etc.) */
+const ConfigSection: React.FC<{
+  title: string;
+  items: ConfigItem[];
+  onUpdate: (items: ConfigItem[]) => void;
+}> = ({ title, items, onUpdate }) => {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [addId, setAddId] = useState('');
+  const [addLabel, setAddLabel] = useState('');
+
+  const startEdit = (item: ConfigItem) => {
+    setEditingId(item.id);
+    setEditLabel(item.label);
+  };
+
+  const saveEdit = () => {
+    if (!editingId || !editLabel.trim()) return;
+    onUpdate(items.map((it) => (it.id === editingId ? { ...it, label: editLabel.trim() } : it)));
+    setEditingId(null);
+    setEditLabel('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditLabel('');
+  };
+
+  const handleAdd = () => {
+    const id = addId.trim().toLowerCase().replace(/\s+/g, '_');
+    const label = addLabel.trim();
+    if (!id || !label) return;
+    if (items.some((it) => it.id === id)) return;
+    onUpdate([...items, { id, label }]);
+    setAddId('');
+    setAddLabel('');
+  };
+
+  const handleDelete = (id: string) => {
+    onUpdate(items.filter((it) => it.id !== id));
+  };
+
+  return (
+    <div className="rounded-lg border border-gray-200">
+      <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+        <h4 className="text-sm font-semibold text-gray-800">{title}</h4>
+      </div>
+      <div className="p-4 space-y-2">
+        {items.map((item) => (
+          <div key={item.id} className="flex items-center gap-2 group">
+            <span className="text-xs text-gray-400 font-mono w-40 truncate" title={item.id}>{item.id}</span>
+            {editingId === item.id ? (
+              <>
+                <input
+                  type="text"
+                  value={editLabel}
+                  onChange={(e) => setEditLabel(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                  className="flex-1 rounded border border-indigo-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  autoFocus
+                />
+                <button onClick={saveEdit} className="p-1 text-green-600 hover:text-green-800"><Check size={14} /></button>
+                <button onClick={cancelEdit} className="p-1 text-gray-400 hover:text-gray-600"><X size={14} /></button>
+              </>
+            ) : (
+              <>
+                <span className="flex-1 text-sm text-gray-700">{item.label}</span>
+                <button
+                  onClick={() => startEdit(item)}
+                  className="p-1 text-gray-300 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Pencil size={12} />
+                </button>
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  className="p-1 text-gray-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </>
+            )}
+          </div>
+        ))}
+
+        {/* Add row */}
+        <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+          <input
+            type="text"
+            value={addId}
+            onChange={(e) => setAddId(e.target.value)}
+            className="w-40 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            placeholder="id (e.g. phase_5)"
+          />
+          <input
+            type="text"
+            value={addLabel}
+            onChange={(e) => setAddLabel(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
+            className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            placeholder="Label (e.g. Ramp-Up)"
+          />
+          <button
+            onClick={handleAdd}
+            disabled={!addId.trim() || !addLabel.trim()}
+            className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            <Plus size={12} />
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ConfigurationTab: React.FC = () => {
+  const { config, updateConfig, isLoading } = useConfig();
+  const [localConfig, setLocalConfig] = useState<AppConfig>(config);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Sync from context when it reloads
+  useEffect(() => {
+    setLocalConfig(config);
+    setDirty(false);
+  }, [config]);
+
+  const handleSectionUpdate = (section: keyof AppConfig) => (items: ConfigItem[]) => {
+    setLocalConfig((prev) => ({ ...prev, [section]: items }));
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await updateConfig(localConfig);
+    setDirty(false);
+    setSaving(false);
+  };
+
+  const handleExportCSV = () => {
+    const rows: string[] = ['section,id,label'];
+    const sections: (keyof AppConfig)[] = ['products', 'phases', 'cost_bases', 'cost_drivers'];
+    for (const section of sections) {
+      for (const item of localConfig[section]) {
+        rows.push(`${section},"${item.id}","${item.label}"`);
+      }
+    }
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'config-export.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportCSV = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      const lines = text.trim().split('\n').slice(1); // skip header
+      const parsed: AppConfig = { products: [], phases: [], cost_bases: [], cost_drivers: [] };
+      for (const line of lines) {
+        const match = line.match(/^(\w+),"?([^",]+)"?,"?([^"]+)"?$/);
+        if (!match) continue;
+        const [, section, id, label] = match;
+        if (section in parsed) {
+          (parsed as unknown as Record<string, ConfigItem[]>)[section].push({ id: id.trim(), label: label.trim() });
+        }
+      }
+      // Only apply sections that have items
+      const merged = { ...localConfig };
+      if (parsed.products.length > 0) merged.products = parsed.products;
+      if (parsed.phases.length > 0) merged.phases = parsed.phases;
+      if (parsed.cost_bases.length > 0) merged.cost_bases = parsed.cost_bases;
+      if (parsed.cost_drivers.length > 0) merged.cost_drivers = parsed.cost_drivers;
+      setLocalConfig(merged);
+      setDirty(true);
+    };
+    input.click();
+  };
+
+  return (
+    <div>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-gray-500">
+          Edit products, phases, cost bases, and cost drivers used across the application.
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleImportCSV}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+          >
+            <Upload size={12} />
+            Import CSV
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+          >
+            <Download size={12} />
+            Export CSV
+          </button>
+          {dirty && (
+            <button
+              onClick={handleSave}
+              disabled={saving || isLoading}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Config sections */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ConfigSection title="Products" items={localConfig.products} onUpdate={handleSectionUpdate('products')} />
+        <ConfigSection title="Phases" items={localConfig.phases} onUpdate={handleSectionUpdate('phases')} />
+        <ConfigSection title="Cost Bases" items={localConfig.cost_bases} onUpdate={handleSectionUpdate('cost_bases')} />
+        <ConfigSection title="Cost Drivers" items={localConfig.cost_drivers} onUpdate={handleSectionUpdate('cost_drivers')} />
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Admin Page (main)
 // ---------------------------------------------------------------------------
 
 const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: 'users', label: 'Users', icon: Users },
-  { key: 'facilities', label: 'Facilities', icon: Building2 },
-  { key: 'audit', label: 'Audit Log', icon: ClipboardList },
+  { key: 'permissions', label: 'Permissions', icon: Key },
+  { key: 'group-mapping', label: 'Group Mapping', icon: Network },
+  { key: 'configuration', label: 'Configuration', icon: Settings },
 ];
 
 const AdminPage: React.FC = () => {
@@ -636,7 +1080,7 @@ const AdminPage: React.FC = () => {
           <h1 className="text-xl font-semibold text-gray-900">Administration</h1>
         </div>
         <p className="text-sm text-gray-500">
-          Manage users, facilities, and review system activity.
+          Manage users, permissions, Entra group mappings, and application configuration.
         </p>
       </div>
 
@@ -664,8 +1108,9 @@ const AdminPage: React.FC = () => {
 
       {/* Tab content */}
       {activeTab === 'users' && <UsersTab />}
-      {activeTab === 'facilities' && <FacilitiesTab />}
-      {activeTab === 'audit' && <AuditTab />}
+      {activeTab === 'permissions' && <PermissionsTab />}
+      {activeTab === 'group-mapping' && <GroupMappingTab />}
+      {activeTab === 'configuration' && <ConfigurationTab />}
     </div>
   );
 };

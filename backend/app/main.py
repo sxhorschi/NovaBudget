@@ -22,7 +22,9 @@ from app.api.dashboard import router as dashboard_router
 from app.api.export import router as export_router
 from app.api.comparison import router as comparison_router
 from app.api.transfers import router as transfers_router
+from app.api.permissions import router as permissions_router
 from app.api.users import router as users_router
+from app.api.config import router as config_router
 
 
 @asynccontextmanager
@@ -92,7 +94,9 @@ app.include_router(bulk_operations_router)
 app.include_router(dashboard_router)
 app.include_router(comparison_router)
 app.include_router(transfers_router)
+app.include_router(permissions_router)
 app.include_router(users_router)
+app.include_router(config_router)
 
 
 # ── Health check ─────────────────────────────────────────────────────────

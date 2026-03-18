@@ -1,17 +1,13 @@
-"""Python enums and corresponding SQLAlchemy enum types for the CAPEX budget tool."""
+"""Python enums and corresponding SQLAlchemy enum types for the CAPEX budget tool.
+
+Only workflow-related enums remain here. Classification enums (Product, Phase,
+CostBasis, CostDriver) are now driven by backend/config/config.json and stored
+as plain String(50) columns.
+"""
 
 import enum
 
 from sqlalchemy import Enum as SAEnum
-
-
-class CostBasis(str, enum.Enum):
-    """Basis on which a cost estimate was determined."""
-
-    COST_ESTIMATION = "COST_ESTIMATION"
-    INITIAL_SUPPLIER_OFFER = "INITIAL_SUPPLIER_OFFER"
-    REVISED_SUPPLIER_OFFER = "REVISED_SUPPLIER_OFFER"
-    CHANGE_COST = "CHANGE_COST"
 
 
 class ApprovalStatus(str, enum.Enum):
@@ -27,34 +23,6 @@ class ApprovalStatus(str, enum.Enum):
     OBSOLETE = "OBSOLETE"
 
 
-class ProjectPhase(str, enum.Enum):
-    """Phase of the facility build-out project."""
-
-    PHASE_1 = "PHASE_1"
-    PHASE_2 = "PHASE_2"
-    PHASE_3 = "PHASE_3"
-    PHASE_4 = "PHASE_4"
-
-
-class Product(str, enum.Enum):
-    """Product line a cost item is attributed to."""
-
-    ATLAS = "ATLAS"
-    ORION = "ORION"
-    VEGA = "VEGA"
-    OVERALL = "OVERALL"
-
-
-class CostDriver(str, enum.Enum):
-    """Driver / reason behind a cost item."""
-
-    PRODUCT = "PRODUCT"
-    PROCESS = "PROCESS"
-    NEW_REQ_ASSEMBLY = "NEW_REQ_ASSEMBLY"
-    NEW_REQ_TESTING = "NEW_REQ_TESTING"
-    INITIAL_SETUP = "INITIAL_SETUP"
-
-
 class AdjustmentCategory(str, enum.Enum):
     """Category of a budget adjustment (Zielanpassung)."""
 
@@ -65,39 +33,11 @@ class AdjustmentCategory(str, enum.Enum):
     OTHER = "OTHER"
 
 
-# ── SQLAlchemy column types (reusable in models) ────────────────────────
-
-CostBasisType = SAEnum(
-    CostBasis,
-    name="cost_basis",
-    create_constraint=True,
-    native_enum=True,
-)
+# -- SQLAlchemy column types (reusable in models) --
 
 ApprovalStatusType = SAEnum(
     ApprovalStatus,
     name="approval_status",
-    create_constraint=True,
-    native_enum=True,
-)
-
-ProjectPhaseType = SAEnum(
-    ProjectPhase,
-    name="project_phase",
-    create_constraint=True,
-    native_enum=True,
-)
-
-ProductType = SAEnum(
-    Product,
-    name="product",
-    create_constraint=True,
-    native_enum=True,
-)
-
-CostDriverType = SAEnum(
-    CostDriver,
-    name="cost_driver",
     create_constraint=True,
     native_enum=True,
 )
@@ -108,4 +48,3 @@ AdjustmentCategoryType = SAEnum(
     create_constraint=True,
     native_enum=True,
 )
-
