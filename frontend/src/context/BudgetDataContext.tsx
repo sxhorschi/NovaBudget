@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { Facility, Department, WorkArea, CostItem, BudgetAdjustment } from '../types/budget';
 import { useFacility } from './FacilityContext';
-import { mockFacilityDataMap, mockFacility } from '../mocks/data';
+import { loadMockData, mockFacilityDataMap, mockFacility, isMockDataLoaded } from '../mocks/data';
+import type { FacilityDataSet } from '../mocks/data';
 
 // ---------------------------------------------------------------------------
 // localStorage helpers — scoped per facility
@@ -91,7 +92,7 @@ function applyOverrides(facilityId: string, departments: Department[]): Departme
 }
 
 function getDefaultDataForFacility(facilityId: string): PersistedDataState {
-  const dataSet = mockFacilityDataMap[facilityId];
+  const dataSet: FacilityDataSet | undefined = mockFacilityDataMap[facilityId];
   if (dataSet) {
     return {
       departments: dataSet.departments,
@@ -264,6 +265,16 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
   const facilityId = currentFacility?.id ?? mockFacility.id;
   const prevFacilityIdRef = useRef(facilityId);
 
+  // Track whether JSON data has been loaded
+  const [dataReady, setDataReady] = useState(isMockDataLoaded());
+
+  // Ensure mock data is loaded (idempotent)
+  useEffect(() => {
+    if (!isMockDataLoaded()) {
+      loadMockData().then(() => setDataReady(true));
+    }
+  }, []);
+
   // Load initial data for the current facility
   const [departments, setDepartments] = useState<Department[]>(() => {
     const data = loadDataState(facilityId);
@@ -271,6 +282,20 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const [workAreas, setWorkAreas] = useState<WorkArea[]>(() => loadDataState(facilityId).workAreas);
   const [costItems, setCostItems] = useState<CostItem[]>(() => loadDataState(facilityId).costItems);
+
+  // Once data.json finishes loading and we have no localStorage data yet,
+  // re-seed from the newly-available mockFacilityDataMap.
+  useEffect(() => {
+    if (dataReady && departments.length === 0) {
+      const data = getDefaultDataForFacility(facilityId);
+      if (data.departments.length > 0) {
+        setDepartments(applyOverrides(facilityId, data.departments));
+        setWorkAreas(data.workAreas);
+        setCostItems(data.costItems);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataReady]);
 
   // When facility changes, save current data and load new facility's data
   useEffect(() => {
@@ -302,7 +327,7 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
     return mockAdj;
   });
 
-  // Reload adjustments when facility changes
+  // Reload adjustments when facility changes or data becomes ready
   useEffect(() => {
     const mockAdj = mockFacilityDataMap[facilityId]?.budgetAdjustments ?? [];
     try {
@@ -316,7 +341,7 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     } catch { /* ignore */ }
     setBudgetAdjustments(mockAdj);
-  }, [facilityId]);
+  }, [facilityId, dataReady]);
 
   // Resolve facility object
   const facility = currentFacility ?? mockFacility;

@@ -39,17 +39,13 @@ interface AuthContextValue {
 // This mock user is used for local development without Azure AD.
 // ---------------------------------------------------------------------------
 
+// Minimal dev user — no fake profile data. In production, all fields
+// come from the Entra ID token + Graph API sync.
 const MOCK_USER: User = {
-  id: 'usr-georg-weis-001',
-  name: 'Georg Weis',
-  email: 'georg.weis@tytan.tech',
+  id: 'dev-admin',
+  name: 'Admin (Dev)',
+  email: 'admin@localhost',
   role: 'admin',
-  job_title: 'Industrial Engineer',
-  department: 'Engineering',
-  office_location: 'Augsburg HQ',
-  company_name: 'TYTAN Technologies',
-  employee_id: 'EMP-001',
-  avatar: 'GW',
 };
 
 const SESSION_KEY = 'capex-planner:auth-session';

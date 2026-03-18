@@ -1,0 +1,9 @@
+id,department_id,amount,reason,category,created_at,created_by
+ba-001,d-001,80000,Produktaenderung CR-2026-042 — zusaetzliche Schweissstation fuer Atlas-Rahmen,product_change,2026-01-15,M. Huber
+ba-002,d-001,-25000,Optimierung Chassis-Vorrichtung — guenstigerer Lieferant,optimization,2026-02-03,G. Weis
+ba-003,d-002,120000,Scope-Erweiterung NVH-Pruefstand — zusaetzliche Frequenzbereiche gefordert,scope_change,2026-01-22,T. Berger
+ba-004,d-002,45000,Lieferantenwechsel HV-Testequipment — Keyence statt Hioki,supplier_change,2026-02-28,T. Berger
+ba-005,d-003,-15000,Optimierung AGV-Ladeinfrastruktur — weniger Ladepunkte noetig,optimization,2026-02-10,K. Schmidt
+ba-006,d-004,200000,Scope-Aenderung Druckluftanlage — hoehere Kapazitaet wegen Orion-Linie,scope_change,2026-01-30,M. Huber
+ba-007,d-001,35000,Produktaenderung CR-2026-058 — Anpassung Battery-Pack-Vorrichtung fuer Vega,product_change,2026-03-05,G. Weis
+ba-008,d-005,-10000,Sonstiges — Stornierung Prototyping-Werkzeug (nicht mehr benoetigt),other,2026-03-12,A. Klein

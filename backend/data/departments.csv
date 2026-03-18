@@ -1,0 +1,8 @@
+id,facility_id,name,budget_total
+d-001,f-001,Assembly,3800000
+d-002,f-001,Testing,1500000
+d-003,f-001,Intralogistics,700000
+d-004,f-001,Building & Infrastructure,1200000
+d-005,f-001,Prototyping Lab,500000
+d-101,f-002,Assembly,5200000
+d-102,f-002,Testing,2100000

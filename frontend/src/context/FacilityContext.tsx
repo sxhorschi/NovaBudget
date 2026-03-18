@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import type { Facility } from '../types/budget';
-import { mockFacilities } from '../mocks/data';
+import { loadMockData } from '../mocks/data';
 
 // ---------------------------------------------------------------------------
 // localStorage key
 // ---------------------------------------------------------------------------
 
 const CURRENT_FACILITY_KEY = 'budget-tool:current-facility-id';
+const FACILITIES_KEY = 'budget-tool:facilities';
 
 function loadCurrentFacilityId(): string | null {
   try {
@@ -21,6 +22,27 @@ function saveCurrentFacilityId(id: string): void {
     localStorage.setItem(CURRENT_FACILITY_KEY, id);
   } catch {
     // ignore quota errors
+  }
+}
+
+function loadPersistedFacilities(): Facility[] | null {
+  try {
+    const raw = localStorage.getItem(FACILITIES_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function saveFacilitiesToStorage(facilities: Facility[]): void {
+  try {
+    localStorage.setItem(FACILITIES_KEY, JSON.stringify(facilities));
+  } catch {
+    // ignore quota
   }
 }
 
@@ -68,14 +90,56 @@ function nextFacilityId(): string {
 // ---------------------------------------------------------------------------
 
 export const FacilityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [facilities, setFacilities] = useState<Facility[]>(() => [...mockFacilities]);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Resolve initial facility from localStorage or default to first
   const [currentFacilityId, setCurrentFacilityId] = useState<string>(() => {
-    const stored = loadCurrentFacilityId();
-    if (stored && mockFacilities.some((f) => f.id === stored)) return stored;
-    return mockFacilities[0]?.id ?? '';
+    return loadCurrentFacilityId() ?? '';
   });
+
+  // Load facilities from data.json (or backend API) on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    // Check localStorage first for user-modified facilities
+    const persisted = loadPersistedFacilities();
+    if (persisted) {
+      setFacilities(persisted);
+      setCurrentFacilityId((prev) => {
+        if (prev && persisted.some((f) => f.id === prev)) return prev;
+        return persisted[0]?.id ?? '';
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    // Otherwise load from data file
+    loadMockData()
+      .then((data) => {
+        if (cancelled) return;
+        setFacilities(data.facilities);
+        setCurrentFacilityId((prev) => {
+          if (prev && data.facilities.some((f) => f.id === prev)) return prev;
+          return data.facilities[0]?.id ?? '';
+        });
+        // Persist so future loads are instant
+        saveFacilitiesToStorage(data.facilities);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  // Persist facilities when they change
+  useEffect(() => {
+    if (facilities.length > 0) {
+      saveFacilitiesToStorage(facilities);
+    }
+  }, [facilities]);
 
   const currentFacility = useMemo(
     () => facilities.find((f) => f.id === currentFacilityId) ?? facilities[0] ?? null,
@@ -134,9 +198,9 @@ export const FacilityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       createFacility,
       updateFacility,
       deleteFacility,
-      isLoading: false,
+      isLoading,
     }),
-    [facilities, currentFacility, setCurrentFacility, createFacility, updateFacility, deleteFacility],
+    [facilities, currentFacility, setCurrentFacility, createFacility, updateFacility, deleteFacility, isLoading],
   );
 
   return (

@@ -57,6 +57,15 @@ htmlcov/
 
 # Local AI tool settings (machine-specific)
 .claude/settings.local.json
+.claude/agents/
+.claude/skills/
+
+# Internal docs (research, agent reports, mckinsey etc.)
+docs/mckinsey/
+docs/otto_ux_roast.md
+docs/swarm_consensus.md
+docs/visual_qa_report.md
+docs/factory_builder_concept.md
 
 # Alembic
 alembic/versions/__pycache__/

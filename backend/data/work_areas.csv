@@ -1,0 +1,24 @@
+id,department_id,name
+wa-001,d-001,Chassis Assembly
+wa-002,d-001,Drivetrain Station
+wa-003,d-001,Battery Pack Line
+wa-004,d-001,Final Assembly & Marriage
+wa-005,d-001,Rework & Touch-Up Bay
+wa-006,d-002,End-of-Line Testing
+wa-007,d-002,Environmental Chamber
+wa-008,d-002,NVH & Vibration Lab
+wa-009,d-002,High-Voltage Safety Test
+wa-010,d-003,Goods-In & Receiving
+wa-011,d-003,Warehouse & Staging
+wa-012,d-003,AGV & Internal Transport
+wa-013,d-003,Shipping & Packaging
+wa-014,d-004,Electrical Distribution
+wa-015,d-004,HVAC & Climate Control
+wa-016,d-004,Safety & Fire Protection
+wa-017,d-004,Flooring & Structural
+wa-018,d-005,CNC & Machining Center
+wa-019,d-005,Additive Manufacturing
+wa-020,d-005,Metrology & Inspection
+wa-101,d-101,Main Assembly Line
+wa-102,d-101,Battery Pack Integration
+wa-103,d-102,End-of-Line Testing

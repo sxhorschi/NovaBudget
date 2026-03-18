@@ -25,6 +25,7 @@ from app.api.transfers import router as transfers_router
 from app.api.permissions import router as permissions_router
 from app.api.users import router as users_router
 from app.api.config import router as config_router
+from app.api.data import router as data_router
 
 
 @asynccontextmanager
@@ -97,6 +98,7 @@ app.include_router(transfers_router)
 app.include_router(permissions_router)
 app.include_router(users_router)
 app.include_router(config_router)
+app.include_router(data_router)
 
 
 # ── Health check ─────────────────────────────────────────────────────────
