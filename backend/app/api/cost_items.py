@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import UserDep
+from app.auth import UserDep, require_role
 from app.db import get_session
 from app.models import AuditLog, CostItem, WorkArea
 from app.models.enums import ApprovalStatus
@@ -127,7 +127,7 @@ async def get_cost_item(item_id: UUID, session: AsyncSession = Depends(get_sessi
     return item
 
 
-@router.post("/", response_model=CostItemRead, status_code=201)
+@router.post("/", response_model=CostItemRead, status_code=201, dependencies=[Depends(require_role("admin", "editor"))])
 async def create_cost_item(
     data: CostItemCreate,
     user: UserDep,
@@ -145,7 +145,7 @@ async def create_cost_item(
     return item
 
 
-@router.put("/{item_id}", response_model=CostItemRead)
+@router.put("/{item_id}", response_model=CostItemRead, dependencies=[Depends(require_role("admin", "editor"))])
 async def update_cost_item(
     item_id: UUID,
     data: CostItemUpdate,
@@ -178,7 +178,7 @@ async def update_cost_item(
     return item
 
 
-@router.delete("/{item_id}", status_code=204)
+@router.delete("/{item_id}", status_code=204, dependencies=[Depends(require_role("admin", "editor"))])
 async def delete_cost_item(
     item_id: UUID,
     user: UserDep,
@@ -195,7 +195,7 @@ async def delete_cost_item(
 
 # ── Approval Workflow ────────────────────────────────────────────────────
 
-@router.post("/{item_id}/submit", response_model=CostItemRead, tags=["approval"])
+@router.post("/{item_id}/submit", response_model=CostItemRead, tags=["approval"], dependencies=[Depends(require_role("admin", "editor"))])
 async def submit_for_approval(
     item_id: UUID,
     user: UserDep,
@@ -213,7 +213,7 @@ async def submit_for_approval(
     )
 
 
-@router.post("/{item_id}/approve", response_model=CostItemRead, tags=["approval"])
+@router.post("/{item_id}/approve", response_model=CostItemRead, tags=["approval"], dependencies=[Depends(require_role("admin", "editor"))])
 async def approve_cost_item(
     item_id: UUID,
     user: UserDep,
@@ -231,7 +231,7 @@ async def approve_cost_item(
     )
 
 
-@router.post("/{item_id}/reject", response_model=CostItemRead, tags=["approval"])
+@router.post("/{item_id}/reject", response_model=CostItemRead, tags=["approval"], dependencies=[Depends(require_role("admin", "editor"))])
 async def reject_cost_item(
     item_id: UUID,
     user: UserDep,
@@ -249,7 +249,7 @@ async def reject_cost_item(
     )
 
 
-@router.patch("/{item_id}/status", response_model=CostItemRead, tags=["approval"])
+@router.patch("/{item_id}/status", response_model=CostItemRead, tags=["approval"], dependencies=[Depends(require_role("admin", "editor"))])
 async def change_cost_item_status(
     item_id: UUID,
     body: StatusChangeRequest,

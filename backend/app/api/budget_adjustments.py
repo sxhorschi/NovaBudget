@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import UserDep
+from app.auth import UserDep, require_role
 from app.db import get_session
 from app.models.budget_adjustment import BudgetAdjustment
 from app.models.department import Department
@@ -45,7 +45,7 @@ async def get_budget_adjustment(
     return item
 
 
-@router.post("/", response_model=BudgetAdjustmentRead, status_code=201)
+@router.post("/", response_model=BudgetAdjustmentRead, status_code=201, dependencies=[Depends(require_role("admin", "editor"))])
 async def create_budget_adjustment(
     data: BudgetAdjustmentCreate,
     user: UserDep,

@@ -21,6 +21,7 @@ router = APIRouter(prefix="/api/v1/facilities", tags=["facilities"])
 
 @router.get("/", response_model=list[FacilityRead])
 async def list_facilities(
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     stmt = select(Facility).order_by(Facility.name)
@@ -29,7 +30,7 @@ async def list_facilities(
 
 
 @router.get("/{facility_id}", response_model=FacilityRead)
-async def get_facility(facility_id: UUID, session: AsyncSession = Depends(get_session)):
+async def get_facility(facility_id: UUID, user: UserDep, session: AsyncSession = Depends(get_session)):
     facility = await session.get(Facility, facility_id)
     if not facility:
         raise HTTPException(status_code=404, detail="Facility not found")

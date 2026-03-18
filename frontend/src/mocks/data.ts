@@ -15,7 +15,7 @@ import type {
   BudgetAdjustment,
 } from '../types/budget';
 
-export const USE_MOCKS = true;
+export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== 'false';
 
 // --- Facilities ---
 

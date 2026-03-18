@@ -40,24 +40,23 @@ import SummaryStrip from '../components/summary/SummaryStrip';
 
 const CURRENT_MONTH = new Date().toISOString().slice(0, 7);
 
-const MONTHS = [
-  '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07',
-  '2026-08', '2026-09', '2026-10', '2026-11', '2026-12', '2027-01',
-];
+const MONTHS: string[] = [];
+const MONTH_LABELS: Record<string, string> = {};
+const MONTH_SHORT: Record<string, string> = {};
 
-const MONTH_LABELS: Record<string, string> = {
-  '2026-02': 'Feb 26', '2026-03': 'Mar 26', '2026-04': 'Apr 26',
-  '2026-05': 'May 26', '2026-06': 'Jun 26', '2026-07': 'Jul 26',
-  '2026-08': 'Aug 26', '2026-09': 'Sep 26', '2026-10': 'Oct 26',
-  '2026-11': 'Nov 26', '2026-12': 'Dec 26', '2027-01': 'Jan 27',
-};
-
-const MONTH_SHORT: Record<string, string> = {
-  '2026-02': 'Feb', '2026-03': 'Mar', '2026-04': 'Apr',
-  '2026-05': 'May', '2026-06': 'Jun', '2026-07': 'Jul',
-  '2026-08': 'Aug', '2026-09': 'Sep', '2026-10': 'Oct',
-  '2026-11': 'Nov', '2026-12': 'Dec', '2027-01': 'Jan',
-};
+(() => {
+  const now = new Date();
+  const shortFormatter = new Intl.DateTimeFormat('en', { month: 'short' });
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const key = d.toISOString().slice(0, 7);
+    const short = shortFormatter.format(d);
+    const yr = String(d.getFullYear()).slice(2);
+    MONTHS.push(key);
+    MONTH_LABELS[key] = `${short} ${yr}`;
+    MONTH_SHORT[key] = short;
+  }
+})();
 
 
 const QUARTERS: { label: string; months: string[] }[] = [

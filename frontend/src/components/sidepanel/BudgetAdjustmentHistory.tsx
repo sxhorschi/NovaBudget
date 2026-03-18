@@ -5,7 +5,7 @@ import {
   ADJUSTMENT_CATEGORY_LABELS,
   ADJUSTMENT_CATEGORY_COLORS,
 } from '../../types/budget';
-import { mockBudgetAdjustments } from '../../mocks/data';
+import { useBudgetData } from '../../context/BudgetDataContext';
 import { formatEUR as formatEur } from '../costbook/AmountCell';
 
 // ---------------------------------------------------------------------------
@@ -147,15 +147,14 @@ const BudgetAdjustmentHistory: React.FC<BudgetAdjustmentHistoryProps> = ({
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState(true);
-  const [localAdjustments, setLocalAdjustments] = useState<BudgetAdjustment[]>([]);
+  const { budgetAdjustments: allAdjustments, addBudgetAdjustment } = useBudgetData();
 
-  // Combine mock data with locally added adjustments
+  // Filter adjustments for this department
   const adjustments = useMemo(() => {
-    const fromMock = mockBudgetAdjustments.filter((a) => a.department_id === departmentId);
-    return [...fromMock, ...localAdjustments].sort(
-      (a, b) => a.created_at.localeCompare(b.created_at),
-    );
-  }, [departmentId, localAdjustments]);
+    return allAdjustments
+      .filter((a) => a.department_id === departmentId)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  }, [departmentId, allAdjustments]);
 
   const totalAdjustment = useMemo(
     () => adjustments.reduce((sum, a) => sum + a.amount, 0),
@@ -165,16 +164,7 @@ const BudgetAdjustmentHistory: React.FC<BudgetAdjustmentHistoryProps> = ({
   const currentBudget = originalBudget + totalAdjustment;
 
   const handleNewAdjustment = (data: Omit<BudgetAdjustment, 'id' | 'department_id' | 'created_at'>) => {
-    const newEntry: BudgetAdjustment = {
-      id: `ba-${Date.now()}`,
-      department_id: departmentId,
-      amount: data.amount,
-      reason: data.reason,
-      category: data.category,
-      created_at: new Date().toISOString().slice(0, 10),
-      created_by: data.created_by,
-    };
-    setLocalAdjustments((prev) => [...prev, newEntry]);
+    addBudgetAdjustment(departmentId, data.amount, data.reason, data.category);
     setShowForm(false);
   };
 

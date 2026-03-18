@@ -15,6 +15,10 @@ function dataStateKey(facilityId: string): string {
   return `budget-tool:data-state:${facilityId}`;
 }
 
+function adjustmentsKey(facilityId: string): string {
+  return `budget-tool:budget-adjustments:${facilityId}`;
+}
+
 type PersistedDataState = {
   departments: Department[];
   workAreas: WorkArea[];
@@ -209,6 +213,7 @@ export interface BudgetDataContextValue {
   updateDepartment: (departmentId: string, data: Partial<Pick<Department, 'name' | 'budget_total'>>) => void;
   deleteDepartment: (departmentId: string) => void;
   updateDepartmentBudget: (deptId: string, newBudget: number) => void;
+  addBudgetAdjustment: (departmentId: string, amount: number, reason: string, category?: string) => void;
 
   // Bulk import (replaces all data with imported data)
   bulkImport: (data: {
@@ -284,10 +289,33 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
     saveDataState(facilityId, { departments, workAreas, costItems });
   }, [facilityId, departments, workAreas, costItems]);
 
-  // Get the current facility's budget adjustments
-  const currentBudgetAdjustments = useMemo(() => {
-    const dataSet = mockFacilityDataMap[facilityId];
-    return dataSet?.budgetAdjustments ?? [];
+  // Budget adjustments: seed from mock data, persist additions to localStorage
+  const [budgetAdjustments, setBudgetAdjustments] = useState<BudgetAdjustment[]>(() => {
+    const mockAdj = mockFacilityDataMap[facilityId]?.budgetAdjustments ?? [];
+    try {
+      const raw = localStorage.getItem(adjustmentsKey(facilityId));
+      if (raw) {
+        const stored = JSON.parse(raw) as BudgetAdjustment[];
+        if (Array.isArray(stored)) return [...mockAdj, ...stored];
+      }
+    } catch { /* ignore */ }
+    return mockAdj;
+  });
+
+  // Reload adjustments when facility changes
+  useEffect(() => {
+    const mockAdj = mockFacilityDataMap[facilityId]?.budgetAdjustments ?? [];
+    try {
+      const raw = localStorage.getItem(adjustmentsKey(facilityId));
+      if (raw) {
+        const stored = JSON.parse(raw) as BudgetAdjustment[];
+        if (Array.isArray(stored)) {
+          setBudgetAdjustments([...mockAdj, ...stored]);
+          return;
+        }
+      }
+    } catch { /* ignore */ }
+    setBudgetAdjustments(mockAdj);
   }, [facilityId]);
 
   // Resolve facility object
@@ -481,6 +509,34 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
     [facilityId],
   );
 
+  // --- addBudgetAdjustment ---
+  const addBudgetAdjustment = useCallback(
+    (departmentId: string, amount: number, reason: string, category?: string) => {
+      const newAdj: BudgetAdjustment = {
+        id: nextStringId('ba'),
+        department_id: departmentId,
+        amount,
+        reason,
+        category: (category as BudgetAdjustment['category']) ?? 'other',
+        created_at: new Date().toISOString().slice(0, 10),
+        created_by: undefined,
+      };
+      setBudgetAdjustments((prev) => {
+        const next = [...prev, newAdj];
+        // Persist only user-added adjustments (exclude mock-seeded ones)
+        const mockIds = new Set(
+          (mockFacilityDataMap[facilityId]?.budgetAdjustments ?? []).map((a) => a.id),
+        );
+        const userAdded = next.filter((a) => !mockIds.has(a.id));
+        try {
+          localStorage.setItem(adjustmentsKey(facilityId), JSON.stringify(userAdded));
+        } catch { /* ignore quota */ }
+        return next;
+      });
+    },
+    [facilityId],
+  );
+
   // --- bulkImport ---
   const bulkImport = useCallback(
     (data: { departments: Department[]; workAreas: WorkArea[]; costItems: CostItem[] }) => {
@@ -498,7 +554,7 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
       departments,
       workAreas,
       costItems,
-      budgetAdjustments: currentBudgetAdjustments,
+      budgetAdjustments,
       updateCostItem,
       deleteCostItem,
       createCostItem,
@@ -509,6 +565,7 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
       updateDepartment,
       deleteDepartment,
       updateDepartmentBudget,
+      addBudgetAdjustment,
       bulkImport,
       isLoading: false,
     }),
@@ -517,7 +574,7 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
       costItems,
       departments,
       workAreas,
-      currentBudgetAdjustments,
+      budgetAdjustments,
       updateCostItem,
       deleteCostItem,
       createCostItem,
@@ -528,6 +585,7 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
       updateDepartment,
       deleteDepartment,
       updateDepartmentBudget,
+      addBudgetAdjustment,
       bulkImport,
     ],
   );

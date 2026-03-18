@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import UserDep
 from app.db import get_session
 from app.models.audit_log import AuditLog
 from app.schemas.audit_log import AuditLogRead
@@ -15,6 +16,7 @@ router = APIRouter(prefix="/api/v1/audit", tags=["audit"])
 
 @router.get("/", response_model=list[AuditLogRead])
 async def list_audit_logs(
+    user: UserDep,
     entity_type: str | None = None,
     entity_id: UUID | None = None,
     limit: int = Query(default=100, le=500),

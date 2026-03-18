@@ -11,6 +11,10 @@ class WorkAreaCreate(BaseModel):
     department_id: UUID
 
 
+class WorkAreaUpdate(BaseModel):
+    name: str | None = None
+
+
 class WorkAreaRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

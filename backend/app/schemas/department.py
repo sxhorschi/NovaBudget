@@ -13,6 +13,11 @@ class DepartmentCreate(BaseModel):
     budget_total: Decimal = Decimal("0")
 
 
+class DepartmentUpdate(BaseModel):
+    name: str | None = None
+    budget_total: Decimal | None = None
+
+
 class DepartmentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -29,15 +29,15 @@ class TransferLog(Base):
     target_entity_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), nullable=False,
     )
-    source_facility_id: Mapped[uuid.UUID] = mapped_column(
+    source_facility_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("facilities.id", ondelete="SET NULL"),
-        nullable=False,
+        nullable=True,
     )
-    target_facility_id: Mapped[uuid.UUID] = mapped_column(
+    target_facility_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("facilities.id", ondelete="SET NULL"),
-        nullable=False,
+        nullable=True,
     )
     transfer_mode: Mapped[str] = mapped_column(
         String(10), nullable=False,

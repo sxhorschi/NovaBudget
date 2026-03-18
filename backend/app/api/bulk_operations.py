@@ -167,6 +167,8 @@ async def bulk_update(
             details.append(BulkItemDetail(item_id=uid, success=True))
 
         await session.commit()
+    except HTTPException:
+        raise
     except Exception:
         await session.rollback()
         raise HTTPException(
@@ -249,6 +251,8 @@ async def bulk_status(
             details.append(BulkItemDetail(item_id=uid, success=True))
 
         await session.commit()
+    except HTTPException:
+        raise
     except Exception:
         await session.rollback()
         raise HTTPException(
@@ -304,6 +308,8 @@ async def bulk_delete(
             details.append(BulkItemDetail(item_id=uid, success=True))
 
         await session.commit()
+    except HTTPException:
+        raise
     except Exception:
         await session.rollback()
         raise HTTPException(
@@ -375,6 +381,8 @@ async def bulk_move(
             details.append(BulkItemDetail(item_id=uid, success=True))
 
         await session.commit()
+    except HTTPException:
+        raise
     except Exception:
         await session.rollback()
         raise HTTPException(
@@ -462,6 +470,8 @@ async def duplicate_cost_item(
         await session.refresh(new_item)
 
         return new_item
+    except HTTPException:
+        raise
     except Exception:
         await session.rollback()
         raise HTTPException(

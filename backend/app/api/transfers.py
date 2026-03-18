@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import UserDep
+from app.auth import UserDep, require_role
 from app.db import get_session
 from app.models.transfer_log import TransferLog
 from app.schemas.transfer import (
@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api/v1/transfers", tags=["transfers"])
 # ── Transfer cost items ─────────────────────────────────────────────────
 
 
-@router.post("/cost-items", response_model=TransferResult, status_code=201)
+@router.post("/cost-items", response_model=TransferResult, status_code=201, dependencies=[Depends(require_role("admin", "editor"))])
 async def transfer_cost_items_endpoint(
     data: TransferCostItemsRequest,
     user: UserDep,
@@ -66,7 +66,7 @@ async def transfer_cost_items_endpoint(
 # ── Transfer work areas ─────────────────────────────────────────────────
 
 
-@router.post("/work-areas", response_model=TransferResult, status_code=201)
+@router.post("/work-areas", response_model=TransferResult, status_code=201, dependencies=[Depends(require_role("admin", "editor"))])
 async def transfer_work_areas_endpoint(
     data: TransferWorkAreasRequest,
     user: UserDep,
@@ -103,7 +103,7 @@ async def transfer_work_areas_endpoint(
 # ── Transfer departments ────────────────────────────────────────────────
 
 
-@router.post("/departments", response_model=TransferResult, status_code=201)
+@router.post("/departments", response_model=TransferResult, status_code=201, dependencies=[Depends(require_role("admin", "editor"))])
 async def transfer_departments_endpoint(
     data: TransferDepartmentsRequest,
     user: UserDep,

@@ -5,10 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.auth import UserDep
+from app.auth import UserDep, require_role
 from app.db import get_session
 from app.models import WorkArea, CostItem
-from app.schemas.work_area import WorkAreaCreate, WorkAreaRead, WorkAreaWithItems
+from app.schemas.work_area import WorkAreaCreate, WorkAreaRead, WorkAreaUpdate, WorkAreaWithItems
 from app.services.audit import build_changes, log_change
 
 router = APIRouter(prefix="/api/v1/work-areas", tags=["work-areas"])
@@ -39,7 +39,7 @@ async def get_work_area(work_area_id: UUID, session: AsyncSession = Depends(get_
     return work_area
 
 
-@router.post("/", response_model=WorkAreaRead, status_code=201)
+@router.post("/", response_model=WorkAreaRead, status_code=201, dependencies=[Depends(require_role("admin", "editor"))])
 async def create_work_area(
     data: WorkAreaCreate,
     user: UserDep,
@@ -54,17 +54,19 @@ async def create_work_area(
     return work_area
 
 
-@router.put("/{work_area_id}", response_model=WorkAreaRead)
+@router.put("/{work_area_id}", response_model=WorkAreaRead, dependencies=[Depends(require_role("admin", "editor"))])
 async def update_work_area(
     work_area_id: UUID,
-    data: WorkAreaCreate,
+    data: WorkAreaUpdate,
     user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     work_area = await session.get(WorkArea, work_area_id)
     if not work_area:
         raise HTTPException(status_code=404, detail="Work area not found")
-    update_data = data.model_dump()
+    update_data = data.model_dump(exclude_unset=True)
+    if not update_data:
+        return work_area
     old_values = {k: getattr(work_area, k) for k in update_data}
     for key, value in update_data.items():
         setattr(work_area, key, value)
@@ -76,7 +78,7 @@ async def update_work_area(
     return work_area
 
 
-@router.delete("/{work_area_id}", status_code=204)
+@router.delete("/{work_area_id}", status_code=204, dependencies=[Depends(require_role("admin", "editor"))])
 async def delete_work_area(
     work_area_id: UUID,
     user: UserDep,

@@ -5,10 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.auth import UserDep
+from app.auth import UserDep, require_role
 from app.db import get_session
 from app.models import Department, WorkArea
-from app.schemas.department import DepartmentCreate, DepartmentRead, DepartmentWithWorkAreas
+from app.schemas.department import DepartmentCreate, DepartmentRead, DepartmentUpdate, DepartmentWithWorkAreas
 from app.services.audit import build_changes, log_change
 
 router = APIRouter(prefix="/api/v1/departments", tags=["departments"])
@@ -39,7 +39,7 @@ async def get_department(department_id: UUID, session: AsyncSession = Depends(ge
     return department
 
 
-@router.post("/", response_model=DepartmentRead, status_code=201)
+@router.post("/", response_model=DepartmentRead, status_code=201, dependencies=[Depends(require_role("admin", "editor"))])
 async def create_department(
     data: DepartmentCreate,
     user: UserDep,
@@ -54,17 +54,19 @@ async def create_department(
     return department
 
 
-@router.put("/{department_id}", response_model=DepartmentRead)
+@router.put("/{department_id}", response_model=DepartmentRead, dependencies=[Depends(require_role("admin", "editor"))])
 async def update_department(
     department_id: UUID,
-    data: DepartmentCreate,
+    data: DepartmentUpdate,
     user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     department = await session.get(Department, department_id)
     if not department:
         raise HTTPException(status_code=404, detail="Department not found")
-    update_data = data.model_dump()
+    update_data = data.model_dump(exclude_unset=True)
+    if not update_data:
+        return department
     old_values = {k: getattr(department, k) for k in update_data}
     for key, value in update_data.items():
         setattr(department, key, value)
@@ -76,7 +78,7 @@ async def update_department(
     return department
 
 
-@router.delete("/{department_id}", status_code=204)
+@router.delete("/{department_id}", status_code=204, dependencies=[Depends(require_role("admin", "editor"))])
 async def delete_department(
     department_id: UUID,
     user: UserDep,

@@ -19,6 +19,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import UserDep
 from app.db import get_session
 from app.schemas.summary import (
     ApprovalPipelineEntry,
@@ -57,6 +58,7 @@ logger = logging.getLogger(__name__)
 )
 async def facility_kpis(
     facility_id: UUID,
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     try:
@@ -72,6 +74,7 @@ async def facility_kpis(
 )
 async def department_kpis(
     facility_id: UUID,
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     try:
@@ -87,6 +90,7 @@ async def department_kpis(
 )
 async def cash_out_forecast(
     facility_id: UUID,
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     try:
@@ -102,6 +106,7 @@ async def cash_out_forecast(
 )
 async def phase_breakdown(
     facility_id: UUID,
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     try:
@@ -117,6 +122,7 @@ async def phase_breakdown(
 )
 async def approval_pipeline(
     facility_id: UUID,
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     try:
@@ -136,7 +142,7 @@ async def approval_pipeline(
     summary="[DEPRECATED] Global budget summary",
     deprecated=True,
 )
-async def budget_summary(session: AsyncSession = Depends(get_session)):
+async def budget_summary(user: UserDep, session: AsyncSession = Depends(get_session)):
     return await get_budget_summary(session)
 
 
@@ -146,7 +152,7 @@ async def budget_summary(session: AsyncSession = Depends(get_session)):
     summary="[DEPRECATED] Global department summaries",
     deprecated=True,
 )
-async def department_summaries(session: AsyncSession = Depends(get_session)):
+async def department_summaries(user: UserDep, session: AsyncSession = Depends(get_session)):
     return await get_department_summaries(session)
 
 
@@ -156,5 +162,5 @@ async def department_summaries(session: AsyncSession = Depends(get_session)):
     summary="[DEPRECATED] Global cash-out timeline",
     deprecated=True,
 )
-async def cash_out_timeline(session: AsyncSession = Depends(get_session)):
+async def cash_out_timeline(user: UserDep, session: AsyncSession = Depends(get_session)):
     return await get_cash_out_timeline(session)

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { X, ArrowRightLeft, ChevronRight } from 'lucide-react';
 import { useBudgetData } from '../../context/BudgetDataContext';
 import { useFacility } from '../../context/FacilityContext';
+import { useToast } from '../common/ToastProvider';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -38,6 +39,7 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
 }) => {
   const { departments, workAreas } = useBudgetData();
   const { facilities: allFacilities } = useFacility();
+  const toast = useToast();
 
   // Step state
   const [step, setStep] = useState(1);
@@ -104,8 +106,8 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
       resetStatus,
       resetAmounts,
     };
-    console.log('Transfer confirmed:', payload);
     // TODO: Call API endpoint
+    toast.info('Transfer queued (API integration pending)');
     onClose();
   }, [
     entityType,

@@ -56,8 +56,10 @@ def validate_file(filename: str, content_type: str, size: int) -> None:
             f"Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
         )
     if content_type not in ALLOWED_CONTENT_TYPES:
-        # Be lenient: also accept by extension
-        pass
+        raise FileStorageError(
+            f"Content type '{content_type}' is not allowed. "
+            f"Allowed: {', '.join(sorted(ALLOWED_CONTENT_TYPES))}"
+        )
     if size > MAX_FILE_SIZE:
         raise FileStorageError(
             f"File size {size} bytes exceeds maximum of {MAX_FILE_SIZE} bytes (50 MB)."

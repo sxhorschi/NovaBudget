@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import UserDep
 from app.db import get_session
 from app.models import Facility
 from app.services.aggregation import get_department_kpis, get_facility_kpis
@@ -27,7 +28,6 @@ class FacilityComparisonEntry(BaseModel):
 
     facility_id: UUID
     name: str
-    status: str
     budget: Decimal
     committed: Decimal
     forecast: Decimal
@@ -69,6 +69,7 @@ async def compare_facilities(
         description="Comma-separated facility UUIDs to compare",
         examples=["uuid1,uuid2"],
     ),
+    user: UserDep = Depends(),
     session: AsyncSession = Depends(get_session),
 ) -> FacilityComparisonResponse:
     """Return side-by-side KPIs for the requested facilities."""
@@ -109,7 +110,6 @@ async def compare_facilities(
             FacilityComparisonEntry(
                 facility_id=fid,
                 name=facility.name,
-                status=getattr(facility, "status", "active"),
                 budget=kpi.budget,
                 committed=kpi.committed,
                 forecast=kpi.forecast,
@@ -134,6 +134,7 @@ async def compare_departments(
         description="Comma-separated department names to match across facilities",
         examples=["Assembly,Testing"],
     ),
+    user: UserDep = Depends(),
     session: AsyncSession = Depends(get_session),
 ) -> DepartmentComparisonResponse:
     """Match departments by name across facilities and return per-department KPIs."""
