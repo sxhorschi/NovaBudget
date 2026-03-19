@@ -69,8 +69,9 @@ async def compare_facilities(
         description="Comma-separated facility UUIDs to compare",
         examples=["uuid1,uuid2"],
     ),
-    user: UserDep = Depends(),
     session: AsyncSession = Depends(get_session),
+    *,
+    user: UserDep,
 ) -> FacilityComparisonResponse:
     """Return side-by-side KPIs for the requested facilities."""
 
@@ -134,8 +135,9 @@ async def compare_departments(
         description="Comma-separated department names to match across facilities",
         examples=["Assembly,Testing"],
     ),
-    user: UserDep = Depends(),
     session: AsyncSession = Depends(get_session),
+    *,
+    user: UserDep,
 ) -> DepartmentComparisonResponse:
     """Match departments by name across facilities and return per-department KPIs."""
 

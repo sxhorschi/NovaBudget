@@ -36,12 +36,12 @@ interface AuthContextValue {
 
 // ---------------------------------------------------------------------------
 // DEV MODE ONLY — in production, user data comes from Entra ID token.
-// This mock user is used for local development without Azure AD.
+// This dev user is used for local development without Azure AD.
 // ---------------------------------------------------------------------------
 
 // Minimal dev user — no fake profile data. In production, all fields
 // come from the Entra ID token + Graph API sync.
-const MOCK_USER: User = {
+const DEV_USER: User = {
   id: 'dev-admin',
   name: 'Admin (Dev)',
   email: 'admin@localhost',
@@ -84,8 +84,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Restore session from sessionStorage on mount
   useEffect(() => {
     if (DEV_SKIP_AUTH) {
-      setUser(MOCK_USER);
-      setAuthToken(buildToken(MOCK_USER));
+      setUser(DEV_USER);
+      setAuthToken(buildToken(DEV_USER));
       setIsLoading(false);
       return;
     }
@@ -110,9 +110,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await new Promise<void>((resolve) => setTimeout(resolve, 1500));
 
     // Store user in session and generate auth token for API requests
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(MOCK_USER));
-    setAuthToken(buildToken(MOCK_USER));
-    setUser(MOCK_USER);
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(DEV_USER));
+    setAuthToken(buildToken(DEV_USER));
+    setUser(DEV_USER);
     setIsLoading(false);
   }, []);
 

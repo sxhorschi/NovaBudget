@@ -17,7 +17,6 @@ import {
   downloadAttachment,
   deleteAttachment,
 } from '../../api/attachments';
-import { USE_MOCKS } from '../../mocks/data';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -92,11 +91,6 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
 
   // Fetch attachments
   const fetchAttachments = useCallback(async () => {
-    if (USE_MOCKS) {
-      // In mock mode no API calls — local state is sufficient
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
@@ -124,35 +118,14 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
       setUploading(true);
       setError(null);
       try {
-        if (USE_MOCKS) {
-          // Mock mode: add file to local state only
-          const now = new Date().toISOString();
-          const newAttachments: Attachment[] = Array.from(files).map((file) => ({
-            id: `mock-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            cost_item_id: costItemId,
-            work_area_id: null,
-            department_id: null,
-            filename: file.name,
-            original_filename: file.name,
-            content_type: file.type || 'application/octet-stream',
-            file_size: file.size,
-            storage_path: '',
-            description: null,
-            attachment_type: 'OTHER' as const,
-            created_at: now,
-            updated_at: now,
-          }));
-          setAttachments((prev) => [...prev, ...newAttachments]);
-        } else {
-          for (const file of Array.from(files)) {
-            await uploadAttachment({
-              costItemId,
-              file,
-              attachmentType: 'OTHER',
-            });
-          }
-          await fetchAttachments();
+        for (const file of Array.from(files)) {
+          await uploadAttachment({
+            costItemId,
+            file,
+            attachmentType: 'OTHER',
+          });
         }
+        await fetchAttachments();
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : 'Upload failed.';
@@ -169,12 +142,8 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
     async (id: string) => {
       if (!window.confirm('Really delete this attachment?')) return;
       try {
-        if (USE_MOCKS) {
-          setAttachments((prev) => prev.filter((a) => a.id !== id));
-        } else {
-          await deleteAttachment(id);
-          setAttachments((prev) => prev.filter((a) => a.id !== id));
-        }
+        await deleteAttachment(id);
+        setAttachments((prev) => prev.filter((a) => a.id !== id));
       } catch {
         setError('Delete failed.');
       }

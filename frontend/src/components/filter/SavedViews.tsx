@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X as XIcon, Save, RotateCcw } from 'lucide-react';
 import type { FilterState } from '../../hooks/useFilterState';
 import { EMPTY_FILTER } from '../../hooks/useFilterState';
-import type { ApprovalStatus, ProjectPhase } from '../../types/budget';
+import type { ApprovalStatus } from '../../types/budget';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,24 +38,6 @@ const PREDEFINED_VIEWS: SavedView[] = [
     filters: {
       ...EMPTY_FILTER,
       statuses: ['open', 'submitted_for_approval'] as ApprovalStatus[],
-    },
-    isCustom: false,
-  },
-  {
-    id: 'phase-1',
-    label: 'Phase 1',
-    filters: {
-      ...EMPTY_FILTER,
-      phases: ['phase_1'] as ProjectPhase[],
-    },
-    isCustom: false,
-  },
-  {
-    id: 'phase-2',
-    label: 'Phase 2',
-    filters: {
-      ...EMPTY_FILTER,
-      phases: ['phase_2'] as ProjectPhase[],
     },
     isCustom: false,
   },

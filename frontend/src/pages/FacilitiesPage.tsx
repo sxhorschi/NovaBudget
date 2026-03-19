@@ -56,7 +56,7 @@ function FacilityModal({
             <input
               value={form.name}
               onChange={(e) => set('name', e.target.value)}
-              placeholder="e.g. 3k Factory Augsburg"
+              placeholder="Facility name"
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
               autoFocus
             />
@@ -66,7 +66,7 @@ function FacilityModal({
             <input
               value={form.location}
               onChange={(e) => set('location', e.target.value)}
-              placeholder="e.g. Augsburg, Germany"
+              placeholder="City, Country"
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
             />
           </div>
@@ -129,21 +129,22 @@ const FacilitiesPage: React.FC = () => {
     navigate(`/f/${f.id}/costbook`);
   }, [navigate, setCurrentFacility]);
 
-  const handleClone = useCallback((f: Facility) => {
-    const cloned = createFacility(`${f.name} (Clone)`, f.location);
-    updateFacility(cloned.id, { description: `Cloned from ${f.name}` });
+  const handleClone = useCallback(async (f: Facility) => {
+    const cloned = await createFacility(`${f.name} (Clone)`, f.location);
+    if (cloned) await updateFacility(cloned.id, { description: `Cloned from ${f.name}` });
   }, [createFacility, updateFacility]);
 
-  const handleCreate = useCallback((data: FacilityFormData) => {
-    const f = createFacility(data.name, data.location);
-    updateFacility(f.id, { description: data.description });
+  const handleCreate = useCallback(async (data: FacilityFormData) => {
+    const f = await createFacility(data.name, data.location);
+    if (!f) return;
+    if (data.description) await updateFacility(f.id, { description: data.description });
     setShowCreateModal(false);
     navigate(`/f/${f.id}/costbook`);
   }, [createFacility, updateFacility, navigate]);
 
-  const handleEdit = useCallback((data: FacilityFormData) => {
+  const handleEdit = useCallback(async (data: FacilityFormData) => {
     if (!editingFacility) return;
-    updateFacility(editingFacility.id, {
+    await updateFacility(editingFacility.id, {
       name: data.name,
       location: data.location,
       description: data.description,
@@ -151,10 +152,10 @@ const FacilitiesPage: React.FC = () => {
     setEditingFacility(null);
   }, [editingFacility, updateFacility]);
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (!editingFacility) return;
     if (!window.confirm(`Delete "${editingFacility.name}"? This cannot be undone.`)) return;
-    deleteFacility(editingFacility.id);
+    await deleteFacility(editingFacility.id);
     setEditingFacility(null);
   }, [editingFacility, deleteFacility]);
 

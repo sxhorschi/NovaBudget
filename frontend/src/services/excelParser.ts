@@ -112,54 +112,21 @@ const APPROVAL_STATUS_MAP: Record<string, ApprovalStatus> = {
   'OBSOLETE': 'obsolete',
 };
 
-const PROJECT_PHASE_MAP: Record<string, string> = {
-  'PHASE_1': 'phase_1',
-  'PHASE_2': 'phase_2',
-  'PHASE_3': 'phase_3',
-  'PHASE_4': 'phase_4',
-  'PHASE 1': 'phase_1',
-  'PHASE 2': 'phase_2',
-  'PHASE 3': 'phase_3',
-  'PHASE 4': 'phase_4',
-  '1': 'phase_1',
-  '2': 'phase_2',
-  '3': 'phase_3',
-  '4': 'phase_4',
-};
-
-const PRODUCT_MAP: Record<string, string> = {
-  'ATLAS': 'atlas',
-  'ORION': 'orion',
-  'VEGA': 'vega',
-  'OVERALL': 'overall',
-  // Legacy names from old Excel files
-  'BRYAN': 'atlas',
-  'GUENTHER': 'orion',
-  'GIN_TONIC': 'vega',
-  'GIN-TONIC': 'vega',
-};
-
-const COST_BASIS_MAP: Record<string, string> = {
-  'COST_ESTIMATION': 'cost_estimation',
-  'COST ESTIMATION': 'cost_estimation',
-  'INITIAL_SUPPLIER_OFFER': 'initial_supplier_offer',
-  'INITIAL SUPPLIER OFFER': 'initial_supplier_offer',
-  'REVISED_SUPPLIER_OFFER': 'revised_supplier_offer',
-  'REVISED SUPPLIER OFFER': 'revised_supplier_offer',
-  'CHANGE_COST': 'change_cost',
-  'CHANGE COST': 'change_cost',
-};
-
-const COST_DRIVER_MAP: Record<string, string> = {
-  'PRODUCT': 'product',
-  'PROCESS': 'process',
-  'NEW_REQ_ASSEMBLY': 'new_req_assembly',
-  'NEW REQ ASSEMBLY': 'new_req_assembly',
-  'NEW_REQ_TESTING': 'new_req_testing',
-  'NEW REQ TESTING': 'new_req_testing',
-  'INITIAL_SETUP': 'initial_setup',
-  'INITIAL SETUP': 'initial_setup',
-};
+/**
+ * Normalize a raw enum value to a lowercase_underscored ID.
+ * This matches whatever IDs are configured in the admin panel —
+ * no hardcoded product/phase/cost names needed.
+ */
+function normalizeEnumValue(value: unknown): string {
+  if (value == null) return '';
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+    .replace(/[^a-z0-9_]/g, '')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+}
 
 function parseEnum<T>(map: Record<string, T>, value: unknown, fallback: T): T {
   if (value == null) return fallback;
@@ -303,7 +270,7 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
   const warnings: ParseWarning[] = [];
   const previewRows: Record<string, unknown>[] = [];
 
-  let nextDeptId = 1000; // Start high to avoid collision with mock data
+  let nextDeptId = 1000; // Start high to avoid collision with existing data
   let nextWaId = 1000;
   let nextCiId = 1000;
 
@@ -475,14 +442,14 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
           original_amount: amount,
           current_amount: amount,
           expected_cash_out: cellDate(row, colMap.CASH_OUT),
-          cost_basis: parseEnum(COST_BASIS_MAP, row[colMap.COST_BASIS], 'cost_estimation'),
-          cost_driver: parseEnum(COST_DRIVER_MAP, row[colMap.COST_DRIVER], 'initial_setup'),
+          cost_basis: normalizeEnumValue(row[colMap.COST_BASIS]) || 'cost_estimation',
+          cost_driver: normalizeEnumValue(row[colMap.COST_DRIVER]) || 'initial_setup',
           basis_description: cellStr(row, colMap.BASIS_DESC) ?? '',
           assumptions: cellStr(row, colMap.ASSUMPTIONS) ?? '',
           approval_status: parseEnum(APPROVAL_STATUS_MAP, row[colMap.APPROVAL], 'open' as ApprovalStatus),
           approval_date: cellDateOrNull(row, colMap.APPROVAL_DATE),
-          project_phase: parseEnum(PROJECT_PHASE_MAP, row[colMap.PHASE], 'phase_1'),
-          product: parseEnum(PRODUCT_MAP, row[colMap.PRODUCT], 'overall'),
+          project_phase: normalizeEnumValue(row[colMap.PHASE]) || 'phase_1',
+          product: normalizeEnumValue(row[colMap.PRODUCT]) || 'overall',
           zielanpassung: zielVal !== 0,
           zielanpassung_reason: zielVal !== 0 ? String(zielVal) : '',
           comments: cellStr(row, colMap.COMMENTS) ?? '',

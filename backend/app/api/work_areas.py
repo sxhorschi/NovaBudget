@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.auth import UserDep, require_role
 from app.db import get_session
-from app.models import WorkArea, CostItem
+from app.models import Department, WorkArea, CostItem
 from app.schemas.work_area import WorkAreaCreate, WorkAreaRead, WorkAreaUpdate, WorkAreaWithItems
 from app.services.audit import build_changes, log_change
 
@@ -16,11 +16,16 @@ router = APIRouter(prefix="/api/v1/work-areas", tags=["work-areas"])
 
 @router.get("/", response_model=list[WorkAreaRead])
 async def list_work_areas(
-    department_id: UUID | None = None, session: AsyncSession = Depends(get_session)
+    department_id: UUID | None = None,
+    facility_id: UUID | None = None,
+    session: AsyncSession = Depends(get_session),
 ):
     stmt = select(WorkArea).order_by(WorkArea.name)
     if department_id:
         stmt = stmt.where(WorkArea.department_id == department_id)
+    if facility_id:
+        dept_ids = select(Department.id).where(Department.facility_id == facility_id)
+        stmt = stmt.where(WorkArea.department_id.in_(dept_ids))
     result = await session.execute(stmt)
     return result.scalars().all()
 

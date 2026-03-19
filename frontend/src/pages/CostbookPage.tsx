@@ -113,6 +113,7 @@ const CostbookPage: React.FC = () => {
     createDepartment,
     updateDepartment,
     deleteDepartment,
+    addBudgetAdjustment,
   } = useBudgetData();
   const { filters, setFilter, setAllFilters, resetFilters, hasActiveFilters } = useFilterState();
   const { filteredDepartments, filteredWorkAreas, filteredItems, summary } =
@@ -269,11 +270,27 @@ const CostbookPage: React.FC = () => {
   const handleSave = useCallback(
     (data: Partial<CostItem>) => {
       if (!data.id) return;
-      updateCostItem(data.id, data);
+      const itemId = data.id;
+
+      // If amount changed and user checked "Create Budget Adjustment", create one
+      if (data.zielanpassung && data.current_amount !== undefined) {
+        const originalItem = costItems.find((ci) => ci.id === itemId);
+        if (originalItem && data.current_amount !== originalItem.current_amount) {
+          const delta = data.current_amount - originalItem.current_amount;
+          const reason = data.zielanpassung_reason || `Amount change on "${originalItem.description}"`;
+          // Find department via work area
+          const wa = workAreas.find((w) => w.id === originalItem.work_area_id);
+          if (wa) {
+            addBudgetAdjustment(wa.department_id, delta, reason, 'scope_change');
+          }
+        }
+      }
+
+      updateCostItem(itemId, data);
       setSelectedItem(null);
       toast.success('Item saved');
     },
-    [updateCostItem, toast],
+    [updateCostItem, costItems, workAreas, addBudgetAdjustment, toast],
   );
 
   const handleStatusChange = useCallback(
@@ -373,8 +390,8 @@ const CostbookPage: React.FC = () => {
   );
 
   const handleDuplicate = useCallback(
-    (itemToDuplicate: CostItem) => {
-      const newItem = createCostItem(itemToDuplicate.work_area_id, {
+    async (itemToDuplicate: CostItem) => {
+      const newItem = await createCostItem(itemToDuplicate.work_area_id, {
         description: `${itemToDuplicate.description} (Copy)`,
         original_amount: itemToDuplicate.original_amount,
         current_amount: itemToDuplicate.current_amount,
@@ -391,7 +408,7 @@ const CostbookPage: React.FC = () => {
         requester: user?.name ?? 'Unknown',
         approval_status: 'open',
       });
-      setSelectedItem(newItem);
+      if (newItem) setSelectedItem(newItem);
       toast.success('Item duplicated');
     },
     [createCostItem, toast, user],
@@ -436,7 +453,7 @@ const CostbookPage: React.FC = () => {
     setCreateOpen(false);
   }, []);
 
-  const handleCreateItem = useCallback(() => {
+  const handleCreateItem = useCallback(async () => {
     if (!newItemDescription.trim()) {
       toast.error('Please enter a description for the new item.');
       return;
@@ -452,18 +469,18 @@ const CostbookPage: React.FC = () => {
       return;
     }
 
-    const now = new Date().toISOString().slice(0, 7);
+    const now = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-    const newItem = createCostItem(newItemWorkAreaId, {
+    const newItem = await createCostItem(newItemWorkAreaId, {
       description: newItemDescription.trim(),
       original_amount: amount,
       current_amount: amount,
       expected_cash_out: now,
       approval_status: 'open',
-      project_phase: filters.phases[0] ?? 'phase_1',
-      product: filters.products[0] ?? 'overall',
-      cost_basis: 'cost_estimation',
-      cost_driver: 'product',
+      project_phase: filters.phases[0] ?? '',
+      product: filters.products[0] ?? '',
+      cost_basis: '',
+      cost_driver: '',
       basis_description: '',
       assumptions: '',
       comments: '',
@@ -473,6 +490,7 @@ const CostbookPage: React.FC = () => {
       requester: user?.name ?? 'Unknown',
     });
 
+    if (!newItem) return;
     setSelectedItem(newItem);
     if (newItemDeptId != null) {
       setAllFilters({ ...EMPTY_FILTER, departments: [newItemDeptId] });
@@ -493,12 +511,12 @@ const CostbookPage: React.FC = () => {
     user,
   ]);
 
-  const handleCreateWorkArea = useCallback(() => {
+  const handleCreateWorkArea = useCallback(async () => {
     if (newWADeptId == null) {
       toast.error('Please select a department.');
       return;
     }
-    const created = createWorkArea(newWADeptId, newWAName);
+    const created = await createWorkArea(newWADeptId, newWAName);
     if (!created) {
       toast.error('Category could not be created (name empty or already exists).');
       return;
@@ -511,9 +529,9 @@ const CostbookPage: React.FC = () => {
     toast.success('New category created.');
   }, [newWADeptId, newWAName, createWorkArea, setAllFilters, closeCreate, toast]);
 
-  const handleCreateDepartment = useCallback(() => {
+  const handleCreateDepartment = useCallback(async () => {
     const budget = Math.max(0, Number(newDeptBudget) || 0);
-    const created = createDepartment(newDeptName, budget);
+    const created = await createDepartment(newDeptName, budget);
     if (!created) {
       toast.error('Department could not be created (name empty or already exists).');
       return;
@@ -743,7 +761,7 @@ const CostbookPage: React.FC = () => {
                       value={newItemDescription}
                       onChange={(e) => setNewItemDescription(e.target.value)}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                      placeholder="e.g. Robot Cell Assembly"
+                      placeholder="Item description"
                     />
                   </div>
                   <div>
@@ -751,7 +769,7 @@ const CostbookPage: React.FC = () => {
                     <ModalAmountInput
                       value={newItemAmount}
                       onChange={setNewItemAmount}
-                      placeholder="e.g. 125,000"
+                      placeholder="0"
                       className="w-full rounded-md border border-gray-300 py-2 text-sm tabular-nums"
                     />
                   </div>
@@ -778,7 +796,7 @@ const CostbookPage: React.FC = () => {
                       value={newWAName}
                       onChange={(e) => setNewWAName(e.target.value)}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                      placeholder="e.g. Paint Line"
+                      placeholder="Category name"
                     />
                   </div>
                 </>
@@ -792,7 +810,7 @@ const CostbookPage: React.FC = () => {
                       value={newDeptName}
                       onChange={(e) => setNewDeptName(e.target.value)}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                      placeholder="e.g. Painting Department"
+                      placeholder="Department name"
                     />
                   </div>
                   <div>
@@ -800,7 +818,7 @@ const CostbookPage: React.FC = () => {
                     <ModalAmountInput
                       value={newDeptBudget}
                       onChange={setNewDeptBudget}
-                      placeholder="e.g. 500,000"
+                      placeholder="0"
                       className="w-full rounded-md border border-gray-300 py-2 text-sm tabular-nums"
                     />
                   </div>

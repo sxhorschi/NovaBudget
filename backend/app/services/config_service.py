@@ -1,41 +1,51 @@
 """Centralized configuration service.
 
 Reads and writes the application config (products, phases, cost bases, cost drivers)
-from a JSON file so that these values are no longer hardcoded as Python enums.
+from CSV files in backend/data/ so they are consistent with the rest of the data store.
 """
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Any
+
+from app.services.data_store import read_csv, write_csv
 
 # Module-level cache
 _config_cache: dict[str, Any] | None = None
 
+# Mapping from config key to CSV filename
+_CONFIG_FILES: dict[str, str] = {
+    "products": "products.csv",
+    "phases": "phases.csv",
+    "cost_bases": "cost_bases.csv",
+    "cost_drivers": "cost_drivers.csv",
+}
 
-def get_config_path() -> Path:
-    """Resolve the path to config.json (backend/config/config.json)."""
-    return Path(__file__).resolve().parent.parent.parent / "config" / "config.json"
+_CONFIG_FIELDS = ["id", "label"]
 
 
 def load_config() -> dict[str, Any]:
-    """Read config.json and return its contents. Caches in a module-level variable."""
+    """Read all config CSV files and return a unified dict. Caches in a module-level variable."""
     global _config_cache
     if _config_cache is not None:
         return _config_cache
 
-    config_path = get_config_path()
-    with open(config_path, "r", encoding="utf-8") as f:
-        _config_cache = json.load(f)
+    config: dict[str, Any] = {}
+    for key, filename in _CONFIG_FILES.items():
+        rows = read_csv(filename)
+        config[key] = [{"id": r["id"], "label": r["label"]} for r in rows]
+
+    _config_cache = config
     return _config_cache
 
 
 def save_config(data: dict[str, Any]) -> None:
-    """Write data to config.json and clear the cache."""
+    """Write config data to CSV files and clear the cache."""
     global _config_cache
-    config_path = get_config_path()
-    with open(config_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-        f.write("\n")
+
+    for key, filename in _CONFIG_FILES.items():
+        if key in data:
+            items = data[key]
+            write_csv(filename, items, _CONFIG_FIELDS)
+
     _config_cache = None

@@ -22,17 +22,20 @@ const MicrosoftLogo: React.FC = () => (
 );
 
 // ---------------------------------------------------------------------------
-// TYTAN "T" logo mark
+// Company logo mark
 // ---------------------------------------------------------------------------
 
-const TytanLogo: React.FC = () => (
-  <img
-    src="/tytan-logo-white.svg"
-    alt="TYTAN Technologies"
-    className="h-10 w-auto select-none"
-    draggable={false}
-  />
-);
+const CompanyLogo: React.FC = () => {
+  const logoSrc = localStorage.getItem('budget-tool:custom-logo') || '/logo-placeholder.svg';
+  return (
+    <img
+      src={logoSrc}
+      alt="Logo"
+      className="h-10 w-auto select-none"
+      draggable={false}
+    />
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Feature bullet
@@ -78,7 +81,7 @@ const LoginPage: React.FC = () => {
 
         {/* Top: logo */}
         <div className="relative z-10">
-          <TytanLogo />
+          <CompanyLogo />
         </div>
 
         {/* Middle: headline + features (hidden on small mobile) */}
@@ -129,7 +132,7 @@ const LoginPage: React.FC = () => {
                 Sign in to CapEx Planner
               </h2>
               <p className="mt-2 text-sm text-gray-500">
-                Use your TYTAN Microsoft account
+                Sign in with your Microsoft account
               </p>
             </div>
 
@@ -191,7 +194,7 @@ const LoginPage: React.FC = () => {
 
           {/* Legal */}
           <p className="mt-3 text-center text-xs text-gray-300">
-            &copy; 2026 TYTAN Technologies GmbH
+            CAPEX Budget Tool
           </p>
         </div>
       </div>

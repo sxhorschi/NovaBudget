@@ -1,5 +1,5 @@
 /**
- * TYTAN Technologies CAPEX Budget Tool — Design Tokens
+ * CAPEX Budget Tool — Design Tokens
  *
  * Design direction: Stripe / Linear inspired. Clean, professional, data-dense.
  * Light base (gray-50 / white) with Indigo accent.
@@ -147,11 +147,11 @@ export const departmentColors = {
  * Single source of truth — import this instead of hardcoding colors.
  */
 export const DEPT_ACCENT_COLORS: Record<string, string> = {
-  'd-001': '#6366f1', // Assembly  — indigo
-  'd-002': '#f59e0b', // Testing   — amber
-  'd-003': '#3b82f6', // Logistics — blue
-  'd-004': '#ec4899', // Facility  — pink
-  'd-005': '#a855f7', // Prototyping — purple
+  'd-001': '#6366f1',
+  'd-002': '#f59e0b',
+  'd-003': '#3b82f6',
+  'd-004': '#ec4899',
+  'd-005': '#a855f7',
 };
 
 /** Returns the accent color for a department ID, with a slate fallback. */

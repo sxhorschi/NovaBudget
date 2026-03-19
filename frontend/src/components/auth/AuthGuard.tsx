@@ -18,7 +18,7 @@ const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-4">
-          <img src="/tytan-logo.svg" alt="TYTAN Technologies" className="h-8 w-auto" />
+          <img src="/logo-placeholder.svg" alt="Logo" className="h-8 w-auto" />
           <svg
             className="animate-spin h-5 w-5 text-indigo-500"
             xmlns="http://www.w3.org/2000/svg"

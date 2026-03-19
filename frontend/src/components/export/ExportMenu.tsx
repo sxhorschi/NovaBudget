@@ -1,11 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Download, ChevronDown, FileSpreadsheet, PieChart, ClipboardList, Loader2, Upload, Filter } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { USE_MOCKS } from '../../mocks/data';
 import { useBudgetData } from '../../context/BudgetDataContext';
 import { useDisplaySettings } from '../../context/DisplaySettingsContext';
 import client from '../../api/client';
-import { exportStandard, exportFinance, exportSteeringCommittee } from '../../services/clientExport';
 import { useToast } from '../common/ToastProvider';
 import { STATUS_LABELS } from '../../types/budget';
 import type { ApprovalStatus } from '../../types/budget';
@@ -92,8 +90,7 @@ function buildExportPath(type: ExportType, facilityId: string, budgetFactor?: nu
 // ---------------------------------------------------------------------------
 
 const ExportMenu: React.FC = () => {
-  const { facility, departments: allDepartments, workAreas: allWorkAreas, costItems: allCostItems } = useBudgetData();
-  const { config } = useConfig();
+  const { facility } = useBudgetData();
   const { financeBudgetFactor } = useDisplaySettings();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState<ExportType | null>(null);
@@ -116,51 +113,6 @@ const ExportMenu: React.FC = () => {
   const handleExport = useCallback(
     async (type: ExportType) => {
       setOpen(false);
-
-      // Mock mode: client-side export with mock data
-      if (USE_MOCKS) {
-        setLoading(type);
-        try {
-          const departments = allDepartments;
-          const workAreas = allWorkAreas;
-          const items = allCostItems;
-
-          switch (type) {
-            case 'standard':
-              exportStandard(departments, workAreas, items, config);
-              break;
-            case 'finance':
-              exportFinance(departments, workAreas, items, financeBudgetFactor, config);
-              break;
-            case 'steering-committee': {
-              const approved = items.filter(i => i.approval_status === 'approved');
-              const committedAmt = approved.reduce((s, i) => s + i.current_amount, 0);
-              const forecastItems = items.filter(i => i.approval_status !== 'rejected' && i.approval_status !== 'obsolete');
-              const forecastAmt = forecastItems.reduce((s, i) => s + i.current_amount, 0);
-              const budgetAmt = departments.reduce((s, d) => s + d.budget_total, 0);
-              exportSteeringCommittee(departments, workAreas, items, {
-                budget: budgetAmt,
-                committed: committedAmt,
-                forecast: forecastAmt,
-                remaining: budgetAmt - forecastAmt,
-                delta: 0,
-                itemCount: items.length,
-                totalItemCount: items.length,
-              });
-              break;
-            }
-          }
-
-          toast.success('Export downloaded');
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Export failed';
-          toast.error(msg);
-        } finally {
-          setLoading(null);
-        }
-        return;
-      }
-
       setLoading(type);
       try {
         const factor = type === 'finance' ? financeBudgetFactor : undefined;
@@ -195,7 +147,7 @@ const ExportMenu: React.FC = () => {
         setLoading(null);
       }
     },
-    [toast, allDepartments, allWorkAreas, allCostItems, financeBudgetFactor, config],
+    [toast, financeBudgetFactor, facility.id],
   );
 
   // Build export options with dynamic label showing filter context

@@ -1,196 +1,12 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { Facility, Department, WorkArea, CostItem, BudgetAdjustment } from '../types/budget';
 import { useFacility } from './FacilityContext';
-import { loadMockData, mockFacilityDataMap, mockFacility, isMockDataLoaded } from '../mocks/data';
-import type { FacilityDataSet } from '../mocks/data';
-
-// ---------------------------------------------------------------------------
-// localStorage helpers — scoped per facility
-// ---------------------------------------------------------------------------
-
-function budgetOverridesKey(facilityId: string): string {
-  return `budget-tool:department-budget-overrides:${facilityId}`;
-}
-
-function dataStateKey(facilityId: string): string {
-  return `budget-tool:data-state:${facilityId}`;
-}
-
-function adjustmentsKey(facilityId: string): string {
-  return `budget-tool:budget-adjustments:${facilityId}`;
-}
-
-type PersistedDataState = {
-  departments: Department[];
-  workAreas: WorkArea[];
-  costItems: CostItem[];
-};
-
-function normalizeCostItem(item: Partial<CostItem>): CostItem | null {
-  if (
-    item.id == null ||
-    item.work_area_id == null ||
-    item.description == null ||
-    item.original_amount == null ||
-    item.current_amount == null ||
-    item.expected_cash_out == null ||
-    item.cost_basis == null ||
-    item.cost_driver == null ||
-    item.approval_status == null ||
-    item.project_phase == null ||
-    item.product == null ||
-    item.created_at == null ||
-    item.updated_at == null
-  ) {
-    return null;
-  }
-
-  return {
-    id: String(item.id),
-    work_area_id: String(item.work_area_id),
-    description: String(item.description),
-    original_amount: Number(item.original_amount),
-    current_amount: Number(item.current_amount),
-    expected_cash_out: String(item.expected_cash_out),
-    cost_basis: item.cost_basis,
-    cost_driver: item.cost_driver,
-    basis_description: String(item.basis_description ?? ''),
-    assumptions: String(item.assumptions ?? ''),
-    approval_status: item.approval_status,
-    approval_date: item.approval_date ?? null,
-    project_phase: item.project_phase,
-    product: item.product,
-    zielanpassung: Boolean(item.zielanpassung),
-    zielanpassung_reason: String(item.zielanpassung_reason ?? ''),
-    comments: String(item.comments ?? ''),
-    requester: item.requester ?? null,
-    created_at: String(item.created_at),
-    updated_at: String(item.updated_at),
-  } as CostItem;
-}
-
-function loadBudgetOverrides(facilityId: string): Record<string, number> {
-  try {
-    const raw = localStorage.getItem(budgetOverridesKey(facilityId));
-    if (raw) return JSON.parse(raw) as Record<string, number>;
-  } catch {
-    // ignore corrupt data
-  }
-  return {};
-}
-
-function saveBudgetOverrides(facilityId: string, overrides: Record<string, number>): void {
-  localStorage.setItem(budgetOverridesKey(facilityId), JSON.stringify(overrides));
-}
-
-function applyOverrides(facilityId: string, departments: Department[]): Department[] {
-  const overrides = loadBudgetOverrides(facilityId);
-  if (Object.keys(overrides).length === 0) return departments;
-  return departments.map((d) =>
-    overrides[d.id] !== undefined ? { ...d, budget_total: overrides[d.id] } : d,
-  );
-}
-
-function getDefaultDataForFacility(facilityId: string): PersistedDataState {
-  const dataSet: FacilityDataSet | undefined = mockFacilityDataMap[facilityId];
-  if (dataSet) {
-    return {
-      departments: dataSet.departments,
-      workAreas: dataSet.workAreas,
-      costItems: dataSet.costItems,
-    };
-  }
-  // Fallback for dynamically-created facilities — start empty
-  return { departments: [], workAreas: [], costItems: [] };
-}
-
-function loadDataState(facilityId: string): PersistedDataState {
-  try {
-    const raw = localStorage.getItem(dataStateKey(facilityId));
-    if (raw) {
-      const parsed = JSON.parse(raw) as PersistedDataState;
-      if (
-        Array.isArray(parsed?.departments) &&
-        Array.isArray(parsed?.workAreas) &&
-        Array.isArray(parsed?.costItems)
-      ) {
-        const normalizedItems = parsed.costItems
-          .map((it) => normalizeCostItem(it as Partial<CostItem>))
-          .filter((it): it is CostItem => it !== null);
-
-        const normalizedDepartments = parsed.departments.filter(
-          (d): d is Department =>
-            d != null &&
-            d.id != null &&
-            d.facility_id != null &&
-            typeof d.name === 'string' &&
-            typeof d.budget_total === 'number',
-        );
-
-        const normalizedWorkAreas = parsed.workAreas.filter(
-          (wa): wa is WorkArea =>
-            wa != null &&
-            wa.id != null &&
-            wa.department_id != null &&
-            typeof wa.name === 'string',
-        );
-
-        if (
-          normalizedDepartments.length > 0 &&
-          normalizedWorkAreas.length > 0
-        ) {
-          return {
-            departments: normalizedDepartments,
-            workAreas: normalizedWorkAreas,
-            costItems: normalizedItems,
-          };
-        }
-
-        localStorage.removeItem(dataStateKey(facilityId));
-      }
-    }
-  } catch {
-    // ignore corrupt data
-    try {
-      localStorage.removeItem(dataStateKey(facilityId));
-    } catch {
-      // ignore
-    }
-  }
-
-  // Also try the old non-facility-scoped key for backwards compat (only for default mock facility)
-  if (facilityId === mockFacility.id) {
-    try {
-      const legacyRaw = localStorage.getItem('budget-tool:data-state');
-      if (legacyRaw) {
-        const parsed = JSON.parse(legacyRaw) as PersistedDataState;
-        if (
-          Array.isArray(parsed?.departments) &&
-          Array.isArray(parsed?.workAreas) &&
-          Array.isArray(parsed?.costItems) &&
-          parsed.departments.length > 0
-        ) {
-          // Migrate: save under new key and remove old
-          localStorage.setItem(dataStateKey(facilityId), legacyRaw);
-          localStorage.removeItem('budget-tool:data-state');
-          return parsed;
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  return getDefaultDataForFacility(facilityId);
-}
-
-function saveDataState(facilityId: string, data: PersistedDataState): void {
-  try {
-    localStorage.setItem(dataStateKey(facilityId), JSON.stringify(data));
-  } catch {
-    // Do not crash UI if storage quota is exceeded.
-  }
-}
+import * as deptApi from '../api/departments';
+import * as waApi from '../api/workAreas';
+import * as ciApi from '../api/costItems';
+import { changeStatus as ciChangeStatus } from '../api/costItems';
+import * as adjApi from '../api/budgetAdjustments';
+import { dispatchToastEvent } from '../components/common/ToastProvider';
 
 // ---------------------------------------------------------------------------
 // Context value interface
@@ -203,27 +19,27 @@ export interface BudgetDataContextValue {
   costItems: CostItem[];
   budgetAdjustments: BudgetAdjustment[];
 
-  // CRUD Mutations (optimistic updates)
+  // CRUD Mutations — all async, backend-first
   updateCostItem: (id: string, data: Partial<CostItem>) => void;
   deleteCostItem: (id: string) => void;
-  createCostItem: (workAreaId: string, data: Partial<CostItem>) => CostItem;
-  createWorkArea: (departmentId: string, name: string) => WorkArea | null;
+  createCostItem: (workAreaId: string, data: Partial<CostItem>) => Promise<CostItem | null>;
+  createWorkArea: (departmentId: string, name: string) => Promise<WorkArea | null>;
   updateWorkArea: (workAreaId: string, data: Partial<Pick<WorkArea, 'name'>>) => void;
   deleteWorkArea: (workAreaId: string) => void;
-  createDepartment: (name: string, budgetTotal?: number) => Department | null;
+  createDepartment: (name: string, budgetTotal?: number) => Promise<Department | null>;
   updateDepartment: (departmentId: string, data: Partial<Pick<Department, 'name' | 'budget_total'>>) => void;
   deleteDepartment: (departmentId: string) => void;
   updateDepartmentBudget: (deptId: string, newBudget: number) => void;
   addBudgetAdjustment: (departmentId: string, amount: number, reason: string, category?: string) => void;
 
-  // Bulk import (replaces all data with imported data)
+  // Bulk operations
   bulkImport: (data: {
     departments: Department[];
     workAreas: WorkArea[];
     costItems: CostItem[];
   }) => void;
+  reloadData: () => Promise<void>;
 
-  // Loading state (for future API mode)
   isLoading: boolean;
 }
 
@@ -236,343 +52,301 @@ const BudgetDataContext = createContext<BudgetDataContextValue | null>(null);
 export function useBudgetData(): BudgetDataContextValue {
   const ctx = useContext(BudgetDataContext);
   if (!ctx) {
-    throw new Error(
-      'useBudgetData() must be used within a <BudgetDataProvider>.',
-    );
+    throw new Error('useBudgetData() must be used within a <BudgetDataProvider>.');
   }
   return ctx;
 }
 
 // ---------------------------------------------------------------------------
-// ID generator (string-based)
+// Placeholder facility for when none is selected
 // ---------------------------------------------------------------------------
 
-let idCounter = Date.now();
-
-function nextStringId(prefix: string): string {
-  idCounter += 1;
-  return `${prefix}-${idCounter}`;
-}
+const EMPTY_FACILITY: Facility = { id: '', name: '', location: '', description: '' };
 
 // ---------------------------------------------------------------------------
-// Provider (Mock mode — local state, facility-aware)
+// Provider — backend API as source of truth
 // ---------------------------------------------------------------------------
 
-export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentFacility } = useFacility();
-  const facilityId = currentFacility?.id ?? mockFacility.id;
-  const prevFacilityIdRef = useRef(facilityId);
+  const facilityId = currentFacility?.id ?? '';
+  const facility = currentFacility ?? EMPTY_FACILITY;
 
-  // Track whether JSON data has been loaded
-  const [dataReady, setDataReady] = useState(isMockDataLoaded());
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [workAreas, setWorkAreas] = useState<WorkArea[]>([]);
+  const [costItems, setCostItems] = useState<CostItem[]>([]);
+  const [budgetAdjustments, setBudgetAdjustments] = useState<BudgetAdjustment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Ensure mock data is loaded (idempotent)
-  useEffect(() => {
-    if (!isMockDataLoaded()) {
-      loadMockData().then(() => setDataReady(true));
+  // AbortController to cancel stale requests on facility switch
+  const abortRef = useRef<AbortController | null>(null);
+
+  // --- Load all data for the current facility from backend ---
+  const loadFacilityData = useCallback(async (fId: string) => {
+    if (!fId) {
+      setDepartments([]);
+      setWorkAreas([]);
+      setCostItems([]);
+      setBudgetAdjustments([]);
+      setIsLoading(false);
+      return;
     }
-  }, []);
 
-  // Load initial data for the current facility
-  const [departments, setDepartments] = useState<Department[]>(() => {
-    const data = loadDataState(facilityId);
-    return applyOverrides(facilityId, data.departments);
-  });
-  const [workAreas, setWorkAreas] = useState<WorkArea[]>(() => loadDataState(facilityId).workAreas);
-  const [costItems, setCostItems] = useState<CostItem[]>(() => loadDataState(facilityId).costItems);
+    // Cancel any in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
-  // Once data.json finishes loading and we have no localStorage data yet,
-  // re-seed from the newly-available mockFacilityDataMap.
-  useEffect(() => {
-    if (dataReady && departments.length === 0) {
-      const data = getDefaultDataForFacility(facilityId);
-      if (data.departments.length > 0) {
-        setDepartments(applyOverrides(facilityId, data.departments));
-        setWorkAreas(data.workAreas);
-        setCostItems(data.costItems);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataReady]);
-
-  // When facility changes, save current data and load new facility's data
-  useEffect(() => {
-    if (prevFacilityIdRef.current !== facilityId) {
-      // Load new facility data
-      const newData = loadDataState(facilityId);
-      setDepartments(applyOverrides(facilityId, newData.departments));
-      setWorkAreas(newData.workAreas);
-      setCostItems(newData.costItems);
-      prevFacilityIdRef.current = facilityId;
-    }
-  }, [facilityId]);
-
-  // Persist data on change
-  useEffect(() => {
-    saveDataState(facilityId, { departments, workAreas, costItems });
-  }, [facilityId, departments, workAreas, costItems]);
-
-  // Budget adjustments: seed from mock data, persist additions to localStorage
-  const [budgetAdjustments, setBudgetAdjustments] = useState<BudgetAdjustment[]>(() => {
-    const mockAdj = mockFacilityDataMap[facilityId]?.budgetAdjustments ?? [];
+    setIsLoading(true);
     try {
-      const raw = localStorage.getItem(adjustmentsKey(facilityId));
-      if (raw) {
-        const stored = JSON.parse(raw) as BudgetAdjustment[];
-        if (Array.isArray(stored)) return [...mockAdj, ...stored];
-      }
-    } catch { /* ignore */ }
-    return mockAdj;
-  });
+      const [depts, was, cis] = await Promise.all([
+        deptApi.listDepartments(fId),
+        waApi.listWorkAreas({ facility_id: fId }),
+        ciApi.listCostItems(fId),
+      ]);
 
-  // Reload adjustments when facility changes or data becomes ready
-  useEffect(() => {
-    const mockAdj = mockFacilityDataMap[facilityId]?.budgetAdjustments ?? [];
-    try {
-      const raw = localStorage.getItem(adjustmentsKey(facilityId));
-      if (raw) {
-        const stored = JSON.parse(raw) as BudgetAdjustment[];
-        if (Array.isArray(stored)) {
-          setBudgetAdjustments([...mockAdj, ...stored]);
-          return;
+      if (controller.signal.aborted) return;
+
+      setDepartments(depts);
+      setWorkAreas(was);
+      setCostItems(cis);
+
+      // Load budget adjustments per department
+      const allAdj: BudgetAdjustment[] = [];
+      for (const dept of depts) {
+        try {
+          const adj = await adjApi.listBudgetAdjustments(dept.id);
+          allAdj.push(...adj);
+        } catch {
+          // Individual department fetch failure is non-critical
         }
       }
-    } catch { /* ignore */ }
-    setBudgetAdjustments(mockAdj);
-  }, [facilityId, dataReady]);
-
-  // Resolve facility object
-  const facility = currentFacility ?? mockFacility;
-
-  // --- updateCostItem ---
-  const updateCostItem = useCallback(
-    (id: string, data: Partial<CostItem>) => {
-      setCostItems((prev) =>
-        prev.map((ci) =>
-          ci.id === id
-            ? { ...ci, ...data, updated_at: new Date().toISOString().split('T')[0] }
-            : ci,
-        ),
-      );
-    },
-    [],
-  );
-
-  // --- deleteCostItem ---
-  const deleteCostItem = useCallback((id: string) => {
-    setCostItems((prev) => prev.filter((ci) => ci.id !== id));
+      if (!controller.signal.aborted) {
+        setBudgetAdjustments(allAdj);
+      }
+    } catch {
+      if (!controller.signal.aborted) {
+        dispatchToastEvent('error', 'Failed to load data from server.');
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setIsLoading(false);
+      }
+    }
   }, []);
 
-  // --- createCostItem ---
-  const createCostItem = useCallback(
-    (workAreaId: string, data: Partial<CostItem>): CostItem => {
-      const now = new Date().toISOString().split('T')[0];
-      let newItem!: CostItem;
+  // Reload when facility changes
+  useEffect(() => {
+    loadFacilityData(facilityId);
+  }, [facilityId, loadFacilityData]);
 
-      setCostItems((prev) => {
-        const newId = nextStringId('ci');
-        newItem = {
-          id: newId,
+  // --- CRUD: Cost Items ---
+
+  const updateCostItem = useCallback((id: string, data: Partial<CostItem>) => {
+    // Optimistic update
+    setCostItems((prev) =>
+      prev.map((ci) => (ci.id === id ? { ...ci, ...data, updated_at: new Date().toISOString() } : ci)),
+    );
+
+    // Status changes must go through the workflow endpoint (PUT returns 409)
+    if (data.approval_status) {
+      const { approval_status, ...rest } = data;
+      // Change status via workflow endpoint
+      ciChangeStatus(id, approval_status).catch(() => {
+        dispatchToastEvent('error', 'Failed to change approval status.');
+      });
+      // Update other fields if any
+      if (Object.keys(rest).length > 0) {
+        ciApi.updateCostItem(id, rest).catch(() => {
+          dispatchToastEvent('error', 'Failed to update cost item.');
+        });
+      }
+    } else {
+      ciApi.updateCostItem(id, data).catch(() => {
+        dispatchToastEvent('error', 'Failed to update cost item.');
+      });
+    }
+  }, []);
+
+  const deleteCostItem = useCallback((id: string) => {
+    ciApi.deleteCostItem(id).then(() => {
+      setCostItems((prev) => prev.filter((ci) => ci.id !== id));
+    }).catch(() => {
+      dispatchToastEvent('error', 'Failed to delete cost item.');
+    });
+  }, []);
+
+  const createCostItem = useCallback(
+    async (workAreaId: string, data: Partial<CostItem>): Promise<CostItem | null> => {
+      const now = new Date().toISOString().split('T')[0];
+      try {
+        const newItem = await ciApi.createCostItem({
           work_area_id: workAreaId,
           description: data.description ?? '',
           original_amount: data.original_amount ?? 0,
           current_amount: data.current_amount ?? 0,
-          expected_cash_out: data.expected_cash_out ?? now,
-          cost_basis: data.cost_basis ?? 'cost_estimation',
-          cost_driver: data.cost_driver ?? 'product',
+          expected_cash_out: (() => {
+            const v = data.expected_cash_out ?? now;
+            // Ensure YYYY-MM-DD format (backend rejects YYYY-MM)
+            return /^\d{4}-\d{2}$/.test(v) ? `${v}-01` : v;
+          })(),
+          cost_basis: data.cost_basis ?? '',
+          cost_driver: data.cost_driver ?? '',
           basis_description: data.basis_description ?? '',
           assumptions: data.assumptions ?? '',
           approval_status: data.approval_status ?? 'open',
           approval_date: data.approval_date ?? null,
-          project_phase: data.project_phase ?? 'phase_1',
-          product: data.product ?? 'atlas',
+          project_phase: data.project_phase ?? '',
+          product: data.product ?? '',
           zielanpassung: data.zielanpassung ?? false,
           zielanpassung_reason: data.zielanpassung_reason ?? '',
           comments: data.comments ?? '',
           requester: data.requester ?? null,
-          created_at: now,
-          updated_at: now,
-        };
-        return [...prev, newItem];
-      });
-
-      return newItem;
+        });
+        setCostItems((prev) => [...prev, newItem]);
+        return newItem;
+      } catch {
+        dispatchToastEvent('error', 'Failed to create cost item.');
+        return null;
+      }
     },
     [],
   );
 
-  // --- createWorkArea ---
+  // --- CRUD: Work Areas ---
+
   const createWorkArea = useCallback(
-    (departmentId: string, name: string): WorkArea | null => {
+    async (departmentId: string, name: string): Promise<WorkArea | null> => {
       const trimmed = name.trim();
       if (!trimmed) return null;
-
-      const departmentExists = departments.some((d) => d.id === departmentId);
-      if (!departmentExists) return null;
-
-      const duplicate = workAreas.find(
-        (wa) => wa.department_id === departmentId && wa.name.toLowerCase() === trimmed.toLowerCase(),
-      );
-      if (duplicate) return null;
-
-      let newWA!: WorkArea;
-
-      setWorkAreas((prev) => {
-        newWA = {
-          id: nextStringId('wa'),
-          department_id: departmentId,
-          name: trimmed,
-        };
-        return [...prev, newWA];
-      });
-
-      return newWA;
-    },
-    [departments, workAreas],
-  );
-
-  // --- updateWorkArea ---
-  const updateWorkArea = useCallback(
-    (workAreaId: string, data: Partial<Pick<WorkArea, 'name'>>) => {
-      setWorkAreas((prev) =>
-        prev.map((wa) => {
-          if (wa.id !== workAreaId) return wa;
-          const nextName = data.name?.trim();
-          return {
-            ...wa,
-            ...(nextName ? { name: nextName } : {}),
-          };
-        }),
-      );
+      try {
+        const newWA = await waApi.createWorkArea({ department_id: departmentId, name: trimmed });
+        setWorkAreas((prev) => [...prev, newWA]);
+        return newWA;
+      } catch {
+        dispatchToastEvent('error', 'Failed to create category.');
+        return null;
+      }
     },
     [],
   );
 
-  // --- deleteWorkArea ---
-  const deleteWorkArea = useCallback((workAreaId: string) => {
-    setWorkAreas((prev) => prev.filter((wa) => wa.id !== workAreaId));
-    setCostItems((prev) => prev.filter((ci) => ci.work_area_id !== workAreaId));
+  const updateWorkArea = useCallback((workAreaId: string, data: Partial<Pick<WorkArea, 'name'>>) => {
+    const nextName = data.name?.trim();
+    if (!nextName) return;
+    // Optimistic
+    setWorkAreas((prev) => prev.map((wa) => (wa.id === workAreaId ? { ...wa, name: nextName } : wa)));
+    waApi.updateWorkArea(workAreaId, { name: nextName }).catch(() => {
+      dispatchToastEvent('error', 'Failed to update category.');
+    });
   }, []);
 
-  // --- createDepartment ---
+  const deleteWorkArea = useCallback((workAreaId: string) => {
+    waApi.deleteWorkArea(workAreaId).then(() => {
+      setWorkAreas((prev) => prev.filter((wa) => wa.id !== workAreaId));
+      setCostItems((prev) => prev.filter((ci) => ci.work_area_id !== workAreaId));
+    }).catch(() => {
+      dispatchToastEvent('error', 'Failed to delete category.');
+    });
+  }, []);
+
+  // --- CRUD: Departments ---
+
   const createDepartment = useCallback(
-    (name: string, budgetTotal: number = 0): Department | null => {
+    async (name: string, budgetTotal: number = 0): Promise<Department | null> => {
       const trimmed = name.trim();
       if (!trimmed) return null;
-
-      const duplicate = departments.find((d) => d.name.toLowerCase() === trimmed.toLowerCase());
-      if (duplicate) return null;
-
-      let newDept!: Department;
-
-      setDepartments((prev) => {
-        newDept = {
-          id: nextStringId('d'),
+      try {
+        const newDept = await deptApi.createDepartment({
           facility_id: facilityId,
           name: trimmed,
           budget_total: Math.max(0, Number(budgetTotal) || 0),
-        };
-        return [...prev, newDept];
-      });
-
-      return newDept;
-    },
-    [departments, facilityId],
-  );
-
-  // --- updateDepartment ---
-  const updateDepartment = useCallback(
-    (departmentId: string, data: Partial<Pick<Department, 'name' | 'budget_total'>>) => {
-      setDepartments((prev) =>
-        prev.map((d) => {
-          if (d.id !== departmentId) return d;
-          const nextName = data.name?.trim();
-          const nextBudget = data.budget_total;
-          return {
-            ...d,
-            ...(nextName ? { name: nextName } : {}),
-            ...(typeof nextBudget === 'number' && !Number.isNaN(nextBudget)
-              ? { budget_total: Math.max(0, nextBudget) }
-              : {}),
-          };
-        }),
-      );
-    },
-    [],
-  );
-
-  // --- deleteDepartment ---
-  const deleteDepartment = useCallback(
-    (departmentId: string) => {
-      const removedWorkAreaIds = new Set(
-        workAreas
-          .filter((wa) => wa.department_id === departmentId)
-          .map((wa) => wa.id),
-      );
-
-      setDepartments((prev) => prev.filter((d) => d.id !== departmentId));
-      setWorkAreas((prev) => prev.filter((wa) => wa.department_id !== departmentId));
-      setCostItems((prev) =>
-        prev.filter((ci) => !removedWorkAreaIds.has(ci.work_area_id)),
-      );
-    },
-    [workAreas],
-  );
-
-  // --- updateDepartmentBudget ---
-  const updateDepartmentBudget = useCallback(
-    (deptId: string, newBudget: number) => {
-      setDepartments((prev) =>
-        prev.map((d) => (d.id === deptId ? { ...d, budget_total: newBudget } : d)),
-      );
-      const overrides = loadBudgetOverrides(facilityId);
-      overrides[deptId] = newBudget;
-      saveBudgetOverrides(facilityId, overrides);
+        });
+        setDepartments((prev) => [...prev, newDept]);
+        return newDept;
+      } catch {
+        dispatchToastEvent('error', 'Failed to create department.');
+        return null;
+      }
     },
     [facilityId],
   );
 
-  // --- addBudgetAdjustment ---
+  const updateDepartment = useCallback(
+    (departmentId: string, data: Partial<Pick<Department, 'name' | 'budget_total'>>) => {
+      const payload: { name?: string; budget_total?: number } = {};
+      if (data.name?.trim()) payload.name = data.name.trim();
+      if (typeof data.budget_total === 'number' && !Number.isNaN(data.budget_total)) {
+        payload.budget_total = Math.max(0, data.budget_total);
+      }
+      // Optimistic
+      setDepartments((prev) => prev.map((d) => (d.id === departmentId ? { ...d, ...payload } : d)));
+      deptApi.updateDepartment(departmentId, payload).catch(() => {
+        dispatchToastEvent('error', 'Failed to update department.');
+      });
+    },
+    [],
+  );
+
+  const deleteDepartment = useCallback((departmentId: string) => {
+    deptApi.deleteDepartment(departmentId).then(() => {
+      setDepartments((prev) => prev.filter((d) => d.id !== departmentId));
+      setWorkAreas((prev) => prev.filter((wa) => wa.department_id !== departmentId));
+      setCostItems((prev) => {
+        const removedWAs = new Set(
+          workAreas.filter((wa) => wa.department_id === departmentId).map((wa) => wa.id),
+        );
+        return prev.filter((ci) => !removedWAs.has(ci.work_area_id));
+      });
+    }).catch(() => {
+      dispatchToastEvent('error', 'Failed to delete department.');
+    });
+  }, [workAreas]);
+
+  const updateDepartmentBudget = useCallback((deptId: string, newBudget: number) => {
+    setDepartments((prev) => prev.map((d) => (d.id === deptId ? { ...d, budget_total: newBudget } : d)));
+    deptApi.updateDepartment(deptId, { budget_total: newBudget }).catch(() => {
+      dispatchToastEvent('error', 'Failed to update department budget.');
+    });
+  }, []);
+
+  // --- Budget Adjustments ---
+
   const addBudgetAdjustment = useCallback(
     (departmentId: string, amount: number, reason: string, category?: string) => {
-      const newAdj: BudgetAdjustment = {
-        id: nextStringId('ba'),
+      const resolvedCategory = (category as BudgetAdjustment['category']) ?? 'other';
+      adjApi.createBudgetAdjustment({
         department_id: departmentId,
         amount,
         reason,
-        category: (category as BudgetAdjustment['category']) ?? 'other',
-        created_at: new Date().toISOString().slice(0, 10),
-        created_by: undefined,
-      };
-      setBudgetAdjustments((prev) => {
-        const next = [...prev, newAdj];
-        // Persist only user-added adjustments (exclude mock-seeded ones)
-        const mockIds = new Set(
-          (mockFacilityDataMap[facilityId]?.budgetAdjustments ?? []).map((a) => a.id),
-        );
-        const userAdded = next.filter((a) => !mockIds.has(a.id));
-        try {
-          localStorage.setItem(adjustmentsKey(facilityId), JSON.stringify(userAdded));
-        } catch { /* ignore quota */ }
-        return next;
+        category: resolvedCategory,
+      }).then(() => {
+        // Reload adjustments for this department
+        adjApi.listBudgetAdjustments(departmentId).then((adj) => {
+          setBudgetAdjustments((prev) => {
+            const other = prev.filter((a) => a.department_id !== departmentId);
+            return [...other, ...adj];
+          });
+        }).catch(() => {});
+      }).catch(() => {
+        dispatchToastEvent('error', 'Failed to create budget adjustment.');
       });
-    },
-    [facilityId],
-  );
-
-  // --- bulkImport ---
-  const bulkImport = useCallback(
-    (data: { departments: Department[]; workAreas: WorkArea[]; costItems: CostItem[] }) => {
-      setDepartments(data.departments);
-      setWorkAreas(data.workAreas);
-      setCostItems(data.costItems);
     },
     [],
   );
 
-  // --- stable value object ---
+  // --- Bulk import (after backend import, reload all data) ---
+
+  const bulkImport = useCallback(
+    (data: { departments: Department[]; workAreas: WorkArea[]; costItems: CostItem[] }) => {
+      // After a backend import, just reload everything from the API
+      loadFacilityData(facilityId);
+    },
+    [facilityId, loadFacilityData],
+  );
+
+  // --- Stable value object ---
+
   const value = useMemo<BudgetDataContextValue>(
     () => ({
       facility,
@@ -592,26 +366,16 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({
       updateDepartmentBudget,
       addBudgetAdjustment,
       bulkImport,
-      isLoading: false,
+      reloadData: () => loadFacilityData(facilityId),
+      isLoading,
     }),
     [
-      facility,
-      costItems,
-      departments,
-      workAreas,
-      budgetAdjustments,
-      updateCostItem,
-      deleteCostItem,
-      createCostItem,
-      createWorkArea,
-      updateWorkArea,
-      deleteWorkArea,
-      createDepartment,
-      updateDepartment,
-      deleteDepartment,
-      updateDepartmentBudget,
-      addBudgetAdjustment,
-      bulkImport,
+      facility, departments, workAreas, costItems, budgetAdjustments,
+      updateCostItem, deleteCostItem, createCostItem,
+      createWorkArea, updateWorkArea, deleteWorkArea,
+      createDepartment, updateDepartment, deleteDepartment,
+      updateDepartmentBudget, addBudgetAdjustment, bulkImport,
+      loadFacilityData, facilityId, isLoading,
     ],
   );
 

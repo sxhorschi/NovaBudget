@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronRight, Percent, Euro, TrendingUp, TrendingDown, Minus, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, TrendingUp, TrendingDown, Minus, Search, X } from 'lucide-react';
 import type {
   CostItem,
   ApprovalStatus,
@@ -12,6 +12,7 @@ import { useConfig } from '../../context/ConfigContext';
 import { formatEUR as formatEur, formatThousands, parseGermanNumber } from '../costbook/AmountCell';
 import { getUsersBrief } from '../../api/users';
 import type { UserBrief } from '../../api/users';
+import StatusBadge from '../costbook/StatusBadge';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -403,7 +404,6 @@ interface SidePanelFormProps {
 const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onChange }) => {
   const { config } = useConfig();
   const delta = item.current_amount - item.original_amount;
-  const [amountMode, setAmountMode] = useState<'absolute' | 'percent'>('absolute');
 
   /** Returns extra CSS class if the field value differs from the original */
   function dirtyRing(field: keyof CostItem): string {
@@ -433,51 +433,14 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
               <div className={readonlyInputClass}>{formatEur(item.original_amount)}</div>
             </div>
 
-            {/* Current (editable with EUR prefix + thousand separators, or % adjust) */}
+            {/* Current (editable) */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className={labelClass} style={{ marginBottom: 0 }}>Current</label>
-                {/* Pill toggle: Absolute € / % Adjust */}
-                <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 p-0.5 gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setAmountMode('absolute')}
-                    title="Absolute amount"
-                    className={`inline-flex items-center justify-center w-6 h-5 rounded-full transition-colors duration-150 ${
-                      amountMode === 'absolute'
-                        ? 'bg-white text-indigo-600 shadow-sm'
-                        : 'text-gray-400 hover:text-gray-600'
-                    }`}
-                  >
-                    <Euro size={11} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAmountMode('percent')}
-                    title="Percentage adjustment"
-                    className={`inline-flex items-center justify-center w-6 h-5 rounded-full transition-colors duration-150 ${
-                      amountMode === 'percent'
-                        ? 'bg-white text-indigo-600 shadow-sm'
-                        : 'text-gray-400 hover:text-gray-600'
-                    }`}
-                  >
-                    <Percent size={11} />
-                  </button>
-                </span>
-              </div>
-              {amountMode === 'absolute' ? (
-                <EurAmountInput
-                  value={item.current_amount}
-                  onChange={(v) => onChange('current_amount', v)}
-                  className={`${inputClass} tabular-nums${dirtyRing('current_amount')}`}
-                />
-              ) : (
-                <PercentAmountInput
-                  originalAmount={item.original_amount}
-                  onChange={(v) => onChange('current_amount', v)}
-                  className={`${inputClass} tabular-nums${dirtyRing('current_amount')}`}
-                />
-              )}
+              <label className={labelClass}>Current</label>
+              <EurAmountInput
+                value={item.current_amount}
+                onChange={(v) => onChange('current_amount', v)}
+                className={`${inputClass} tabular-nums${dirtyRing('current_amount')}`}
+              />
             </div>
 
             {/* Delta (calculated) with trend icon */}
@@ -575,11 +538,12 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>Status</label>
-            <StatusSelect
-              value={item.approval_status}
-              onChange={(v) => onChange('approval_status', v)}
-              className={`${selectClass}${dirtyRing('approval_status')}`}
-            />
+            <div className="mt-1">
+              <StatusBadge
+                status={item.approval_status}
+                onChange={(v) => onChange('approval_status', v)}
+              />
+            </div>
           </div>
 
           <div>
@@ -605,32 +569,42 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
         </div>
       </FormSection>
 
-      {/* ---- TARGET ADJUSTMENT / BUDGET RELEVANT (default closed, opens when active) ---- */}
-      <FormSection title="Target Adjustment" defaultOpen={item.zielanpassung}>
-        <div className="space-y-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={item.zielanpassung}
-              onChange={(e) => onChange('zielanpassung', e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-            />
-            <span className="text-sm text-gray-700">Budget Relevant</span>
-          </label>
-          {item.zielanpassung && (
-            <div>
-              <label className={labelClass}>Reason</label>
-              <textarea
-                className={`${inputClass} resize-none`}
-                rows={2}
-                placeholder="Reason for target adjustment..."
-                value={item.zielanpassung_reason}
-                onChange={(e) => onChange('zielanpassung_reason', e.target.value)}
-              />
+      {/* ---- BUDGET ADJUSTMENT (show when amount changed) ---- */}
+      {delta !== 0 && (
+        <FormSection title="Budget Adjustment" defaultOpen={true}>
+          <div className="space-y-3">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
+              <p className="text-sm text-amber-800 font-medium">
+                Amount changed by {delta > 0 ? '+' : ''}{formatEur(delta)}
+              </p>
+              <p className="text-xs text-amber-600 mt-1">
+                Check &quot;Create Budget Adjustment&quot; to record this change on the department budget.
+              </p>
             </div>
-          )}
-        </div>
-      </FormSection>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={item.zielanpassung}
+                onChange={(e) => onChange('zielanpassung', e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+              <span className="text-sm text-gray-700">Create Budget Adjustment</span>
+            </label>
+            {item.zielanpassung && (
+              <div>
+                <label className={labelClass}>Reason <span className="text-red-400">*</span></label>
+                <textarea
+                  className={`${inputClass} resize-none`}
+                  rows={2}
+                  placeholder="e.g. Product Change CR-2026-042..."
+                  value={item.zielanpassung_reason}
+                  onChange={(e) => onChange('zielanpassung_reason', e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+        </FormSection>
+      )}
 
       {/* ---- DETAILS (default closed) ---- */}
       <FormSection title="Details" defaultOpen={false}>

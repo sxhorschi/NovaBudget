@@ -20,6 +20,7 @@ import {
   Check,
   Download,
   Upload,
+  Image,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
@@ -273,7 +274,7 @@ const UsersTab: React.FC = () => {
       const res = await client.get('/users');
       setUsers(res.data);
     } catch {
-      setError('Failed to load users. Make sure the backend is running.');
+      setError('Backend not reachable. Start the backend with "docker compose up" to manage users.');
     } finally {
       setLoading(false);
     }
@@ -316,7 +317,7 @@ const UsersTab: React.FC = () => {
 
   if (error) {
     return (
-      <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+      <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-700">
         {error}
         <button onClick={loadUsers} className="ml-3 font-medium underline">
           Retry
@@ -429,7 +430,7 @@ const PermissionsTab: React.FC = () => {
       setPermissions(permRes.data);
       setUsers(userRes.data);
     } catch {
-      setError('Failed to load permissions.');
+      setError('Backend not reachable. Start the backend with "docker compose up" to manage permissions.');
     } finally {
       setLoading(false);
     }
@@ -494,7 +495,7 @@ const PermissionsTab: React.FC = () => {
 
   if (error) {
     return (
-      <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+      <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-700">
         {error}
         <button onClick={load} className="ml-3 font-medium underline">Retry</button>
       </div>
@@ -633,7 +634,7 @@ const GroupMappingTab: React.FC = () => {
       const res = await client.get('/permissions/group-mappings');
       setMappings(res.data);
     } catch {
-      setError('Failed to load group mappings.');
+      setError('Backend not reachable. Start the backend with "docker compose up" to manage group mappings.');
     } finally {
       setLoading(false);
     }
@@ -692,7 +693,7 @@ const GroupMappingTab: React.FC = () => {
 
   if (error) {
     return (
-      <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+      <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-700">
         {error}
         <button onClick={load} className="ml-3 font-medium underline">Retry</button>
       </div>
@@ -710,7 +711,7 @@ const GroupMappingTab: React.FC = () => {
             value={groupName}
             onChange={(e) => setGroupName(e.target.value)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            placeholder="e.g. CAPEX-Admins"
+            placeholder="Group name"
           />
         </div>
         <div className="w-32">
@@ -811,8 +812,17 @@ const ConfigSection: React.FC<{
 }> = ({ title, items, onUpdate }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
-  const [addId, setAddId] = useState('');
   const [addLabel, setAddLabel] = useState('');
+
+  /** Auto-generate an ID from a label: lowercase, spaces to underscores, strip special chars. */
+  const generateId = (label: string): string =>
+    label
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
 
   const startEdit = (item: ConfigItem) => {
     setEditingId(item.id);
@@ -832,12 +842,12 @@ const ConfigSection: React.FC<{
   };
 
   const handleAdd = () => {
-    const id = addId.trim().toLowerCase().replace(/\s+/g, '_');
     const label = addLabel.trim();
-    if (!id || !label) return;
+    if (!label) return;
+    const id = generateId(label);
+    if (!id) return;
     if (items.some((it) => it.id === id)) return;
     onUpdate([...items, { id, label }]);
-    setAddId('');
     setAddLabel('');
   };
 
@@ -891,28 +901,158 @@ const ConfigSection: React.FC<{
         <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
           <input
             type="text"
-            value={addId}
-            onChange={(e) => setAddId(e.target.value)}
-            className="w-40 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            placeholder="id (e.g. phase_5)"
-          />
-          <input
-            type="text"
             value={addLabel}
             onChange={(e) => setAddLabel(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
             className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            placeholder="Label (e.g. Ramp-Up)"
+            placeholder="Enter name (ID generated automatically)"
           />
           <button
             onClick={handleAdd}
-            disabled={!addId.trim() || !addLabel.trim()}
+            disabled={!addLabel.trim()}
             className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             <Plus size={12} />
             Add
           </button>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Branding section — logo upload
+// ---------------------------------------------------------------------------
+
+const LOGO_STORAGE_KEY = 'budget-tool:custom-logo';
+const LOGO_API_URL = `${client.defaults.baseURL}/config/logo`;
+
+const BrandingSection: React.FC = () => {
+  const [logoUrl, setLogoUrl] = useState<string>(() => {
+    // Check localStorage first (client-only mode), then API
+    const stored = localStorage.getItem(LOGO_STORAGE_KEY);
+    return stored || LOGO_API_URL;
+  });
+  const [uploading, setUploading] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [logoKey, setLogoKey] = useState(0);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 2MB for localStorage safety)
+    if (file.size > 2 * 1024 * 1024) {
+      setFeedback({ type: 'error', message: 'File too large. Max 2 MB.' });
+      return;
+    }
+
+    setUploading(true);
+    setFeedback(null);
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      try {
+        localStorage.setItem(LOGO_STORAGE_KEY, dataUrl);
+      } catch {
+        setFeedback({ type: 'error', message: 'Logo too large for local storage.' });
+        setUploading(false);
+        return;
+      }
+      setLogoUrl(dataUrl);
+      setLogoKey((k) => k + 1);
+      setFeedback({ type: 'success', message: 'Logo updated.' });
+      window.dispatchEvent(new Event('budget-tool:logo-changed'));
+
+      // Also try uploading to backend (fire-and-forget)
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        await client.post('/config/logo', formData);
+      } catch {
+        // Backend not available — localStorage fallback is fine
+      }
+
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.onerror = () => {
+      setFeedback({ type: 'error', message: 'Failed to read file.' });
+      setUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="rounded-lg border border-gray-200 mb-6">
+      <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <Image size={16} className="text-gray-500" />
+          <h4 className="text-sm font-semibold text-gray-800">Branding</h4>
+        </div>
+      </div>
+      <div className="p-4">
+        <p className="text-sm text-gray-500 mb-4">
+          Upload a custom logo to replace the default logo in the top bar. Accepted formats: PNG, JPG, SVG.
+        </p>
+
+        {/* Current logo preview */}
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-gray-500 mb-2">Current Logo</label>
+          <div className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white p-4 min-h-[64px]">
+            <img
+              key={logoKey}
+              src={logoUrl}
+              alt="Current logo"
+              className="h-10 w-auto"
+              onError={(e) => {
+                const img = e.currentTarget;
+                if (!img.dataset.fallback) {
+                  img.dataset.fallback = '1';
+                  img.src = '/logo-placeholder.svg';
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Upload control */}
+        <div className="flex items-center gap-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/svg+xml"
+            onChange={handleFileSelect}
+            className="hidden"
+            id="logo-upload"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            <Upload size={14} />
+            {uploading ? 'Uploading...' : 'Upload New Logo'}
+          </button>
+          <span className="text-xs text-gray-400">PNG, JPG, or SVG, recommended height 32-64px</span>
+        </div>
+
+        {/* Feedback message */}
+        {feedback && (
+          <div
+            className={`mt-3 rounded-lg px-3 py-2 text-sm ${
+              feedback.type === 'success'
+                ? 'bg-green-50 border border-green-200 text-green-700'
+                : 'bg-red-50 border border-red-200 text-red-700'
+            }`}
+          >
+            {feedback.message}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1022,6 +1162,9 @@ const ConfigurationTab: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Branding */}
+      <BrandingSection />
 
       {/* Config sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

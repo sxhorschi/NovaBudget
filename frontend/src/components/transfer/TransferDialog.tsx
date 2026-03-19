@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { X, ArrowRightLeft, ChevronRight } from 'lucide-react';
+import { X, ArrowRightLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useBudgetData } from '../../context/BudgetDataContext';
 import { useFacility } from '../../context/FacilityContext';
 import { useToast } from '../common/ToastProvider';
+import { transferCostItems, transferWorkAreas, transferDepartments } from '../../api/transfers';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -40,6 +41,9 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
   const { departments, workAreas } = useBudgetData();
   const { facilities: allFacilities } = useFacility();
   const toast = useToast();
+
+  // Loading state for API call
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Step state
   const [step, setStep] = useState(1);
@@ -94,21 +98,51 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
     setStep((s) => Math.max(s - 1, 1));
   }, []);
 
-  const handleConfirm = useCallback(() => {
-    const payload = {
-      entityType,
-      entityIds,
-      sourceFacilityId,
-      targetFacilityId,
-      targetDepartmentId: targetDepartmentId || undefined,
-      targetWorkAreaId: targetWorkAreaId || undefined,
-      transferMode,
-      resetStatus,
-      resetAmounts,
-    };
-    // TODO: Call API endpoint
-    toast.info('Transfer queued (API integration pending)');
-    onClose();
+  const handleConfirm = useCallback(async () => {
+    setIsSubmitting(true);
+    try {
+      let result;
+      if (entityType === 'cost_item') {
+        result = await transferCostItems({
+          source_facility_id: sourceFacilityId,
+          target_facility_id: targetFacilityId,
+          cost_item_ids: entityIds,
+          target_work_area_id: targetWorkAreaId,
+          mode: transferMode,
+          reset_status: resetStatus,
+          reset_amounts: resetAmounts,
+        });
+      } else if (entityType === 'work_area') {
+        result = await transferWorkAreas({
+          source_facility_id: sourceFacilityId,
+          target_facility_id: targetFacilityId,
+          work_area_ids: entityIds,
+          target_department_id: targetDepartmentId,
+          mode: transferMode,
+          reset_status: resetStatus,
+          reset_amounts: resetAmounts,
+        });
+      } else {
+        result = await transferDepartments({
+          source_facility_id: sourceFacilityId,
+          target_facility_id: targetFacilityId,
+          department_ids: entityIds,
+          mode: transferMode,
+          reset_status: resetStatus,
+          reset_amounts: resetAmounts,
+        });
+      }
+      const label = ENTITY_TYPE_LABELS[entityType];
+      toast.success(
+        `${result.transferred_count} ${label}${result.transferred_count !== 1 ? 's' : ''} ${transferMode === 'move' ? 'moved' : 'copied'} successfully`,
+      );
+      onClose();
+    } catch (err: any) {
+      const message = err?.response?.data?.detail ?? err?.message ?? 'Transfer failed';
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   }, [
     entityType,
     entityIds,
@@ -120,6 +154,7 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
     resetStatus,
     resetAmounts,
     onClose,
+    toast,
   ]);
 
   // Reset state when closing
@@ -473,10 +508,15 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
             ) : (
               <button
                 onClick={handleConfirm}
-                className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+                disabled={isSubmitting}
+                className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <ArrowRightLeft size={14} />
-                Confirm Transfer
+                {isSubmitting ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <ArrowRightLeft size={14} />
+                )}
+                {isSubmitting ? 'Transferring...' : 'Confirm Transfer'}
               </button>
             )}
           </div>

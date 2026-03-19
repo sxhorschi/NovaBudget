@@ -97,9 +97,11 @@ const FacilitySwitcher: React.FC = () => {
     setShowCreate(false);
   };
 
-  const handleCreate = (name: string, location: string) => {
-    const newFacility = createFacility(name, location);
-    navigate(`/f/${newFacility.id}/costbook`);
+  const handleCreate = async (name: string, location: string) => {
+    const newFacility = await createFacility(name, location);
+    if (newFacility) {
+      navigate(`/f/${newFacility.id}/costbook`);
+    }
     setOpen(false);
     setShowCreate(false);
   };

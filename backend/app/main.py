@@ -1,7 +1,12 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+logger = logging.getLogger("uvicorn.error")
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -50,6 +55,12 @@ app = FastAPI(
     docs_url=_docs_url,
     redoc_url=_redoc_url,
 )
+
+# ── Validation error logging (debug) ────────────────────────────────────
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.warning("Validation error on %s %s: %s", request.method, request.url.path, exc.errors())
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 # ── Rate limiting ────────────────────────────────────────────────────────
 app.state.limiter = limiter

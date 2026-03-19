@@ -1,5 +1,16 @@
-import React, { createContext, useContext, useCallback, useState, useRef } from 'react';
+import React, { createContext, useContext, useCallback, useState, useRef, useEffect } from 'react';
 import Toast, { type ToastData, type ToastType } from './Toast';
+
+// ---------------------------------------------------------------------------
+// Global toast event — allows code outside the React tree (e.g. parent
+// contexts) to trigger toasts via: dispatchToastEvent('error', 'message')
+// ---------------------------------------------------------------------------
+
+export function dispatchToastEvent(type: ToastType, message: string): void {
+  window.dispatchEvent(
+    new CustomEvent('budget-tool:toast', { detail: { type, message } }),
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Context Types
@@ -84,6 +95,16 @@ const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
 
   // Stable reference so consumers don't re-render when toasts change
   const stableApi = useRef(api.current).current;
+
+  // Listen for global toast events dispatched from outside the React tree
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { type, message } = (e as CustomEvent<{ type: ToastType; message: string }>).detail;
+      addToast(message, type);
+    };
+    window.addEventListener('budget-tool:toast', handler);
+    return () => window.removeEventListener('budget-tool:toast', handler);
+  }, [addToast]);
 
   return (
     <ToastContext.Provider value={stableApi}>

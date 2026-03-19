@@ -21,45 +21,11 @@ from app.services.audit import log_change
 
 # ── Erlaubte Status-Übergänge ───────────────────────────────────────────
 
+# Free workflow — any status can transition to any other status.
+# All changes are tracked in the audit log for traceability.
 ALLOWED_TRANSITIONS: dict[ApprovalStatus, set[ApprovalStatus]] = {
-    ApprovalStatus.OPEN: {
-        ApprovalStatus.SUBMITTED_FOR_APPROVAL,
-        ApprovalStatus.ON_HOLD,
-        ApprovalStatus.OBSOLETE,
-    },
-    ApprovalStatus.SUBMITTED_FOR_APPROVAL: {
-        ApprovalStatus.APPROVED,
-        ApprovalStatus.REJECTED,
-        ApprovalStatus.ON_HOLD,
-        ApprovalStatus.PENDING_SUPPLIER_NEGOTIATION,
-        ApprovalStatus.PENDING_TECHNICAL_CLARIFICATION,
-        ApprovalStatus.OBSOLETE,
-    },
-    ApprovalStatus.APPROVED: {
-        ApprovalStatus.ON_HOLD,
-        ApprovalStatus.OBSOLETE,
-    },
-    ApprovalStatus.REJECTED: {
-        ApprovalStatus.OPEN,
-        ApprovalStatus.SUBMITTED_FOR_APPROVAL,
-        ApprovalStatus.OBSOLETE,
-    },
-    ApprovalStatus.ON_HOLD: {
-        ApprovalStatus.OPEN,
-        ApprovalStatus.SUBMITTED_FOR_APPROVAL,
-        ApprovalStatus.OBSOLETE,
-    },
-    ApprovalStatus.PENDING_SUPPLIER_NEGOTIATION: {
-        ApprovalStatus.SUBMITTED_FOR_APPROVAL,
-        ApprovalStatus.ON_HOLD,
-        ApprovalStatus.OBSOLETE,
-    },
-    ApprovalStatus.PENDING_TECHNICAL_CLARIFICATION: {
-        ApprovalStatus.SUBMITTED_FOR_APPROVAL,
-        ApprovalStatus.ON_HOLD,
-        ApprovalStatus.OBSOLETE,
-    },
-    ApprovalStatus.OBSOLETE: set(),
+    s: {t for t in ApprovalStatus if t != s}
+    for s in ApprovalStatus
 }
 
 

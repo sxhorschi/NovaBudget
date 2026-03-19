@@ -63,7 +63,9 @@ _DEV_USER = CurrentUser(
 # Helper: enrich CurrentUser from database record
 # ---------------------------------------------------------------------------
 
-async def _enrich_from_db(session: AsyncSession, email: str, fallback: CurrentUser) -> CurrentUser:
+async def _enrich_from_db(
+    session: AsyncSession, email: str, fallback: CurrentUser, *, auto_create: bool = False,
+) -> CurrentUser:
     """Look up the full User record and return a CurrentUser with all profile fields."""
     from app.models.user import User  # local import to avoid circular dependency
 
@@ -72,7 +74,13 @@ async def _enrich_from_db(session: AsyncSession, email: str, fallback: CurrentUs
     db_user = result.scalar_one_or_none()
 
     if db_user is None:
-        return fallback
+        if auto_create:
+            db_user = User(email=email, name=fallback.name, role=fallback.role)
+            session.add(db_user)
+            await session.commit()
+            await session.refresh(db_user)
+        else:
+            return fallback
 
     return CurrentUser(
         id=str(db_user.id),
@@ -108,7 +116,7 @@ async def get_current_user(
     """
     # Dev mode bypass
     if settings.AUTH_DISABLED:
-        return await _enrich_from_db(session, _DEV_USER.email, _DEV_USER)
+        return await _enrich_from_db(session, _DEV_USER.email, _DEV_USER, auto_create=True)
 
     # Extract Authorization header
     auth_header = request.headers.get("Authorization")

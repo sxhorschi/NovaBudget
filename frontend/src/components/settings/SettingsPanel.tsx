@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Building2, Calculator, Eye, Info, TrendingUp } from 'lucide-react';
+import { X, Calculator, Eye, Info, TrendingUp } from 'lucide-react';
 import { useDisplaySettings } from '../../context/DisplaySettingsContext';
-import { useBudgetData } from '../../context/BudgetDataContext';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -65,10 +64,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
   const {
     showThousands,
     setShowThousands,
-    headerTitle,
-    setHeaderTitle,
-    headerSubtitle,
-    setHeaderSubtitle,
     financeBudgetFactor,
     setFinanceBudgetFactor,
     inflationEnabled,
@@ -76,7 +71,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
     inflationRate,
     setInflationRate,
   } = useDisplaySettings();
-  const { facility } = useBudgetData();
   const [isVisible, setIsVisible] = useState(false);
 
   // --- Local string state for finance factor number input to allow typing decimals ---
@@ -190,37 +184,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
 
-          {/* ============ 1. Context ============ */}
-          <SectionTitle icon={<Building2 size={16} />} title="Context / Header" />
-          <div className="space-y-2">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Title (custom)</label>
-              <input
-                type="text"
-                value={headerTitle}
-                onChange={(e) => setHeaderTitle(e.target.value)}
-                placeholder={facility?.name ?? 'Budget Tool'}
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Subtitle (optional)</label>
-              <input
-                type="text"
-                value={headerSubtitle}
-                onChange={(e) => setHeaderSubtitle(e.target.value)}
-                placeholder={facility?.location ?? 'e.g. Location or Team'}
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-              />
-            </div>
-            <p className="text-xs text-gray-400">
-              These settings are global for the interface and do not need to be tied to a facility.
-            </p>
-          </div>
-
-          <Divider />
-
-          {/* ============ 2. Finance Export ============ */}
+          {/* ============ 1. Finance Export ============ */}
           <SectionTitle icon={<Calculator size={16} />} title="Finance Export" />
           <div className="space-y-3">
             <div>

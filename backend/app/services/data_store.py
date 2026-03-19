@@ -223,6 +223,10 @@ CSV_FILES = [
     "work_areas.csv",
     "cost_items.csv",
     "budget_adjustments.csv",
+    "products.csv",
+    "phases.csv",
+    "cost_bases.csv",
+    "cost_drivers.csv",
 ]
 
 

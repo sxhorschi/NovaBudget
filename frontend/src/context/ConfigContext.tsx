@@ -35,31 +35,10 @@ interface ConfigContextValue {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_CONFIG: AppConfig = {
-  products: [
-    { id: 'atlas', label: 'Atlas' },
-    { id: 'orion', label: 'Orion' },
-    { id: 'vega', label: 'Vega' },
-    { id: 'overall', label: 'Overall' },
-  ],
-  phases: [
-    { id: 'phase_1', label: 'Concept & Planning' },
-    { id: 'phase_2', label: 'Engineering & Design' },
-    { id: 'phase_3', label: 'Procurement & Manufacturing' },
-    { id: 'phase_4', label: 'Installation & Commissioning' },
-  ],
-  cost_bases: [
-    { id: 'cost_estimation', label: 'Cost Estimation' },
-    { id: 'initial_supplier_offer', label: 'Initial Supplier Offer' },
-    { id: 'revised_supplier_offer', label: 'Revised Supplier Offer' },
-    { id: 'change_cost', label: 'Change Cost' },
-  ],
-  cost_drivers: [
-    { id: 'product', label: 'Product' },
-    { id: 'process', label: 'Process' },
-    { id: 'new_req_assembly', label: 'New Req. Assembly' },
-    { id: 'new_req_testing', label: 'New Req. Testing' },
-    { id: 'initial_setup', label: 'Initial Setup' },
-  ],
+  products: [],
+  phases: [],
+  cost_bases: [],
+  cost_drivers: [],
 };
 
 const CONFIG_STORAGE_KEY = 'budget-tool:app-config';

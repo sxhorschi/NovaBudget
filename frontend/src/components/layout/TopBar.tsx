@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Settings, LogOut, MapPin, Briefcase, Mail, Shield } from 'lucide-react';
-import ExportMenu from '../export/ExportMenu';
 import SettingsPanel from '../settings/SettingsPanel';
 import FacilitySwitcher from './FacilitySwitcher';
 import { useDisplaySettings } from '../../context/DisplaySettingsContext';
@@ -208,15 +207,28 @@ const UserMenu: React.FC = () => {
 const TopBar: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { inflationEnabled, inflationRate } = useDisplaySettings();
+  const [logoSrc, setLogoSrc] = useState(() => localStorage.getItem('budget-tool:custom-logo') || '/logo-placeholder.svg');
+
+  // Re-render logo when it's changed in Admin
+  useEffect(() => {
+    const handler = () => setLogoSrc(localStorage.getItem('budget-tool:custom-logo') || '/logo-placeholder.svg');
+    window.addEventListener('budget-tool:logo-changed', handler);
+    return () => window.removeEventListener('budget-tool:logo-changed', handler);
+  }, []);
 
   return (
     <>
       <header className="flex h-16 items-center justify-between border-b border-gray-100 bg-white px-4">
         {/* Left: Logo + Facility Switcher */}
         <div className="flex items-center gap-3">
-          {/* TYTAN Logo */}
+          {/* Logo — try API-uploaded logo, fall back to static asset */}
           <Link to="/facilities" className="flex-shrink-0">
-            <img src="/tytan-logo.png" alt="TYTAN Technologies" className="h-8 w-auto select-none" draggable={false} />
+            <img
+              src={logoSrc}
+              alt="Logo"
+              className="h-8 w-auto select-none"
+              draggable={false}
+            />
           </Link>
           {/* Facility switcher */}
           <div className="border-l border-gray-200 pl-3">
@@ -234,7 +246,6 @@ const TopBar: React.FC = () => {
           <UserMenu />
           <div className="w-px h-5 bg-gray-200 mx-1 hidden sm:block" />
           <div className="hidden sm:flex items-center bg-gray-50 rounded-xl px-2 py-1 gap-1">
-            <ExportMenu />
             <button
               type="button"
               onClick={() => setSettingsOpen((prev) => !prev)}
@@ -250,7 +261,6 @@ const TopBar: React.FC = () => {
           </div>
           {/* Fallback for small screens: show buttons ungrouped */}
           <div className="flex sm:hidden items-center gap-1">
-            <ExportMenu />
             <button
               type="button"
               onClick={() => setSettingsOpen((prev) => !prev)}

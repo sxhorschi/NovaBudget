@@ -5,8 +5,6 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 // ---------------------------------------------------------------------------
 
 const LS_DISPLAY_K = 'settings_display_thousands';
-const LS_HEADER_TITLE = 'settings_header_title';
-const LS_HEADER_SUBTITLE = 'settings_header_subtitle';
 const LS_FINANCE_BUDGET_FACTOR = 'capex-planner:finance-budget-factor';
 const LS_INFLATION_ENABLED = 'capex-planner:inflation-enabled';
 const LS_INFLATION_RATE = 'capex-planner:inflation-rate';
@@ -40,10 +38,6 @@ export function applyInflation(
 interface DisplaySettings {
   showThousands: boolean;
   setShowThousands: (v: boolean) => void;
-  headerTitle: string;
-  setHeaderTitle: (v: string) => void;
-  headerSubtitle: string;
-  setHeaderSubtitle: (v: string) => void;
   financeBudgetFactor: number;
   setFinanceBudgetFactor: (v: number) => void;
   inflationEnabled: boolean;
@@ -55,10 +49,6 @@ interface DisplaySettings {
 const DisplaySettingsContext = createContext<DisplaySettings>({
   showThousands: false,
   setShowThousands: () => {},
-  headerTitle: '',
-  setHeaderTitle: () => {},
-  headerSubtitle: '',
-  setHeaderSubtitle: () => {},
   financeBudgetFactor: 0.85,
   setFinanceBudgetFactor: () => {},
   inflationEnabled: false,
@@ -74,12 +64,6 @@ const DisplaySettingsContext = createContext<DisplaySettings>({
 export function DisplaySettingsProvider({ children }: { children: React.ReactNode }) {
   const [showThousands, setShowThousandsRaw] = useState<boolean>(
     () => localStorage.getItem(LS_DISPLAY_K) === 'true',
-  );
-  const [headerTitle, setHeaderTitleRaw] = useState<string>(
-    () => localStorage.getItem(LS_HEADER_TITLE) ?? '',
-  );
-  const [headerSubtitle, setHeaderSubtitleRaw] = useState<string>(
-    () => localStorage.getItem(LS_HEADER_SUBTITLE) ?? '',
   );
   const [financeBudgetFactor, setFinanceBudgetFactorRaw] = useState<number>(() => {
     const stored = localStorage.getItem(LS_FINANCE_BUDGET_FACTOR)
@@ -108,16 +92,6 @@ export function DisplaySettingsProvider({ children }: { children: React.ReactNod
     setShowThousandsRaw(v);
   }, []);
 
-  const setHeaderTitle = useCallback((v: string) => {
-    localStorage.setItem(LS_HEADER_TITLE, v);
-    setHeaderTitleRaw(v);
-  }, []);
-
-  const setHeaderSubtitle = useCallback((v: string) => {
-    localStorage.setItem(LS_HEADER_SUBTITLE, v);
-    setHeaderSubtitleRaw(v);
-  }, []);
-
   const setFinanceBudgetFactor = useCallback((v: number) => {
     localStorage.setItem(LS_FINANCE_BUDGET_FACTOR, String(v));
     setFinanceBudgetFactorRaw(v);
@@ -138,10 +112,6 @@ export function DisplaySettingsProvider({ children }: { children: React.ReactNod
       value={{
         showThousands,
         setShowThousands,
-        headerTitle,
-        setHeaderTitle,
-        headerSubtitle,
-        setHeaderSubtitle,
         financeBudgetFactor,
         setFinanceBudgetFactor,
         inflationEnabled,

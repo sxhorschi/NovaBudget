@@ -16,7 +16,6 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../components/common/ToastProvider';
 import { useBudgetData } from '../context/BudgetDataContext';
-import { USE_MOCKS } from '../mocks/data';
 import { parseExcelFile } from '../services/excelParser';
 import type { ExcelParseResult, ParseWarning, ColumnMapping } from '../services/excelParser';
 import client from '../api/client';
@@ -303,7 +302,7 @@ const ImportPage: React.FC = () => {
   const toast = useToast();
   const navigate = useNavigate();
   const { facilityId } = useParams<{ facilityId: string }>();
-  const { facility, bulkImport } = useBudgetData();
+  const { facility } = useBudgetData();
 
   const [step, setStep] = useState<ImportStep>('upload');
   const [dragging, setDragging] = useState(false);
@@ -375,41 +374,16 @@ const ImportPage: React.FC = () => {
     setDryRunLoading(true);
 
     try {
-      if (USE_MOCKS) {
-        // In mock mode, simulate a dry run result from client-side data
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setDryRunResult({
-          dry_run: true,
-          status: 'success',
-          summary: {
-            departments_created: parseResult?.departments.length ?? 0,
-            departments_updated: 0,
-            total_work_areas: parseResult?.workAreas.length ?? 0,
-            total_items_imported: parseResult?.costItems.length ?? 0,
-            total_items_updated: 0,
-            total_items_skipped: 0,
-            total_amount: parseResult?.costItems.reduce((s, i) => s + i.current_amount, 0) ?? 0,
-          },
-          warnings: parseResult?.warnings.filter(w => w.severity === 'warning').map(w =>
-            `${w.sheet !== '-' ? `[${w.sheet}] ` : ''}${w.row > 0 ? `Row ${w.row}: ` : ''}${w.message}`
-          ) ?? [],
-          errors: parseResult?.warnings.filter(w => w.severity === 'error').map(w =>
-            `${w.sheet !== '-' ? `[${w.sheet}] ` : ''}${w.row > 0 ? `Row ${w.row}: ` : ''}${w.message}`
-          ) ?? [],
-        });
-        setStep('dry-run-result');
-      } else {
-        const formData = new FormData();
-        formData.append('file', rawFile);
+      const formData = new FormData();
+      formData.append('file', rawFile);
 
-        const response = await client.post(
-          `/import/excel?facility_id=${selectedFacilityId}&dry_run=true`,
-          formData,
-          { headers: { 'Content-Type': 'multipart/form-data' } },
-        );
-        setDryRunResult(response.data);
-        setStep('dry-run-result');
-      }
+      const response = await client.post(
+        `/import/excel?facility_id=${selectedFacilityId}&dry_run=true`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      );
+      setDryRunResult(response.data);
+      setStep('dry-run-result');
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { detail?: string } }; message?: string };
       toast.error(
@@ -420,7 +394,7 @@ const ImportPage: React.FC = () => {
     } finally {
       setDryRunLoading(false);
     }
-  }, [rawFile, parseResult, selectedFacilityId, toast]);
+  }, [rawFile, selectedFacilityId, toast]);
 
   // --- Confirm import ---
   const confirmImport = useCallback(async () => {
@@ -430,41 +404,19 @@ const ImportPage: React.FC = () => {
     setProgress(0);
 
     try {
-      if (USE_MOCKS) {
-        // Simulate import with progress
-        await new Promise<void>((resolve) => {
-          let pct = 0;
-          const interval = setInterval(() => {
-            pct += 5;
-            setProgress(Math.min(pct, 100));
-            if (pct >= 100) {
-              clearInterval(interval);
-              resolve();
-            }
-          }, 40);
-        });
+      // Real API upload
+      if (!rawFile) throw new Error('File not available.');
+      const formData = new FormData();
+      formData.append('file', rawFile);
 
-        // Write to context
-        bulkImport({
-          departments: parseResult.departments,
-          workAreas: parseResult.workAreas,
-          costItems: parseResult.costItems,
-        });
-      } else {
-        // Real API upload
-        if (!rawFile) throw new Error('File not available.');
-        const formData = new FormData();
-        formData.append('file', rawFile);
-
-        await client.post(`/import/excel?facility_id=${selectedFacilityId}`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: (progressEvent) => {
-            if (progressEvent.total) {
-              setProgress(Math.round((progressEvent.loaded / progressEvent.total) * 100));
-            }
-          },
-        });
-      }
+      await client.post(`/import/excel?facility_id=${selectedFacilityId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            setProgress(Math.round((progressEvent.loaded / progressEvent.total) * 100));
+          }
+        },
+      });
 
       setStep('success');
       setProgress(100);
@@ -479,7 +431,7 @@ const ImportPage: React.FC = () => {
           'Import failed. Please try again.',
       );
     }
-  }, [parseResult, rawFile, selectedFacilityId, bulkImport, toast]);
+  }, [parseResult, rawFile, selectedFacilityId, toast]);
 
   // --- Drag & Drop ---
   const onDrop = useCallback(

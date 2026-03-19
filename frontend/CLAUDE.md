@@ -34,25 +34,28 @@ React 19 SPA mit TypeScript, Vite 8, TailwindCSS 4. Drei Seiten: Costbook (`/`),
 
 - **Globaler Daten-State** via `BudgetDataContext` (`src/context/BudgetDataContext.tsx`).
   - Stellt `departments`, `workAreas`, `costItems` bereit + CRUD-Mutations.
-  - Aktuell Mock-Modus, spaeter TanStack Query für Server-State.
+  - **Backend-API ist Source of Truth** — alle CRUD-Operationen gehen ueber die REST API.
+  - Optimistische Updates fuer schnelle UI, Rollback bei API-Fehler.
+- **Facility-State** via `FacilityContext` (`src/context/FacilityContext.tsx`).
+  - Laedt Facilities von `GET /api/v1/facilities`.
+  - CRUD ueber Backend-API.
+  - Facility-Auswahl wird in localStorage gespeichert (UI-Praeferenz).
+- **Config-State** via `ConfigContext` (`src/context/ConfigContext.tsx`).
+  - Laedt von `GET /api/v1/config`, cached in localStorage.
 - **Filter-State** lebt in URL Query Params via `useFilterState()` Hook (`src/hooks/useFilterState.ts`).
   - Ändere nie Filter über `useState` direkt — immer über `setFilter(field, values)`.
-  - URL Params: `?dept=1,3&phase=phase_1&status=approved&q=robot`
-  - Filter-Felder: `departments`, `phases`, `products`, `statuses`, `search`
 - **UI-State** (Panel offen, Table expanded) via React `useState` — lokal in der Component.
 - **Kein Redux, kein Zustand.** Bewusste Entscheidung.
-
-### Mock-Modus
-
-- `src/mocks/data.ts` enthält alle Mock-Daten.
-- `BudgetDataContext` initialisiert mit Mock-Daten.
-- Mock-Daten spiegeln realistische NovaDrive-Szenarien wider (5 Departments, ~30 Items).
 
 ### API Client
 
 - Axios-basiert, Konfiguration in `src/api/client.ts`.
-- Endpunkt-spezifische Funktionen in `src/api/costItems.ts`, `src/api/summary.ts`, `src/api/attachments.ts`.
-- Base URL: `http://localhost:8000` (Vite proxied in Dev).
+- Endpunkt-spezifische Module in `src/api/`:
+  - `facilities.ts`, `departments.ts`, `workAreas.ts`, `costItems.ts` — CRUD
+  - `budgetAdjustments.ts`, `transfers.ts`, `attachments.ts` — Spezial-APIs
+  - `mappers.ts` — Enum-Case-Mapping (Backend UPPER_CASE ↔ Frontend lowercase)
+- Base URL: `http://localhost:8000/api/v1`
+- **Kein CLIENT_ONLY_MODE mehr** — Backend muss laufen (`docker compose up`).
 
 ## Types
 
