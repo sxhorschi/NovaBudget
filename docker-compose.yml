@@ -31,6 +31,8 @@ services:
       ADMIN_NAME: ${ADMIN_NAME:-Administrator}
       AZURE_CLIENT_ID: ${VITE_AZURE_CLIENT_ID:-}
       AZURE_TENANT_ID: ${VITE_AZURE_TENANT_ID:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:5173"]'}
+      URL_PREFIX: ${URL_PREFIX:-}
     volumes:
       - ./backend/app:/app/app
       - ./backend/data:/app/data
@@ -46,6 +48,8 @@ services:
         VITE_AZURE_CLIENT_ID: ${VITE_AZURE_CLIENT_ID:-}
         VITE_AZURE_TENANT_ID: ${VITE_AZURE_TENANT_ID:-}
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
+        VITE_AUTH_DISABLED: ${VITE_AUTH_DISABLED:-false}
+        VITE_URL_PREFIX: ${VITE_URL_PREFIX:-}
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-5173}:5173"

@@ -39,7 +39,7 @@ const App: React.FC = () => {
     <AuthProvider>
       <AuthGuard>
         <ConfigProvider>
-          <BrowserRouter>
+          <BrowserRouter basename={import.meta.env.VITE_URL_PREFIX || ''}>
             <FacilityProvider>
               <BudgetDataProvider>
                 <DisplaySettingsProvider>

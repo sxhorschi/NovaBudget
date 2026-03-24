@@ -28,6 +28,7 @@ interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  authError: string | null;
   canEdit: boolean;
   isAdmin: boolean;
   login: () => Promise<void>;
@@ -58,7 +59,9 @@ async function fetchUserProfile(idToken: string): Promise<User> {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const initialized = useRef(false);
+  const msalReady = useRef(false);
 
   // Get a fresh ID token silently (MSAL caches + refreshes automatically)
   const getIdToken = useCallback(async (): Promise<string | null> => {
@@ -102,8 +105,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const init = async () => {
       try {
+        console.log('[Auth] Initializing MSAL...');
         await msalInstance.initialize();
+        msalReady.current = true;
+        console.log('[Auth] MSAL initialized, handling redirect...');
         const result = await msalInstance.handleRedirectPromise();
+        console.log('[Auth] Redirect result:', result ? 'got token' : 'no redirect');
 
         if (result?.account && result.idToken) {
           // Just came back from redirect login
@@ -120,8 +127,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const detail = err && typeof err === 'object' && 'response' in err
+          ? ` (status: ${(err as { response?: { status?: number } }).response?.status})`
+          : '';
         console.error('[Auth] Init error:', err);
+        setAuthError(`${msg}${detail}`);
       } finally {
         setIsLoading(false);
       }
@@ -131,8 +143,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Login via redirect — user goes to Microsoft login page and comes back
   const login = useCallback(async (): Promise<void> => {
-    setIsLoading(true);
-    await msalInstance.loginRedirect({ scopes: loginScopes });
+    try {
+      setAuthError(null);
+      setIsLoading(true);
+      if (!msalReady.current) {
+        await msalInstance.initialize();
+        await msalInstance.handleRedirectPromise();
+        msalReady.current = true;
+      }
+      await msalInstance.loginRedirect({ scopes: loginScopes });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[Auth] Login error:', msg);
+      setAuthError(msg);
+      setIsLoading(false);
+    }
   }, []);
 
   const logout = useCallback((): void => {
@@ -147,6 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     isAuthenticated: user !== null,
     isLoading,
+    authError,
     canEdit: !!canEdit,
     isAdmin: !!isAdmin,
     login,

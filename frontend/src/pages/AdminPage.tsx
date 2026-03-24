@@ -21,11 +21,13 @@ import {
   Download,
   Upload,
   Image,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import type { AppConfig, ConfigItem } from '../context/ConfigContext';
 import { useFacility } from '../context/FacilityContext';
+import { useToast } from '../components/common/ToastProvider';
 import client from '../api/client';
 
 // ---------------------------------------------------------------------------
@@ -72,15 +74,17 @@ const ROLE_BADGE: Record<string, string> = {
   admin: 'bg-indigo-100 text-indigo-700',
   editor: 'bg-emerald-100 text-emerald-700',
   viewer: 'bg-gray-100 text-gray-600',
+  pending: 'bg-amber-100 text-amber-700',
 };
 
-const formatDate = (dateStr: string | null) => {
+const formatDate = (dateStr: string | null, includeTime = false) => {
   if (!dateStr) return '--';
-  return new Date(dateStr).toLocaleDateString('de-DE', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  // Backend stores UTC but without timezone suffix — append Z so the browser converts to local time
+  const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
+  const date = d.toLocaleDateString('de-DE', { year: 'numeric', month: 'short', day: 'numeric' });
+  if (!includeTime) return date;
+  const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  return `${date}, ${time}`;
 };
 
 // ---------------------------------------------------------------------------
@@ -142,21 +146,23 @@ const InviteUserForm: React.FC<{
   const [department, setDepartment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !name.trim()) return;
+    if (!email.trim()) return;
 
     setSubmitting(true);
     setError(null);
     try {
       const res = await client.post('/users', {
         email: email.trim(),
-        name: name.trim(),
+        name: name.trim() || null,
         role,
         department: department.trim() || null,
       });
       onCreated(res.data);
+      toast.success(`Invitation sent to ${email.trim()}`);
       onClose();
     } catch (err: unknown) {
       const msg =
@@ -178,28 +184,22 @@ const InviteUserForm: React.FC<{
           </button>
         </div>
 
+        <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2.5 text-sm text-blue-700 mb-4">
+          Enter the user's Microsoft email. They will be able to log in with this role once they sign in with their Azure account.
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email <span className="text-red-400">*</span>
+            </label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              placeholder="user@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              placeholder="Jane Doe"
+              placeholder="user@company.com"
             />
           </div>
 
@@ -210,10 +210,23 @@ const InviteUserForm: React.FC<{
               onChange={(e) => setRole(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
-              <option value="viewer">Viewer</option>
-              <option value="editor">Editor</option>
-              <option value="admin">Admin</option>
+              <option value="viewer">Viewer -- read-only access</option>
+              <option value="editor">Editor -- can create and edit items</option>
+              <option value="admin">Admin -- full access including user management</option>
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Name <span className="text-gray-400 font-normal">(optional -- filled from Azure on first login)</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="Jane Doe"
+            />
           </div>
 
           <div>
@@ -245,10 +258,10 @@ const InviteUserForm: React.FC<{
             </button>
             <button
               type="submit"
-              disabled={submitting || !email.trim() || !name.trim()}
+              disabled={submitting || !email.trim()}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
-              {submitting ? 'Creating...' : 'Create User'}
+              {submitting ? 'Creating...' : 'Invite User'}
             </button>
           </div>
         </form>
@@ -258,14 +271,63 @@ const InviteUserForm: React.FC<{
 };
 
 // ---------------------------------------------------------------------------
+// Delete Confirmation Dialog
+// ---------------------------------------------------------------------------
+
+const DeleteUserDialog: React.FC<{
+  userName: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  deleting: boolean;
+}> = ({ userName, onCancel, onConfirm, deleting }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+          <AlertTriangle size={20} className="text-red-600" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-gray-900">Delete User</h3>
+        </div>
+      </div>
+      <p className="text-sm text-gray-600 mb-6">
+        Are you sure you want to remove <span className="font-semibold text-gray-900">{userName}</span>? This action cannot be undone.
+      </p>
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={deleting}
+          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={deleting}
+          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          {deleting ? 'Deleting...' : 'Delete'}
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+// ---------------------------------------------------------------------------
 // Tab 1: Users
 // ---------------------------------------------------------------------------
 
 const UsersTab: React.FC = () => {
+  const { user: currentUser } = useAuth();
+  const toast = useToast();
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showInvite, setShowInvite] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ApiUser | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -288,10 +350,11 @@ const UsersTab: React.FC = () => {
     try {
       const res = await client.put(`/users/${userId}`, { role: newRole });
       setUsers((prev) => prev.map((u) => (u.id === userId ? res.data : u)));
+      toast.success('Role updated');
     } catch {
-      // Revert is implicit -- we only update on success
+      toast.error('Failed to update role');
     }
-  }, []);
+  }, [toast]);
 
   const handleToggleActive = useCallback(async (userId: string, currentlyActive: boolean) => {
     try {
@@ -305,6 +368,24 @@ const UsersTab: React.FC = () => {
   const handleUserCreated = useCallback((newUser: ApiUser) => {
     setUsers((prev) => [...prev, newUser]);
   }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await client.delete(`/users/${deleteTarget.id}/permanent`);
+      setUsers((prev) => prev.filter((u) => u.id !== deleteTarget.id));
+      toast.success(`${deleteTarget.name || deleteTarget.email} has been removed`);
+      setDeleteTarget(null);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+        'Failed to delete user';
+      toast.error(msg);
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleteTarget, toast]);
 
   if (loading) {
     return (
@@ -360,43 +441,87 @@ const UsersTab: React.FC = () => {
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Department</th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Status</th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Last Login</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
-            {users.map((u) => (
-              <tr key={u.id} className={!u.is_active ? 'opacity-50' : ''}>
-                <td className="whitespace-nowrap px-4 py-3">
-                  <div className="text-sm font-medium text-gray-900">{u.name}</div>
-                  {u.job_title && <div className="text-xs text-gray-400">{u.job_title}</div>}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{u.email}</td>
-                <td className="whitespace-nowrap px-4 py-3">
-                  <RoleDropdown currentRole={u.role} onChange={(role) => handleRoleUpdate(u.id, role)} />
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{u.department || '--'}</td>
-                <td className="whitespace-nowrap px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleActive(u.id, u.is_active)}
-                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
-                      u.is_active
-                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                        : 'bg-red-100 text-red-700 hover:bg-red-200'
-                    }`}
-                  >
-                    {u.is_active ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
-                    {u.is_active ? 'Active' : 'Inactive'}
-                  </button>
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{formatDate(u.last_login)}</td>
-              </tr>
-            ))}
+            {users.map((u) => {
+              const isCurrentUser = currentUser?.id === u.id;
+              const isInvited = !u.last_login;
+              const isPending = u.role === 'pending';
+              return (
+                <tr key={u.id} className={!u.is_active ? 'opacity-50' : ''}>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-medium text-gray-900">
+                        {u.name || <span className="text-gray-400 italic">No name yet</span>}
+                      </div>
+                      {isInvited && (
+                        <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600 border border-blue-200">
+                          Invited
+                        </span>
+                      )}
+                    </div>
+                    {u.job_title && <div className="text-xs text-gray-400">{u.job_title}</div>}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{u.email}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    {isPending ? (
+                      <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium ${ROLE_BADGE.pending}`}>
+                        pending
+                      </span>
+                    ) : (
+                      <RoleDropdown currentRole={u.role} onChange={(role) => handleRoleUpdate(u.id, role)} />
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{u.department || '--'}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleActive(u.id, u.is_active)}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                        u.is_active
+                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                          : 'bg-red-100 text-red-700 hover:bg-red-200'
+                      }`}
+                    >
+                      {u.is_active ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                      {u.is_active ? 'Active' : 'Inactive'}
+                    </button>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                    {u.last_login ? formatDate(u.last_login, true) : <span className="text-gray-300">Never</span>}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right">
+                    {!isCurrentUser && (
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(u)}
+                        className="inline-flex items-center gap-1 rounded-md p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title={`Delete ${u.name || u.email}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {showInvite && (
         <InviteUserForm onClose={() => setShowInvite(false)} onCreated={handleUserCreated} />
+      )}
+
+      {deleteTarget && (
+        <DeleteUserDialog
+          userName={deleteTarget.name || deleteTarget.email}
+          onCancel={() => { setDeleteTarget(null); setDeleting(false); }}
+          onConfirm={handleDeleteConfirm}
+          deleting={deleting}
+        />
       )}
     </div>
   );

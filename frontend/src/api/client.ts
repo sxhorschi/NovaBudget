@@ -7,13 +7,11 @@ const client = axios.create({
   },
 });
 
+
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      sessionStorage.clear();
-      window.location.reload();
-    }
+    // Don't auto-reload on 401 — let AuthContext handle re-authentication
     return Promise.reject(error);
   }
 );

@@ -25,13 +25,15 @@ const MicrosoftLogo: React.FC = () => (
 // Company logo mark
 // ---------------------------------------------------------------------------
 
-const CompanyLogo: React.FC = () => {
-  const logoSrc = localStorage.getItem('budget-tool:custom-logo') || '/logo-placeholder.svg';
+const urlPrefix = import.meta.env.VITE_URL_PREFIX || '';
+
+const CompanyLogo: React.FC<{ className?: string }> = ({ className = 'h-10 w-auto' }) => {
+  const logoSrc = localStorage.getItem('budget-tool:custom-logo') || `${urlPrefix}/logo-placeholder.svg`;
   return (
     <img
       src={logoSrc}
       alt="Logo"
-      className="h-10 w-auto select-none"
+      className={`${className} select-none`}
       draggable={false}
     />
   );
@@ -60,7 +62,7 @@ const FeatureBullet: React.FC<FeatureBulletProps> = ({ icon, label }) => (
 // ---------------------------------------------------------------------------
 
 const LoginPage: React.FC = () => {
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, authError } = useAuth();
 
   const handleSignIn = async () => {
     await login();
@@ -78,11 +80,6 @@ const LoginPage: React.FC = () => {
         <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full bg-white/5" />
         <div className="pointer-events-none absolute bottom-0 -left-20 w-72 h-72 rounded-full bg-indigo-950/40" />
         <div className="pointer-events-none absolute top-1/2 right-8 w-48 h-48 rounded-full bg-white/5 -translate-y-1/2" />
-
-        {/* Top: logo */}
-        <div className="relative z-10">
-          <CompanyLogo />
-        </div>
 
         {/* Middle: headline + features (hidden on small mobile) */}
         <div className="relative z-10 mt-10 md:mt-0">
@@ -126,8 +123,11 @@ const LoginPage: React.FC = () => {
           {/* Card */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 px-8 py-10">
 
-            {/* Heading */}
+            {/* Logo + Heading */}
             <div className="mb-8 text-center">
+              <div className="flex justify-center mb-5">
+                <CompanyLogo className="h-8 w-auto" />
+              </div>
               <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
                 Sign in to CapEx Planner
               </h2>
@@ -176,6 +176,14 @@ const LoginPage: React.FC = () => {
                 </>
               )}
             </button>
+
+            {/* Auth error */}
+            {authError && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-xs text-red-600 font-medium">Authentication error:</p>
+                <p className="text-xs text-red-500 mt-1 break-all">{authError}</p>
+              </div>
+            )}
 
             {/* Entra note */}
             <div className="mt-4 flex items-center justify-center gap-1.5">

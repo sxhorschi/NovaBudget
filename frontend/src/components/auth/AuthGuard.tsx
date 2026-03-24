@@ -11,14 +11,14 @@ import LoginPage from '../../pages/LoginPage';
 // ---------------------------------------------------------------------------
 
 const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, user, logout } = useAuth();
+  const { isAuthenticated, isLoading, user, logout, authError } = useAuth();
 
   // Session restore in progress — show a neutral loading screen
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-4">
-          <img src="/logo-placeholder.svg" alt="Logo" className="h-8 w-auto" />
+          <img src={`${import.meta.env.VITE_URL_PREFIX || ''}/logo-placeholder.svg`} alt="Logo" className="h-8 w-auto" />
           <svg
             className="animate-spin h-5 w-5 text-indigo-500"
             xmlns="http://www.w3.org/2000/svg"
@@ -65,7 +65,7 @@ const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             Signed in as <span className="font-medium text-gray-700">{user.email}</span>
           </p>
           <p className="text-sm text-gray-500 mb-6">
-            Your account is awaiting approval from an administrator.
+            Your account is pending approval. An administrator needs to assign you a role before you can access the tool.
           </p>
           <button
             onClick={logout}

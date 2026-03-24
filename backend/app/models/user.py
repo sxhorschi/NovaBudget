@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, Text, func
+from sqlalchemy import ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -45,6 +45,12 @@ class User(Base):
     )  # Azure AD object ID
     entra_groups: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON array of group names
     last_synced_at: Mapped[datetime | None] = mapped_column(nullable=True)  # last Entra profile sync
+
+    # ── Invitation tracking ─────────────────────────────────────────────
+    invited_by: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
+    )
+    invited_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
     # ── App-level fields ──────────────────────────────────────────────────
     is_active: Mapped[bool] = mapped_column(default=True)

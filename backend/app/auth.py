@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import time
+from datetime import datetime
 from typing import Annotated
 
 import httpx
@@ -83,7 +84,12 @@ _DEV_USER = CurrentUser(
 # ---------------------------------------------------------------------------
 
 async def _enrich_from_db(
-    session: AsyncSession, email: str, fallback: CurrentUser, *, auto_create: bool = False,
+    session: AsyncSession,
+    email: str,
+    fallback: CurrentUser,
+    *,
+    auto_create: bool = False,
+    token_claims: dict | None = None,
 ) -> CurrentUser:
     from app.models.user import User
 
@@ -95,10 +101,21 @@ async def _enrich_from_db(
         if auto_create:
             db_user = User(email=email, name=fallback.name, role=fallback.role)
             session.add(db_user)
-            await session.commit()
-            await session.refresh(db_user)
+            await session.flush()
         else:
             return fallback
+
+    # Sync name from token claims if it changed
+    if token_claims:
+        token_name = token_claims.get("name")
+        if token_name and token_name != db_user.name:
+            db_user.name = token_name
+
+    # Update last_login timestamp
+    db_user.last_login = datetime.utcnow()
+
+    await session.commit()
+    await session.refresh(db_user)
 
     return CurrentUser(
         id=str(db_user.id),
@@ -202,7 +219,7 @@ async def get_current_user(
     default_role = "admin" if is_admin else "pending"
 
     token_user = CurrentUser(email=email, name=name, role=default_role)
-    return await _enrich_from_db(session, email, token_user, auto_create=True)
+    return await _enrich_from_db(session, email, token_user, auto_create=True, token_claims=payload)
 
 
 # ---------------------------------------------------------------------------

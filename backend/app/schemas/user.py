@@ -12,7 +12,7 @@ class UserCreate(BaseModel):
     """Create a new user (admin only)."""
 
     email: str
-    name: str
+    name: str | None = None
     role: str = "viewer"
     department: str | None = None
     job_title: str | None = None
@@ -36,6 +36,8 @@ class UserRead(BaseModel):
     manager_email: str | None = None
     manager_name: str | None = None
     photo_url: str | None = None
+    invited_by: UUID | None = None
+    invited_at: datetime | None = None
     is_active: bool
     last_login: datetime | None = None
     created_at: datetime

@@ -2,21 +2,22 @@ import { PublicClientApplication, LogLevel } from '@azure/msal-browser';
 
 const clientId = import.meta.env.VITE_AZURE_CLIENT_ID || '';
 const tenantId = import.meta.env.VITE_AZURE_TENANT_ID || '';
+const urlPrefix = import.meta.env.VITE_URL_PREFIX || '';
 
 export const msalConfig = {
   auth: {
     clientId,
     authority: `https://login.microsoftonline.com/${tenantId || 'common'}`,
-    redirectUri: window.location.origin,
-    postLogoutRedirectUri: window.location.origin,
+    redirectUri: `${window.location.origin}${urlPrefix}`,
+    postLogoutRedirectUri: `${window.location.origin}${urlPrefix}`,
   },
   cache: {
     cacheLocation: 'sessionStorage' as const,
-    storeAuthStateInCookie: false,
+    storeAuthStateInCookie: true,
   },
   system: {
     loggerOptions: {
-      logLevel: LogLevel.Warning,
+      logLevel: LogLevel.Verbose,
       loggerCallback: (_level: LogLevel, message: string) => {
         console.debug('[MSAL]', message);
       },

@@ -54,7 +54,28 @@ app = FastAPI(
     lifespan=lifespan,
     docs_url=_docs_url,
     redoc_url=_redoc_url,
+    redirect_slashes=False,
 )
+
+
+@app.middleware("http")
+async def normalize_trailing_slash(request: Request, call_next):
+    """Silently add trailing slash when needed, avoiding 307 redirects that drop
+    auth headers behind reverse proxies. Only applies to known collection endpoints."""
+    from starlette.routing import Match
+
+    path = request.scope.get("path", "")
+    # Check if the path matches any route as-is
+    matched = False
+    for route in app.routes:
+        m, _ = route.matches(request.scope)
+        if m == Match.FULL:
+            matched = True
+            break
+    # If no match, try with trailing slash
+    if not matched and path and not path.endswith("/"):
+        request.scope["path"] = path + "/"
+    return await call_next(request)
 
 # ── Validation error logging (debug) ────────────────────────────────────
 @app.exception_handler(RequestValidationError)
@@ -74,6 +95,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
 
 
 # ── Security headers middleware ──────────────────────────────────────────

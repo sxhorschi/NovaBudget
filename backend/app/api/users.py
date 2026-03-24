@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -82,14 +83,21 @@ async def get_user(
 @router.put(
     "/{user_id}",
     response_model=UserRead,
-    dependencies=[Depends(require_role("admin"))],
 )
 async def update_user(
     user_id: UUID,
     data: UserUpdate,
+    current_user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
-    """Update a user's role, department, or active status. Admin only."""
+    """Update a user's role, department, or active status. Admin only.
+
+    Admins cannot remove their own admin role or deactivate themselves
+    to prevent accidental lockout.
+    """
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required")
+
     db_user = await session.get(User, user_id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -103,6 +111,20 @@ async def update_user(
             status_code=422,
             detail=f"Invalid role: {update_data['role']}. Must be admin, editor, or viewer.",
         )
+
+    # Prevent admins from locking themselves out
+    is_self = str(db_user.id) == current_user.id or db_user.email == current_user.email
+    if is_self:
+        if "role" in update_data and update_data["role"] != "admin":
+            raise HTTPException(
+                status_code=400,
+                detail="You cannot remove your own admin role. Ask another admin to do it.",
+            )
+        if "is_active" in update_data and not update_data["is_active"]:
+            raise HTTPException(
+                status_code=400,
+                detail="You cannot deactivate your own account. Ask another admin to do it.",
+            )
 
     for key, value in update_data.items():
         setattr(db_user, key, value)
@@ -118,17 +140,20 @@ async def update_user(
     "/",
     response_model=UserRead,
     status_code=201,
-    dependencies=[Depends(require_role("admin"))],
 )
 async def create_user(
     data: UserCreate,
+    current_user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
-    """Create a new user. Admin only.
+    """Invite / create a new user. Admin only.
 
     If a user with the given email already exists (even if deactivated),
-    returns 409 Conflict.
+    returns 409 Conflict.  Records who invited the user and when.
     """
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required")
+
     if data.role not in ("admin", "editor", "viewer"):
         raise HTTPException(
             status_code=422,
@@ -147,10 +172,12 @@ async def create_user(
 
     user = User(
         email=data.email,
-        name=data.name,
+        name=data.name or data.email.split("@")[0],
         role=data.role,
         department=data.department,
         job_title=data.job_title,
+        invited_by=UUID(current_user.id) if current_user.id else None,
+        invited_at=datetime.utcnow(),
     )
     session.add(user)
     await session.commit()
@@ -167,6 +194,7 @@ async def create_user(
 )
 async def deactivate_user(
     user_id: UUID,
+    current_user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     """Soft-delete a user by setting is_active=false. Admin only."""
@@ -174,23 +202,64 @@ async def deactivate_user(
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    is_self = str(db_user.id) == current_user.id or db_user.email == current_user.email
+    if is_self:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot deactivate your own account. Ask another admin to do it.",
+        )
+
     db_user.is_active = False
     await session.commit()
     await session.refresh(db_user)
     return db_user
 
 
-# ── POST /sync-from-entra — sync current user's profile from Graph API
+# ── DELETE /{id}/permanent — hard-delete a user (admin only) ─────────
+
+@router.delete(
+    "/{user_id}/permanent",
+    status_code=204,
+)
+async def hard_delete_user(
+    user_id: UUID,
+    current_user: UserDep,
+    session: AsyncSession = Depends(get_session),
+):
+    """Permanently remove a user from the database. Admin only.
+
+    Cannot delete yourself.
+    """
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required")
+
+    db_user = await session.get(User, user_id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    is_self = str(db_user.id) == current_user.id or db_user.email == current_user.email
+    if is_self:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot delete your own account. Ask another admin to do it.",
+        )
+
+    await session.delete(db_user)
+    await session.commit()
+    return None
+
+
+# ── POST /sync-from-entra — sync current user's profile from ID token claims
 
 @router.post("/sync-from-entra", response_model=UserRead)
 async def sync_from_entra(
     user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
-    """Fetch the current user's profile from Microsoft Entra ID (Graph API)
-    and update the local record.
+    """Sync the current user's profile from their ID token claims.
 
-    Requires a valid access token that has Graph API scopes.
+    This updates name, job_title, and department from the cached token data.
+    Roles are NOT synced — they are managed manually in the app.
     """
-    db_user = await sync_user_from_entra(session, access_token=None, user_email=user.email)
+    db_user = await sync_user_from_entra(session, id_token_claims=None, user_email=user.email)
     return db_user
