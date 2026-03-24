@@ -304,7 +304,7 @@ async def get_dashboard(
         phase_result = await session.execute(phase_stmt)
         by_phase = [
             DashboardPhase(
-                phase=row.project_phase.value if row.project_phase else "UNASSIGNED",
+                phase=row.project_phase if row.project_phase else "UNASSIGNED",
                 committed=row.committed,
                 forecast=row.forecast,
                 items=row.items,

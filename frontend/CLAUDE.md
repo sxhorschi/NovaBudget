@@ -17,7 +17,6 @@ React 19 SPA mit TypeScript, Vite 8, TailwindCSS 4. Drei Seiten: Costbook (`/`),
   - `layout/` — AppLayout, TopBar, TabBar
   - `sidepanel/` — SidePanel, SidePanelForm, AttachmentList, BudgetAdjustmentHistory, DecisionLog
   - `summary/` — SummaryStrip, ProgressMicro
-  - `export/` — ExportMenu
   - `import/` — ExcelImport
   - `common/` — EmptyState, Skeleton, Toast, ToastProvider
   - `help/` — HelpTooltip

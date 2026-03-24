@@ -315,7 +315,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
         {departmentId != null && departmentBudget != null && (
           <CollapsibleSection
             title="Budget Adjustments"
-            defaultOpen={item.zielanpassung}
+            defaultOpen={!!item.zielanpassung}
           >
             <BudgetAdjustmentHistory
               departmentId={departmentId}

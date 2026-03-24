@@ -61,7 +61,7 @@ export interface CostItem {
   approval_date: string | null;
   project_phase: ProjectPhase;
   product: Product;
-  zielanpassung: boolean;
+  zielanpassung: number | null;
   zielanpassung_reason: string;
   comments: string;
   requester?: string | null;

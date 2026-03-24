@@ -26,6 +26,11 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/budget
       DEBUG: ${DEBUG:-true}
+      AUTH_DISABLED: ${AUTH_DISABLED:-true}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@localhost}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrator}
+      AZURE_CLIENT_ID: ${VITE_AZURE_CLIENT_ID:-}
+      AZURE_TENANT_ID: ${VITE_AZURE_TENANT_ID:-}
     volumes:
       - ./backend/app:/app/app
       - ./backend/data:/app/data
@@ -37,6 +42,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_AZURE_CLIENT_ID: ${VITE_AZURE_CLIENT_ID:-}
+        VITE_AZURE_TENANT_ID: ${VITE_AZURE_TENANT_ID:-}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-5173}:5173"

@@ -119,7 +119,7 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setConfig(data);
       localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(data));
     } catch {
-      // In mock mode, just update local state
+      // Apply locally on API failure
       setConfig(newConfig);
       localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(newConfig));
     } finally {

@@ -11,7 +11,7 @@ import LoginPage from '../../pages/LoginPage';
 // ---------------------------------------------------------------------------
 
 const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user, logout } = useAuth();
 
   // Session restore in progress — show a neutral loading screen
   if (isLoading) {
@@ -48,6 +48,34 @@ const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   if (!isAuthenticated) {
     return <LoginPage />;
+  }
+
+  // User exists but hasn't been approved yet
+  if (user?.role === 'pending') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 px-8 py-10 max-w-sm text-center">
+          <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Access Pending</h2>
+          <p className="text-sm text-gray-500 mb-1">
+            Signed in as <span className="font-medium text-gray-700">{user.email}</span>
+          </p>
+          <p className="text-sm text-gray-500 mb-6">
+            Your account is awaiting approval from an administrator.
+          </p>
+          <button
+            onClick={logout}
+            className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

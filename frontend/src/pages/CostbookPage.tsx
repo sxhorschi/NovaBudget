@@ -484,7 +484,7 @@ const CostbookPage: React.FC = () => {
       basis_description: '',
       assumptions: '',
       comments: '',
-      zielanpassung: false,
+      zielanpassung: null,
       zielanpassung_reason: '',
       approval_date: null,
       requester: user?.name ?? 'Unknown',

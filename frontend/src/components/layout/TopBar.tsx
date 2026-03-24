@@ -40,12 +40,14 @@ const ROLE_COLORS: Record<User['role'], string> = {
   admin: 'bg-indigo-100 text-indigo-700',
   editor: 'bg-emerald-100 text-emerald-700',
   viewer: 'bg-gray-100 text-gray-600',
+  pending: 'bg-amber-100 text-amber-700',
 };
 
 const ROLE_LABELS: Record<User['role'], string> = {
   admin: 'Administrator',
   editor: 'Editor',
   viewer: 'Viewer',
+  pending: 'Pending',
 };
 
 // ---------------------------------------------------------------------------

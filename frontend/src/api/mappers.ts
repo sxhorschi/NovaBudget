@@ -66,7 +66,7 @@ export function mapCostItemFromApi(data: any): CostItem {
     approval_date: data.approval_date ?? null,
     project_phase: data.project_phase ?? '',
     product: data.product ?? '',
-    zielanpassung: data.zielanpassung != null && Number(data.zielanpassung) !== 0,
+    zielanpassung: data.zielanpassung != null ? Number(data.zielanpassung) : null,
     zielanpassung_reason: data.zielanpassung_reason ?? '',
     comments: data.comments ?? '',
     requester: data.requester ?? null,
@@ -114,7 +114,7 @@ export function mapCostItemToApi(item: Partial<CostItem>): Record<string, unknow
   if (item.project_phase !== undefined) payload.project_phase = item.project_phase || null;
   if (item.product !== undefined) payload.product = item.product || null;
   if (item.zielanpassung !== undefined)
-    payload.zielanpassung = item.zielanpassung ? 1 : null;
+    payload.zielanpassung = item.zielanpassung;
   if (item.zielanpassung_reason !== undefined)
     payload.zielanpassung_reason = item.zielanpassung_reason || null;
   if (item.comments !== undefined) payload.comments = item.comments || null;

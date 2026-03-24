@@ -930,7 +930,7 @@ const LOGO_API_URL = `${client.defaults.baseURL}/config/logo`;
 
 const BrandingSection: React.FC = () => {
   const [logoUrl, setLogoUrl] = useState<string>(() => {
-    // Check localStorage first (client-only mode), then API
+    // Check localStorage first, then API
     const stored = localStorage.getItem(LOGO_STORAGE_KEY);
     return stored || LOGO_API_URL;
   });

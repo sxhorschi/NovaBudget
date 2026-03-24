@@ -16,7 +16,7 @@ export async function listCostItems(facilityId: string): Promise<CostItem[]> {
       params: { facility_id: facilityId, page, page_size: PAGE_SIZE },
     });
 
-    const mapped = (data.items as any[]).map(mapCostItemFromApi);
+    const mapped = (data.items ?? []).map(mapCostItemFromApi);
     items.push(...mapped);
 
     if (items.length >= data.total || mapped.length < PAGE_SIZE) break;

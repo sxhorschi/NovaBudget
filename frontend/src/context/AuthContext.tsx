@@ -1,15 +1,17 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { setAuthToken, getAuthToken } from '../api/client';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { InteractionRequiredAuthError } from '@azure/msal-browser';
+import { msalInstance, loginScopes } from '../lib/msal';
+import client from '../api/client';
 
 // ---------------------------------------------------------------------------
-// Types — enriched with Microsoft Entra ID profile fields
+// Types
 // ---------------------------------------------------------------------------
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'viewer' | 'editor';
+  role: 'admin' | 'viewer' | 'editor' | 'pending';
   job_title?: string;
   department?: string;
   office_location?: string;
@@ -19,52 +21,17 @@ export interface User {
   manager_email?: string;
   manager_name?: string;
   photo_url?: string;
-  avatar?: string; // initials fallback
+  avatar?: string;
 }
 
 interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  /** True if the user is admin or editor (can create/edit/delete data). */
   canEdit: boolean;
-  /** True if the user is an admin (can manage users, delete facilities). */
   isAdmin: boolean;
   login: () => Promise<void>;
   logout: () => void;
-}
-
-// ---------------------------------------------------------------------------
-// DEV MODE ONLY — in production, user data comes from Entra ID token.
-// This dev user is used for local development without Azure AD.
-// ---------------------------------------------------------------------------
-
-// Minimal dev user — no fake profile data. In production, all fields
-// come from the Entra ID token + Graph API sync.
-const DEV_USER: User = {
-  id: 'dev-admin',
-  name: 'Admin (Dev)',
-  email: 'admin@localhost',
-  role: 'admin',
-};
-
-const SESSION_KEY = 'capex-planner:auth-session';
-
-const DEV_SKIP_AUTH = false; // set to true to bypass login in development
-
-// ---------------------------------------------------------------------------
-// Token helpers
-// ---------------------------------------------------------------------------
-
-/** Build a base64-encoded JSON token matching the backend's expected format. */
-function buildToken(user: User): string {
-  const payload = JSON.stringify({
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    department: user.department,
-  });
-  return btoa(payload);
 }
 
 // ---------------------------------------------------------------------------
@@ -74,52 +41,103 @@ function buildToken(user: User): string {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 // ---------------------------------------------------------------------------
+// Helper: fetch user profile from backend (gets real role from DB)
+// ---------------------------------------------------------------------------
+
+async function fetchUserProfile(idToken: string): Promise<User> {
+  const resp = await client.get('/auth/me', {
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
+  return resp.data;
+}
+
+// ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // true on mount while we restore session
+  const [isLoading, setIsLoading] = useState(true);
+  const initialized = useRef(false);
 
-  // Restore session from sessionStorage on mount
-  useEffect(() => {
-    if (DEV_SKIP_AUTH) {
-      setUser(DEV_USER);
-      setAuthToken(buildToken(DEV_USER));
-      setIsLoading(false);
-      return;
-    }
+  // Get a fresh ID token silently (MSAL caches + refreshes automatically)
+  const getIdToken = useCallback(async (): Promise<string | null> => {
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length === 0) return null;
+
     try {
-      const stored = sessionStorage.getItem(SESSION_KEY);
-      const existingToken = getAuthToken();
-      if (stored && existingToken) {
-        const parsed: User = JSON.parse(stored);
-        setUser(parsed);
+      const response = await msalInstance.acquireTokenSilent({
+        scopes: loginScopes,
+        account: accounts[0],
+      });
+      return response.idToken;
+    } catch (err) {
+      if (err instanceof InteractionRequiredAuthError) {
+        return null; // Need interactive login
       }
-    } catch {
-      // corrupted session — ignore
-    } finally {
-      setIsLoading(false);
+      console.error('[Auth] Silent token acquisition failed:', err);
+      return null;
     }
   }, []);
 
-  // Simulate Microsoft Entra ID flow: 1.5 s loading then authenticate
-  // TODO: Replace with real Microsoft Entra ID (Azure AD) OAuth flow
+  // Set up axios interceptor to always use fresh token
+  useEffect(() => {
+    const interceptorId = client.interceptors.request.use(async (config) => {
+      const idToken = await getIdToken();
+      if (idToken) {
+        config.headers.Authorization = `Bearer ${idToken}`;
+      }
+      return config;
+    });
+
+    return () => {
+      client.interceptors.request.eject(interceptorId);
+    };
+  }, [getIdToken]);
+
+  // Initialize MSAL and restore session — single point of initialization
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
+    const init = async () => {
+      try {
+        await msalInstance.initialize();
+        const result = await msalInstance.handleRedirectPromise();
+
+        if (result?.account && result.idToken) {
+          // Just came back from redirect login
+          const profile = await fetchUserProfile(result.idToken);
+          setUser(profile);
+        } else {
+          // Check for existing MSAL session
+          const accounts = msalInstance.getAllAccounts();
+          if (accounts.length > 0) {
+            const idToken = await getIdToken();
+            if (idToken) {
+              const profile = await fetchUserProfile(idToken);
+              setUser(profile);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[Auth] Init error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    init();
+  }, [getIdToken]);
+
+  // Login via redirect — user goes to Microsoft login page and comes back
   const login = useCallback(async (): Promise<void> => {
     setIsLoading(true);
-    await new Promise<void>((resolve) => setTimeout(resolve, 1500));
-
-    // Store user in session and generate auth token for API requests
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(DEV_USER));
-    setAuthToken(buildToken(DEV_USER));
-    setUser(DEV_USER);
-    setIsLoading(false);
+    await msalInstance.loginRedirect({ scopes: loginScopes });
   }, []);
 
   const logout = useCallback((): void => {
-    sessionStorage.removeItem(SESSION_KEY);
-    setAuthToken(null);
     setUser(null);
+    msalInstance.logoutRedirect();
   }, []);
 
   const canEdit = user?.role === 'admin' || user?.role === 'editor';

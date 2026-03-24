@@ -584,13 +584,13 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={item.zielanpassung}
-                onChange={(e) => onChange('zielanpassung', e.target.checked)}
+                checked={!!item.zielanpassung}
+                onChange={(e) => onChange('zielanpassung', e.target.checked ? 1 : null)}
                 className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
               />
               <span className="text-sm text-gray-700">Create Budget Adjustment</span>
             </label>
-            {item.zielanpassung && (
+            {!!item.zielanpassung && (
               <div>
                 <label className={labelClass}>Reason <span className="text-red-400">*</span></label>
                 <textarea

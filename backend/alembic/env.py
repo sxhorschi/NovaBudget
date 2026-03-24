@@ -10,6 +10,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from app.models.base import Base
 # Import all models so that Base.metadata is fully populated
 from app.models import (  # noqa: F401
+    Attachment,
+    AuditLog,
+    BudgetAdjustment,
     CostItem,
     Department,
     EntraGroupMapping,

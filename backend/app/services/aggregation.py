@@ -299,7 +299,7 @@ async def get_phase_breakdown(
 
     return [
         PhaseBreakdown(
-            phase=row.phase.value if row.phase else "UNASSIGNED",
+            phase=row.phase if row.phase else "UNASSIGNED",
             committed=Decimal(str(row.committed)),
             forecast=Decimal(str(row.forecast)),
             item_count=row.item_count,

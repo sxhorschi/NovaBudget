@@ -1,17 +1,33 @@
-/**
- * MSAL (Microsoft Authentication Library) placeholder configuration.
- *
- * These values will be replaced with real Azure AD / Entra ID credentials
- * when SSO is integrated. For now they serve as a structural placeholder
- * so that the auth flow can be wired up without a live tenant.
- */
+import { PublicClientApplication, LogLevel } from '@azure/msal-browser';
+
+const clientId = import.meta.env.VITE_AZURE_CLIENT_ID || '';
+const tenantId = import.meta.env.VITE_AZURE_TENANT_ID || '';
 
 export const msalConfig = {
   auth: {
-    clientId: import.meta.env.VITE_AZURE_CLIENT_ID || 'placeholder-client-id',
-    authority: `https://login.microsoftonline.com/${import.meta.env.VITE_AZURE_TENANT_ID || 'placeholder'}`,
-    redirectUri: import.meta.env.VITE_AZURE_REDIRECT_URI || window.location.origin,
+    clientId,
+    authority: `https://login.microsoftonline.com/${tenantId || 'common'}`,
+    redirectUri: window.location.origin,
+    postLogoutRedirectUri: window.location.origin,
+  },
+  cache: {
+    cacheLocation: 'sessionStorage' as const,
+    storeAuthStateInCookie: false,
+  },
+  system: {
+    loggerOptions: {
+      logLevel: LogLevel.Warning,
+      loggerCallback: (_level: LogLevel, message: string) => {
+        console.debug('[MSAL]', message);
+      },
+    },
   },
 };
 
-export const loginScopes = ['User.Read', 'openid', 'profile', 'email'];
+// Scopes for login — only openid/profile/email to get an ID token
+// whose audience is our own client_id (not Microsoft Graph).
+export const loginScopes = ['openid', 'profile', 'email'];
+
+// Create instance — do NOT initialize() or handleRedirectPromise() here.
+// AuthContext is the single owner of the MSAL lifecycle.
+export const msalInstance = new PublicClientApplication(msalConfig);

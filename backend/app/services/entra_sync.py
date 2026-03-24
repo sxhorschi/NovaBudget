@@ -26,6 +26,7 @@ GRAPH_API_BASE = "https://graph.microsoft.com/v1.0"
 # Role mapping from Entra groups
 # ---------------------------------------------------------------------------
 
+# TODO: Read from entra_group_mappings table instead of hardcoded values
 ROLE_GROUP_MAP: dict[str, list[str]] = {
     "admin": ["CAPEX-Admins", "IT-Administrators"],
     "editor": ["CAPEX-Editors", "Project-Managers", "Engineering-Leads"],

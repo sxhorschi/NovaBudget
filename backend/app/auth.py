@@ -1,24 +1,19 @@
 """Authentication and authorization module.
 
-Provides:
-- CurrentUser Pydantic model (enriched with Entra ID profile fields)
-- get_current_user dependency (dev bypass or token validation + DB lookup)
-- UserDep type alias for route signatures
-- require_role() dependency factory for RBAC
-
-Token scheme (current):
-    Bearer token = base64-encoded JSON {"email": "...", "name": "...", "role": "..."}
-
-TODO: Replace with JWT validation from Microsoft Entra ID (Azure AD) in production.
+Token scheme:
+    AUTH_DISABLED=true:  No token required, returns dev admin user.
+    AUTH_DISABLED=false: Bearer token = Entra ID **ID token** (JWT validated
+                        against Microsoft's public JWKS, audience = client_id).
 """
 
 from __future__ import annotations
 
-import base64
-import json
 import logging
+import time
 from typing import Annotated
 
+import httpx
+import jwt
 from fastapi import Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -29,27 +24,51 @@ from app.db import get_session
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# JWKS cache with 24h TTL
+# ---------------------------------------------------------------------------
+
+_jwks_cache: dict | None = None
+_jwks_cache_time: float = 0
+_JWKS_TTL = 86400  # 24 hours
+
+
+async def _get_jwks(*, force_refresh: bool = False) -> dict:
+    global _jwks_cache, _jwks_cache_time
+    if not force_refresh and _jwks_cache and (time.time() - _jwks_cache_time) < _JWKS_TTL:
+        return _jwks_cache
+
+    tenant = settings.AZURE_TENANT_ID or "common"
+    url = f"https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys"
+    async with httpx.AsyncClient() as c:
+        resp = await c.get(url)
+        resp.raise_for_status()
+        _jwks_cache = resp.json()
+        _jwks_cache_time = time.time()
+        return _jwks_cache
+
+
+def _find_key(jwks: dict, kid: str) -> dict | None:
+    for key in jwks.get("keys", []):
+        if key.get("kid") == kid:
+            return key
+    return None
+
 
 # ---------------------------------------------------------------------------
-# Pydantic model for the authenticated user
+# Pydantic model
 # ---------------------------------------------------------------------------
 
 class CurrentUser(BaseModel):
     id: str | None = None
     email: str
     name: str
-    role: str  # "admin", "editor", "viewer"
+    role: str
     job_title: str | None = None
     department: str | None = None
     office_location: str | None = None
     photo_url: str | None = None
 
-
-# ---------------------------------------------------------------------------
-# Default dev user (used when AUTH_DISABLED=true)
-# Development mode — returns a default admin user.
-# In production, this code path is never reached (AUTH_DISABLED=false).
-# ---------------------------------------------------------------------------
 
 _DEV_USER = CurrentUser(
     id="dev-admin",
@@ -60,14 +79,13 @@ _DEV_USER = CurrentUser(
 
 
 # ---------------------------------------------------------------------------
-# Helper: enrich CurrentUser from database record
+# DB enrichment
 # ---------------------------------------------------------------------------
 
 async def _enrich_from_db(
     session: AsyncSession, email: str, fallback: CurrentUser, *, auto_create: bool = False,
 ) -> CurrentUser:
-    """Look up the full User record and return a CurrentUser with all profile fields."""
-    from app.models.user import User  # local import to avoid circular dependency
+    from app.models.user import User
 
     stmt = select(User).where(User.email == email)
     result = await session.execute(stmt)
@@ -95,30 +113,18 @@ async def _enrich_from_db(
 
 
 # ---------------------------------------------------------------------------
-# Core dependency: get_current_user
+# Core dependency
 # ---------------------------------------------------------------------------
 
 async def get_current_user(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> CurrentUser:
-    """Extract and validate the current user from the request.
-
-    When ``AUTH_DISABLED=true`` (dev mode), returns a default admin user
-    without requiring any token.
-
-    When auth is enabled, expects a Bearer token in the Authorization header.
-    The token is a base64-encoded JSON payload:
-        {"email": "...", "name": "...", "role": "..."}
-
-    In both cases, the full user profile is loaded from the database if a
-    matching record exists (enriching with Entra ID fields).
-    """
     # Dev mode bypass
     if settings.AUTH_DISABLED:
         return await _enrich_from_db(session, _DEV_USER.email, _DEV_USER, auto_create=True)
 
-    # Extract Authorization header
+    # Extract Bearer token
     auth_header = request.headers.get("Authorization")
     if not auth_header:
         raise HTTPException(
@@ -127,78 +133,86 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Expect "Bearer <token>"
     parts = auth_header.split(" ", 1)
     if len(parts) != 2 or parts[0].lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Authorization header format. Expected: Bearer <token>",
+            detail="Invalid Authorization header format",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
     token = parts[1]
 
-    # Decode base64 token
+    # Validate Entra ID ID token (JWT signed with RS256)
     try:
-        decoded = base64.b64decode(token)
-        payload = json.loads(decoded)
-    except Exception:
+        unverified_header = jwt.get_unverified_header(token)
+        kid = unverified_header.get("kid")
+        if not kid:
+            raise ValueError("No kid in token header")
+
+        # Fetch JWKS, retry with forced refresh if key not found
+        jwks = await _get_jwks()
+        key_data = _find_key(jwks, kid)
+        if not key_data:
+            jwks = await _get_jwks(force_refresh=True)
+            key_data = _find_key(jwks, kid)
+            if not key_data:
+                raise ValueError(f"Signing key {kid} not found in JWKS")
+
+        public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key_data)
+
+        client_id = settings.AZURE_CLIENT_ID
+        tenant_id = settings.AZURE_TENANT_ID
+        issuer = f"https://login.microsoftonline.com/{tenant_id}/v2.0"
+
+        # ID tokens have audience = client_id
+        payload = jwt.decode(
+            token,
+            public_key,
+            algorithms=["RS256"],
+            audience=client_id,
+            issuer=issuer,
+        )
+
+    except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: unable to decode",
+            detail="Token expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except httpx.HTTPError as e:
+        logger.error("Failed to fetch JWKS: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to validate token (key service unavailable)",
+        )
+    except (jwt.InvalidTokenError, ValueError) as e:
+        logger.warning("JWT validation failed: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Validate required fields
-    email = payload.get("email")
-    name = payload.get("name")
-    role = payload.get("role")
+    email = payload.get("preferred_username") or payload.get("email") or payload.get("upn", "")
+    name = payload.get("name", email)
 
-    if not email or not name or not role:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: missing required fields (email, name, role)",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    # Admin email gets admin role, everyone else starts as pending
+    is_admin = email.lower() == settings.ADMIN_EMAIL.lower()
+    default_role = "admin" if is_admin else "pending"
 
-    if role not in ("admin", "editor", "viewer"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid role in token: {role}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    token_user = CurrentUser(
-        email=email,
-        name=name,
-        role=role,
-        department=payload.get("department"),
-    )
-
-    # Enrich from DB to pick up Entra ID fields
-    return await _enrich_from_db(session, email, token_user)
+    token_user = CurrentUser(email=email, name=name, role=default_role)
+    return await _enrich_from_db(session, email, token_user, auto_create=True)
 
 
 # ---------------------------------------------------------------------------
-# Convenience type alias (like SessionDep)
+# Type alias & RBAC
 # ---------------------------------------------------------------------------
 
 UserDep = Annotated[CurrentUser, Depends(get_current_user)]
 
 
-# ---------------------------------------------------------------------------
-# RBAC dependency factory
-# ---------------------------------------------------------------------------
-
 def require_role(*roles: str):
-    """Return a dependency that checks the current user has one of the given roles.
-
-    Usage::
-
-        @router.post("/", dependencies=[Depends(require_role("admin", "editor"))])
-        async def create_item(...):
-            ...
-    """
     async def _check_role(user: UserDep) -> CurrentUser:
         if user.role not in roles:
             raise HTTPException(
@@ -206,5 +220,4 @@ def require_role(*roles: str):
                 detail=f"Insufficient permissions. Required role: {' or '.join(roles)}",
             )
         return user
-
     return _check_role
