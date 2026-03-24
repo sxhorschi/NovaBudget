@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 70" fill="none">
+  <!-- Shield: curved sides, pointed bottom, T cut as negative space -->
+  <path
+    fill-rule="evenodd"
+    fill="#111111"
+    d="
+      M 27,68 Q 1,54 1,38 L 1,11 Q 1,1 11,1 L 43,1 Q 53,1 53,11 L 53,38 Q 53,54 27,68 Z
+      M 7,10 L 47,10 L 47,25 L 34,25 L 34,60 L 20,60 L 20,25 L 7,25 Z
+    "
+  />
+  <!-- TYTAN wordmark -->
+  <text
+    x="66"
+    y="43"
+    font-family="system-ui, -apple-system, 'Segoe UI', sans-serif"
+    font-weight="900"
+    font-size="30"
+    letter-spacing="2"
+    fill="#111111"
+  >TYTAN</text>
+  <!-- TECHNOLOGIES subtitle -->
+  <text
+    x="67"
+    y="57"
+    font-family="system-ui, -apple-system, 'Segoe UI', sans-serif"
+    font-weight="400"
+    font-size="6.8"
+    letter-spacing="4.2"
+    fill="#6b7280"
+  >TECHNOLOGIES</text>
+</svg>
