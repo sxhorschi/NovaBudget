@@ -26,7 +26,7 @@ function formatDate(dateStr: string): string {
 // ---------------------------------------------------------------------------
 
 interface NewAdjustmentFormProps {
-  onSubmit: (data: Omit<BudgetAdjustment, 'id' | 'department_id' | 'created_at'>) => void;
+  onSubmit: (data: Omit<BudgetAdjustment, 'id' | 'functional_area_id' | 'created_at'>) => void;
   onCancel: () => void;
 }
 
@@ -133,7 +133,7 @@ const NewAdjustmentForm: React.FC<NewAdjustmentFormProps> = ({ onSubmit, onCance
 // ---------------------------------------------------------------------------
 
 interface BudgetAdjustmentHistoryProps {
-  departmentId: string;
+  functionalAreaId: string;
   originalBudget: number;
 }
 
@@ -142,19 +142,19 @@ interface BudgetAdjustmentHistoryProps {
 // ---------------------------------------------------------------------------
 
 const BudgetAdjustmentHistory: React.FC<BudgetAdjustmentHistoryProps> = ({
-  departmentId,
+  functionalAreaId,
   originalBudget,
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const { budgetAdjustments: allAdjustments, addBudgetAdjustment } = useBudgetData();
 
-  // Filter adjustments for this department
+  // Filter adjustments for this functional area
   const adjustments = useMemo(() => {
     return allAdjustments
-      .filter((a) => a.department_id === departmentId)
+      .filter((a) => a.functional_area_id === functionalAreaId)
       .sort((a, b) => a.created_at.localeCompare(b.created_at));
-  }, [departmentId, allAdjustments]);
+  }, [functionalAreaId, allAdjustments]);
 
   const totalAdjustment = useMemo(
     () => adjustments.reduce((sum, a) => sum + a.amount, 0),
@@ -163,8 +163,8 @@ const BudgetAdjustmentHistory: React.FC<BudgetAdjustmentHistoryProps> = ({
 
   const currentBudget = originalBudget + totalAdjustment;
 
-  const handleNewAdjustment = (data: Omit<BudgetAdjustment, 'id' | 'department_id' | 'created_at'>) => {
-    addBudgetAdjustment(departmentId, data.amount, data.reason, data.category);
+  const handleNewAdjustment = (data: Omit<BudgetAdjustment, 'id' | 'functional_area_id' | 'created_at'>) => {
+    addBudgetAdjustment(functionalAreaId, data.amount, data.reason, data.category);
     setShowForm(false);
   };
 

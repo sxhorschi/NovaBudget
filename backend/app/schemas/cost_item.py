@@ -10,8 +10,9 @@ from app.models.enums import ApprovalStatus
 class CostItemCreate(BaseModel):
     work_area_id: UUID
     description: str = Field(min_length=1, max_length=500)
-    original_amount: Decimal = Field(ge=0, max_digits=15, decimal_places=2)
-    current_amount: Decimal = Field(ge=0, max_digits=15, decimal_places=2)
+    unit_price: Decimal = Field(ge=0, max_digits=15, decimal_places=2)
+    quantity: Decimal = Field(default=Decimal("1"), ge=0, max_digits=15, decimal_places=2)
+    total_amount: Decimal = Field(ge=0, max_digits=15, decimal_places=2)
     expected_cash_out: date | None = None
     cost_basis: str | None = None
     cost_driver: str | None = None
@@ -33,8 +34,9 @@ class CostItemRead(BaseModel):
     id: UUID
     work_area_id: UUID
     description: str
-    original_amount: Decimal
-    current_amount: Decimal
+    unit_price: Decimal
+    quantity: Decimal
+    total_amount: Decimal
     expected_cash_out: date | None = None
     cost_basis: str | None = None
     cost_driver: str | None = None
@@ -56,7 +58,7 @@ class CostItemAggregations(BaseModel):
     total_amount: Decimal
     by_status: dict[str, Decimal] = Field(default_factory=dict)
     by_phase: dict[str, Decimal] = Field(default_factory=dict)
-    by_department: dict[str, Decimal] = Field(default_factory=dict)
+    by_functional_area: dict[str, Decimal] = Field(default_factory=dict)
 
 
 class CostItemSearchResult(BaseModel):
@@ -69,8 +71,9 @@ class CostItemSearchResult(BaseModel):
 
 class CostItemUpdate(BaseModel):
     description: str | None = Field(default=None, min_length=1, max_length=500)
-    original_amount: Decimal | None = Field(default=None, ge=0, max_digits=15, decimal_places=2)
-    current_amount: Decimal | None = Field(default=None, ge=0, max_digits=15, decimal_places=2)
+    unit_price: Decimal | None = Field(default=None, ge=0, max_digits=15, decimal_places=2)
+    quantity: Decimal | None = Field(default=None, ge=0, max_digits=15, decimal_places=2)
+    total_amount: Decimal | None = Field(default=None, ge=0, max_digits=15, decimal_places=2)
     expected_cash_out: date | None = None
     cost_basis: str | None = None
     cost_driver: str | None = None

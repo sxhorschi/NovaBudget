@@ -220,7 +220,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
     const result = { ...ZERO_DRIVERS };
     for (const item of items) {
       if (item.approval_status === 'approved') {
-        result[item.cost_driver] = (result[item.cost_driver] ?? 0) + item.current_amount;
+        result[item.cost_driver] = (result[item.cost_driver] ?? 0) + item.total_amount;
       }
     }
     return result;
@@ -230,7 +230,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
     const result = { ...ZERO_DRIVERS };
     for (const item of items) {
       if (item.approval_status !== 'approved' && item.approval_status !== 'rejected' && item.approval_status !== 'obsolete') {
-        result[item.cost_driver] = (result[item.cost_driver] ?? 0) + item.current_amount;
+        result[item.cost_driver] = (result[item.cost_driver] ?? 0) + item.total_amount;
       }
     }
     return result;
@@ -240,7 +240,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
     const result = { ...ZERO_PHASES };
     for (const item of items) {
       if (item.approval_status === 'approved') {
-        result[item.project_phase] = (result[item.project_phase] ?? 0) + item.current_amount;
+        result[item.project_phase] = (result[item.project_phase] ?? 0) + item.total_amount;
       }
     }
     return result;
@@ -250,7 +250,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
     const result = { ...ZERO_PHASES };
     for (const item of items) {
       if (item.approval_status !== 'approved' && item.approval_status !== 'rejected' && item.approval_status !== 'obsolete') {
-        result[item.project_phase] = (result[item.project_phase] ?? 0) + item.current_amount;
+        result[item.project_phase] = (result[item.project_phase] ?? 0) + item.total_amount;
       }
     }
     return result;

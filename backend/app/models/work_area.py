@@ -1,4 +1,4 @@
-"""WorkArea model — belongs to a Department, has many CostItems."""
+"""WorkArea model — belongs to a FunctionalArea, has many CostItems."""
 
 from __future__ import annotations
 
@@ -13,21 +13,21 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from app.models.cost_item import CostItem
-    from app.models.department import Department
+    from app.models.functional_area import FunctionalArea
 
 
 class WorkArea(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "work_areas"
 
-    department_id: Mapped[uuid.UUID] = mapped_column(
+    functional_area_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("departments.id", ondelete="CASCADE"),
+        ForeignKey("functional_areas.id", ondelete="CASCADE"),
         nullable=False,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
     # relationships
-    department: Mapped[Department] = relationship(back_populates="work_areas")
+    functional_area: Mapped[FunctionalArea] = relationship(back_populates="work_areas")
     cost_items: Mapped[list[CostItem]] = relationship(
         back_populates="work_area",
         cascade="all, delete-orphan",

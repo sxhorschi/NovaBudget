@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronRight, TrendingUp, TrendingDown, Minus, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search, X } from 'lucide-react';
 import type {
   CostItem,
   ApprovalStatus,
@@ -13,20 +13,6 @@ import { formatEUR as formatEur, formatThousands, parseGermanNumber } from '../c
 import { getUsersBrief } from '../../api/users';
 import type { UserBrief } from '../../api/users';
 import StatusBadge from '../costbook/StatusBadge';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function deltaColor(delta: number): string {
-  if (delta > 0) return 'text-red-600';
-  if (delta < 0) return 'text-green-600';
-  return 'text-gray-500';
-}
-
-function deltaPrefix(delta: number): string {
-  return delta > 0 ? '+' : '';
-}
 
 // ---------------------------------------------------------------------------
 // Collapsible Section (form-level)
@@ -117,73 +103,49 @@ const EurAmountInput: React.FC<EurAmountInputProps> = ({ value, onChange, classN
 };
 
 // ---------------------------------------------------------------------------
-// Percent Adjust Input — shows a % suffix, calculates absolute from original
+// Quantity Input — simple integer input
 // ---------------------------------------------------------------------------
 
-interface PercentAmountInputProps {
-  originalAmount: number;
+interface QuantityInputProps {
+  value: number;
   onChange: (value: number) => void;
   className?: string;
 }
 
-const PercentAmountInput: React.FC<PercentAmountInputProps> = ({
-  originalAmount,
-  onChange,
-  className,
-}) => {
-  const [pctInput, setPctInput] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+const QuantityInput: React.FC<QuantityInputProps> = ({ value, onChange, className }) => {
+  const [displayValue, setDisplayValue] = useState(() => String(value));
 
-  // Focus on mount
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    setDisplayValue(String(value));
+  }, [value]);
 
-  const parsedPct = pctInput === '' || pctInput === '-' ? null : Number(pctInput);
-  const calculatedValue =
-    parsedPct !== null && !isNaN(parsedPct)
-      ? Math.round(originalAmount * (1 + parsedPct / 100))
-      : null;
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = e.target.value;
+      // Only allow digits
+      const cleaned = raw.replace(/\D/g, '');
+      setDisplayValue(cleaned);
+      const num = cleaned === '' ? 1 : Math.max(1, Number(cleaned));
+      onChange(num);
+    },
+    [onChange],
+  );
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    // Allow minus sign, digits only (integer percentages)
-    if (raw === '' || raw === '-' || /^-?\d{0,4}$/.test(raw)) {
-      setPctInput(raw);
-      const num = raw === '' || raw === '-' ? null : Number(raw);
-      if (num !== null && !isNaN(num)) {
-        onChange(Math.round(originalAmount * (1 + num / 100)));
-      }
-    }
-  }, [originalAmount, onChange]);
+  const handleBlur = useCallback(() => {
+    const num = Math.max(1, Number(displayValue) || 1);
+    setDisplayValue(String(num));
+    onChange(num);
+  }, [displayValue, onChange]);
 
   return (
-    <div>
-      <div className="relative">
-        <input
-          ref={inputRef}
-          type="text"
-          inputMode="numeric"
-          className={`pr-8 ${className ?? ''}`}
-          value={pctInput}
-          onChange={handleChange}
-          placeholder="e.g. -10"
-        />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium pointer-events-none select-none">
-          %
-        </span>
-      </div>
-      {calculatedValue !== null && (
-        <p className="mt-1 text-xs text-gray-500 tabular-nums">
-          = {formatEur(calculatedValue)}
-        </p>
-      )}
-      {pctInput === '' && (
-        <p className="mt-1 text-xs text-gray-400">
-          Positive = increase, negative = decrease
-        </p>
-      )}
-    </div>
+    <input
+      type="text"
+      inputMode="numeric"
+      className={className ?? ''}
+      value={displayValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+    />
   );
 };
 
@@ -403,7 +365,6 @@ interface SidePanelFormProps {
 
 const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onChange }) => {
   const { config } = useConfig();
-  const delta = item.current_amount - item.original_amount;
 
   /** Returns extra CSS class if the field value differs from the original */
   function dirtyRing(field: keyof CostItem): string {
@@ -413,13 +374,16 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
       : '';
   }
 
-  const deltaPct =
-    item.original_amount !== 0
-      ? ((delta / item.original_amount) * 100).toFixed(1)
-      : '0.0';
+  /** When unit_price or quantity changes, auto-calculate total_amount */
+  const handleUnitPriceChange = useCallback((v: number) => {
+    onChange('unit_price', v);
+    onChange('total_amount', v * item.quantity);
+  }, [onChange, item.quantity]);
 
-  // Delta trend icon
-  const DeltaIcon = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus;
+  const handleQuantityChange = useCallback((v: number) => {
+    onChange('quantity', v);
+    onChange('total_amount', item.unit_price * v);
+  }, [onChange, item.unit_price]);
 
   return (
     <div className="space-y-0">
@@ -427,35 +391,31 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
       <FormSection title="Amounts" defaultOpen={true}>
         <div className="bg-gradient-to-br from-indigo-50/50 to-white rounded-xl border border-gray-200/80 p-4">
           <div className="grid grid-cols-3 gap-4">
-            {/* Original (readonly) */}
+            {/* Unit Price (editable) */}
             <div>
-              <label className={labelClass}>Original</label>
-              <div className={readonlyInputClass}>{formatEur(item.original_amount)}</div>
-            </div>
-
-            {/* Current (editable) */}
-            <div>
-              <label className={labelClass}>Current</label>
+              <label className={labelClass}>Unit Price</label>
               <EurAmountInput
-                value={item.current_amount}
-                onChange={(v) => onChange('current_amount', v)}
-                className={`${inputClass} tabular-nums${dirtyRing('current_amount')}`}
+                value={item.unit_price}
+                onChange={handleUnitPriceChange}
+                className={`${inputClass} tabular-nums${dirtyRing('unit_price')}`}
               />
             </div>
 
-            {/* Delta (calculated) with trend icon */}
+            {/* Quantity (editable) */}
             <div>
-              <label className={labelClass}>Delta</label>
-              <div className={`${readonlyInputClass} ${deltaColor(delta)} flex items-center gap-1`}>
-                <DeltaIcon size={13} className="flex-shrink-0" />
-                <span className="tabular-nums">
-                  {deltaPrefix(delta)}
-                  {formatEur(delta)}{' '}
-                  <span className="text-xs">
-                    ({deltaPrefix(delta)}
-                    {deltaPct}%)
-                  </span>
-                </span>
+              <label className={labelClass}>Quantity</label>
+              <QuantityInput
+                value={item.quantity}
+                onChange={handleQuantityChange}
+                className={`${inputClass} tabular-nums${dirtyRing('quantity')}`}
+              />
+            </div>
+
+            {/* Total (calculated, read-only) */}
+            <div>
+              <label className={labelClass}>Total</label>
+              <div className={`${readonlyInputClass} tabular-nums`}>
+                {formatEur(item.total_amount)}
               </div>
             </div>
           </div>
@@ -569,16 +529,16 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
         </div>
       </FormSection>
 
-      {/* ---- BUDGET ADJUSTMENT (show when amount changed) ---- */}
-      {delta !== 0 && (
+      {/* ---- BUDGET ADJUSTMENT (show when total_amount changed) ---- */}
+      {originalItem && item.total_amount !== originalItem.total_amount && (
         <FormSection title="Budget Adjustment" defaultOpen={true}>
           <div className="space-y-3">
             <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
               <p className="text-sm text-amber-800 font-medium">
-                Amount changed by {delta > 0 ? '+' : ''}{formatEur(delta)}
+                Amount changed by {item.total_amount - originalItem.total_amount > 0 ? '+' : ''}{formatEur(item.total_amount - originalItem.total_amount)}
               </p>
               <p className="text-xs text-amber-600 mt-1">
-                Check &quot;Create Budget Adjustment&quot; to record this change on the department budget.
+                Check &quot;Create Budget Adjustment&quot; to record this change on the functional area budget.
               </p>
             </div>
             <label className="flex items-center gap-2 cursor-pointer">

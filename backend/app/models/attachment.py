@@ -1,4 +1,4 @@
-"""Attachment model — file attachments for cost items, work areas, or departments."""
+"""Attachment model — file attachments for cost items, work areas, or functional areas."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from app.models.cost_item import CostItem
-    from app.models.department import Department
+    from app.models.functional_area import FunctionalArea
     from app.models.work_area import WorkArea
 
 
@@ -41,9 +41,9 @@ class Attachment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "attachments"
     __table_args__ = (
         CheckConstraint(
-            "((cost_item_id IS NOT NULL AND work_area_id IS NULL AND department_id IS NULL) "
-            "OR (cost_item_id IS NULL AND work_area_id IS NOT NULL AND department_id IS NULL) "
-            "OR (cost_item_id IS NULL AND work_area_id IS NULL AND department_id IS NOT NULL))",
+            "((cost_item_id IS NOT NULL AND work_area_id IS NULL AND functional_area_id IS NULL) "
+            "OR (cost_item_id IS NULL AND work_area_id IS NOT NULL AND functional_area_id IS NULL) "
+            "OR (cost_item_id IS NULL AND work_area_id IS NULL AND functional_area_id IS NOT NULL))",
             name="ck_attachment_exactly_one_parent",
         ),
     )
@@ -59,9 +59,9 @@ class Attachment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("work_areas.id", ondelete="CASCADE"),
         nullable=True,
     )
-    department_id: Mapped[uuid.UUID | None] = mapped_column(
+    functional_area_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("departments.id", ondelete="CASCADE"),
+        ForeignKey("functional_areas.id", ondelete="CASCADE"),
         nullable=True,
     )
 
@@ -91,8 +91,8 @@ class Attachment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         foreign_keys=[work_area_id],
         lazy="selectin",
     )
-    department: Mapped[Department | None] = relationship(
-        foreign_keys=[department_id],
+    functional_area: Mapped[FunctionalArea | None] = relationship(
+        foreign_keys=[functional_area_id],
         lazy="selectin",
     )
 

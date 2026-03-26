@@ -8,7 +8,7 @@ from app.schemas.cost_item import CostItemRead
 
 class WorkAreaCreate(BaseModel):
     name: str
-    department_id: UUID
+    functional_area_id: UUID
 
 
 class WorkAreaUpdate(BaseModel):
@@ -20,7 +20,7 @@ class WorkAreaRead(BaseModel):
 
     id: UUID
     name: str
-    department_id: UUID
+    functional_area_id: UUID
     created_at: datetime
     updated_at: datetime
 

@@ -253,7 +253,7 @@ const CostbookPage: React.FC = () => {
       if (item.approval_status !== 'approved') continue;
       const departmentId = workAreaToDepartment.get(item.work_area_id);
       if (departmentId == null) continue;
-      totals[departmentId] = (totals[departmentId] ?? 0) + item.current_amount;
+      totals[departmentId] = (totals[departmentId] ?? 0) + item.total_amount;
     }
 
     return totals;
@@ -273,10 +273,10 @@ const CostbookPage: React.FC = () => {
       const itemId = data.id;
 
       // If amount changed and user checked "Create Budget Adjustment", create one
-      if (data.zielanpassung && data.current_amount !== undefined) {
+      if (data.zielanpassung && data.total_amount !== undefined) {
         const originalItem = costItems.find((ci) => ci.id === itemId);
-        if (originalItem && data.current_amount !== originalItem.current_amount) {
-          const delta = data.current_amount - originalItem.current_amount;
+        if (originalItem && data.total_amount !== originalItem.total_amount) {
+          const delta = data.total_amount - originalItem.total_amount;
           const reason = data.zielanpassung_reason || `Amount change on "${originalItem.description}"`;
           // Find department via work area
           const wa = workAreas.find((w) => w.id === originalItem.work_area_id);
@@ -393,8 +393,9 @@ const CostbookPage: React.FC = () => {
     async (itemToDuplicate: CostItem) => {
       const newItem = await createCostItem(itemToDuplicate.work_area_id, {
         description: `${itemToDuplicate.description} (Copy)`,
-        original_amount: itemToDuplicate.original_amount,
-        current_amount: itemToDuplicate.current_amount,
+        unit_price: itemToDuplicate.unit_price,
+        quantity: itemToDuplicate.quantity,
+        total_amount: itemToDuplicate.total_amount,
         expected_cash_out: itemToDuplicate.expected_cash_out,
         cost_basis: itemToDuplicate.cost_basis,
         cost_driver: itemToDuplicate.cost_driver,
@@ -473,8 +474,9 @@ const CostbookPage: React.FC = () => {
 
     const newItem = await createCostItem(newItemWorkAreaId, {
       description: newItemDescription.trim(),
-      original_amount: amount,
-      current_amount: amount,
+      unit_price: amount,
+      quantity: 1,
+      total_amount: amount,
       expected_cash_out: now,
       approval_status: 'open',
       project_phase: filters.phases[0] ?? '',

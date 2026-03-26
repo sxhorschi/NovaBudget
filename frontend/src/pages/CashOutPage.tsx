@@ -148,7 +148,7 @@ const CashOutPage: React.FC = () => {
         const waIds = deptWaIds(dept.id);
         const amount = filteredItems
           .filter((ci) => waIds.has(ci.work_area_id) && ci.expected_cash_out === month)
-          .reduce((sum, ci) => sum + ci.current_amount, 0);
+          .reduce((sum, ci) => sum + ci.total_amount, 0);
 
         entry[`dept_${dept.id}`] = amount;
         total += amount;
@@ -170,7 +170,7 @@ const CashOutPage: React.FC = () => {
       MONTHS.forEach((month) => {
         const amount = filteredItems
           .filter((ci) => waIds.has(ci.work_area_id) && ci.expected_cash_out === month)
-          .reduce((sum, ci) => sum + ci.current_amount, 0);
+          .reduce((sum, ci) => sum + ci.total_amount, 0);
         row[month] = amount;
         rowTotal += amount;
       });
@@ -243,7 +243,7 @@ const CashOutPage: React.FC = () => {
         const waIds = deptWaIds(dept.id);
         const amount = items
           .filter((ci) => waIds.has(ci.work_area_id))
-          .reduce((s, ci) => s + ci.current_amount, 0);
+          .reduce((s, ci) => s + ci.total_amount, 0);
         if (amount > 0) {
           deptBreakdown.push({ dept, amount });
         }
@@ -266,7 +266,7 @@ const CashOutPage: React.FC = () => {
     filteredItems.forEach((item) => {
       const m = item.expected_cash_out;
       if (m) {
-        byMonth[m] = (byMonth[m] || 0) + item.current_amount;
+        byMonth[m] = (byMonth[m] || 0) + item.total_amount;
       }
     });
 
@@ -311,7 +311,7 @@ const CashOutPage: React.FC = () => {
           cmp = getDeptNameForItem(a).localeCompare(getDeptNameForItem(b));
           break;
         case 'amount':
-          cmp = a.current_amount - b.current_amount;
+          cmp = a.total_amount - b.total_amount;
           break;
       }
       return sortDir === 'asc' ? cmp : -cmp;
@@ -1002,7 +1002,7 @@ const CashOutPage: React.FC = () => {
                               </span>
                             </td>
                             <td className="px-4 py-2 text-right font-semibold tabular-nums text-gray-900">
-                              {formatEur(item.current_amount)}
+                              {formatEur(item.total_amount)}
                             </td>
                           </tr>
                         );
@@ -1015,7 +1015,7 @@ const CashOutPage: React.FC = () => {
                         </td>
                         <td className="px-4 py-2.5 text-right tabular-nums text-black">
                           {formatEur(
-                            detailItems.reduce((s, i) => s + i.current_amount, 0),
+                            detailItems.reduce((s, i) => s + i.total_amount, 0),
                           )}
                         </td>
                       </tr>

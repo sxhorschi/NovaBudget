@@ -128,10 +128,10 @@ export const statusColors = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// Department Colors — Distinguishable at a glance
+// Functional Area Colors — Distinguishable at a glance
 // ---------------------------------------------------------------------------
 
-export const departmentColors = {
+export const functionalAreaColors = {
   engineering: { bg: '#dbeafe', text: '#1d4ed8', dot: '#3b82f6' },
   production: { bg: '#fef3c7', text: '#b45309', dot: '#f59e0b' },
   quality: { bg: '#dcfce7', text: '#15803d', dot: '#22c55e' },
@@ -143,10 +143,10 @@ export const departmentColors = {
 } as const;
 
 /**
- * Department accent colors by numeric ID.
+ * Functional Area accent colors by numeric ID.
  * Single source of truth — import this instead of hardcoding colors.
  */
-export const DEPT_ACCENT_COLORS: Record<string, string> = {
+export const FA_ACCENT_COLORS: Record<string, string> = {
   'd-001': '#6366f1',
   'd-002': '#f59e0b',
   'd-003': '#3b82f6',
@@ -154,10 +154,13 @@ export const DEPT_ACCENT_COLORS: Record<string, string> = {
   'd-005': '#a855f7',
 };
 
-/** Returns the accent color for a department ID, with a slate fallback. */
-export function getDeptColor(deptId: string): string {
-  return DEPT_ACCENT_COLORS[deptId] ?? '#64748b';
+/** Returns the accent color for a functional area ID, with a slate fallback. */
+export function getFAColor(faId: string): string {
+  return FA_ACCENT_COLORS[faId] ?? '#64748b';
 }
+
+/** @deprecated Use getFAColor instead */
+export const getDeptColor = getFAColor;
 
 // ---------------------------------------------------------------------------
 // Phase Colors — Factory Planning Phases

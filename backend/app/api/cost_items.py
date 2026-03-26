@@ -77,7 +77,7 @@ def _parse_enums(raw: str | None, enum_cls: type) -> list:
 @router.get("/", response_model=CostItemSearchResult)
 async def list_cost_items(
     facility_id: UUID,
-    department_id: str | None = Query(None, description="Comma-separated UUIDs"),
+    functional_area_id: str | None = Query(None, description="Comma-separated UUIDs"),
     work_area_id: UUID | None = None,
     phase: str | None = Query(None, description="Comma-separated: PHASE_1,PHASE_2"),
     product: str | None = Query(None, description="Comma-separated: ATLAS,ORION"),
@@ -97,7 +97,7 @@ async def list_cost_items(
 ):
     params = CostItemSearchParams(
         facility_id=facility_id,
-        department_ids=_parse_uuids(department_id),
+        functional_area_ids=_parse_uuids(functional_area_id),
         work_area_id=work_area_id,
         phases=_parse_csv(phase),
         products=_parse_csv(product),

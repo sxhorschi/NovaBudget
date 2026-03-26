@@ -68,8 +68,9 @@ class BulkResponse(BaseModel):
 # Fields that are allowed in a generic bulk-update payload.
 UPDATABLE_FIELDS: set[str] = {
     "description",
-    "original_amount",
-    "current_amount",
+    "unit_price",
+    "quantity",
+    "total_amount",
     "expected_cash_out",
     "cost_basis",
     "cost_driver",
@@ -434,8 +435,9 @@ async def duplicate_cost_item(
         new_item = CostItem(
             work_area_id=target_wa_id,
             description=source.description,
-            original_amount=source.original_amount,
-            current_amount=source.current_amount,
+            unit_price=source.unit_price,
+            quantity=source.quantity,
+            total_amount=source.total_amount,
             expected_cash_out=source.expected_cash_out,
             cost_basis=source.cost_basis,
             cost_driver=source.cost_driver,

@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ArrowUp, ArrowDown, SearchX, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
-import type { Department, WorkAreaWithItems, CostItem, ApprovalStatus } from '../../types/budget';
-import { getDeptColor } from '../../styles/design-tokens';
-import DepartmentRow from './DepartmentRow';
+import type { FunctionalArea, WorkAreaWithItems, CostItem, ApprovalStatus } from '../../types/budget';
+import { getFAColor } from '../../styles/design-tokens';
+import FunctionalAreaRow from './FunctionalAreaRow';
 import WorkAreaRow from './WorkAreaRow';
 import CostItemRow from './CostItemRow';
 import TableFooter from './TableFooter';
@@ -25,7 +25,7 @@ function compareCostItems(a: CostItem, b: CostItem, sort: SortState): number {
     case 'description':
       return a.description.localeCompare(b.description) * dir;
     case 'amount':
-      return (a.current_amount - b.current_amount) * dir;
+      return (a.total_amount - b.total_amount) * dir;
     case 'phase':
       return a.project_phase.localeCompare(b.project_phase) * dir;
     case 'product':
@@ -68,14 +68,14 @@ const COLUMNS: ColumnDef[] = [
 // ---------------------------------------------------------------------------
 
 export interface CostbookTableProps {
-  departments: Department[];
+  functionalAreas: FunctionalArea[];
   workAreas: WorkAreaWithItems[];
-  departmentCommittedTotals?: Record<string, number>;
+  functionalAreaCommittedTotals?: Record<string, number>;
   onSelectItem: (item: CostItem) => void;
   selectedItemId: string | null;
   onStatusChange: (item: CostItem, newStatus: ApprovalStatus) => void;
   onDeleteItem?: (item: CostItem) => void;
-  onOpenDepartmentContext?: (departmentId: string) => void;
+  onOpenFunctionalAreaContext?: (functionalAreaId: string) => void;
   onOpenWorkAreaContext?: (workAreaId: string) => void;
 }
 
@@ -84,19 +84,19 @@ export interface CostbookTableProps {
 // ---------------------------------------------------------------------------
 
 export default function CostbookTable({
-  departments,
+  functionalAreas,
   workAreas,
-  departmentCommittedTotals,
+  functionalAreaCommittedTotals,
   onSelectItem,
   selectedItemId,
   onStatusChange,
   onDeleteItem,
-  onOpenDepartmentContext,
+  onOpenFunctionalAreaContext,
   onOpenWorkAreaContext,
 }: CostbookTableProps) {
   // -- Expansion state: all expanded by default --------------------------------
-  const [expandedDepts, setExpandedDepts] = useState<Set<string>>(
-    () => new Set(departments.map((d) => d.id)),
+  const [expandedFAs, setExpandedDepts] = useState<Set<string>>(
+    () => new Set(functionalAreas.map((d) => d.id)),
   );
   const [expandedWAs, setExpandedWAs] = useState<Set<string>>(
     () => new Set(workAreas.map((wa) => wa.id)),
@@ -106,7 +106,7 @@ export default function CostbookTable({
     setExpandedDepts((prev) => {
       const next = new Set(prev);
       let changed = false;
-      for (const d of departments) {
+      for (const d of functionalAreas) {
         if (!next.has(d.id)) {
           next.add(d.id);
           changed = true;
@@ -114,7 +114,7 @@ export default function CostbookTable({
       }
       return changed ? next : prev;
     });
-  }, [departments]);
+  }, [functionalAreas]);
 
   useEffect(() => {
     setExpandedWAs((prev) => {
@@ -142,11 +142,11 @@ export default function CostbookTable({
   }, []);
 
   // -- Toggle helpers ----------------------------------------------------------
-  const toggleDept = useCallback((deptId: string) => {
+  const toggleFA = useCallback((faId: string) => {
     setExpandedDepts((prev) => {
       const next = new Set(prev);
-      if (next.has(deptId)) next.delete(deptId);
-      else next.add(deptId);
+      if (next.has(faId)) next.delete(faId);
+      else next.add(faId);
       return next;
     });
   }, []);
@@ -160,36 +160,36 @@ export default function CostbookTable({
     });
   }, []);
 
-  // -- Precompute: group work areas by department ------------------------------
-  const waByDept = useMemo(() => {
+  // -- Precompute: group work areas by functional area ------------------------------
+  const waByFA = useMemo(() => {
     const map = new Map<string, WorkAreaWithItems[]>();
     for (const wa of workAreas) {
-      const list = map.get(wa.department_id) ?? [];
+      const list = map.get(wa.functional_area_id) ?? [];
       list.push(wa);
-      map.set(wa.department_id, list);
+      map.set(wa.functional_area_id, list);
     }
     return map;
   }, [workAreas]);
 
   // -- Expand / Collapse All ---------------------------------------------------
-  const allDeptIds = useMemo(() => departments.map((d) => d.id), [departments]);
+  const allFAIds = useMemo(() => functionalAreas.map((d) => d.id), [functionalAreas]);
   const allWAIds = useMemo(() => workAreas.map((wa) => wa.id), [workAreas]);
 
-  const allDeptsExpanded = useMemo(
-    () => allDeptIds.length > 0 && allDeptIds.every((id) => expandedDepts.has(id)),
-    [allDeptIds, expandedDepts],
+  const allFAsExpanded = useMemo(
+    () => allFAIds.length > 0 && allFAIds.every((id) => expandedFAs.has(id)),
+    [allFAIds, expandedFAs],
   );
   const allWAsExpanded = useMemo(
     () => allWAIds.length > 0 && allWAIds.every((id) => expandedWAs.has(id)),
     [allWAIds, expandedWAs],
   );
 
-  const allExpanded = allDeptsExpanded && allWAsExpanded;
+  const allExpanded = allFAsExpanded && allWAsExpanded;
 
   const expandAll = useCallback(() => {
-    setExpandedDepts(new Set(allDeptIds));
+    setExpandedDepts(new Set(allFAIds));
     setExpandedWAs(new Set(allWAIds));
-  }, [allDeptIds, allWAIds]);
+  }, [allFAIds, allWAIds]);
 
   const collapseAll = useCallback(() => {
     setExpandedDepts(new Set());
@@ -206,7 +206,7 @@ export default function CostbookTable({
   }, [workAreas]);
 
   const grandTotal = useMemo(
-    () => allItems.reduce((sum, ci) => sum + ci.current_amount, 0),
+    () => allItems.reduce((sum, ci) => sum + ci.total_amount, 0),
     [allItems],
   );
 
@@ -217,7 +217,7 @@ export default function CostbookTable({
   return (
     <div>
       {/* Toolbar: Expand/Collapse All */}
-      {departments.length > 0 && (
+      {functionalAreas.length > 0 && (
         <div className="flex items-center justify-end gap-2 mb-2">
           <button
             type="button"
@@ -284,43 +284,43 @@ export default function CostbookTable({
         {/* Table Body — 3-level hierarchy                                      */}
         {/* ------------------------------------------------------------------ */}
         <tbody>
-          {departments.map((dept) => {
-            const deptWAs = waByDept.get(dept.id) ?? [];
-            const deptItems: CostItem[] = [];
-            for (const wa of deptWAs) {
-              deptItems.push(...wa.cost_items);
+          {functionalAreas.map((fa) => {
+            const faWAs = waByFA.get(fa.id) ?? [];
+            const faItems: CostItem[] = [];
+            for (const wa of faWAs) {
+              faItems.push(...wa.cost_items);
             }
             // Committed = only approved items (consistent with useFilteredData source of truth)
-            const visibleCommitted = deptItems
+            const visibleCommitted = faItems
               .filter((ci) => ci.approval_status === 'approved')
-              .reduce((s, ci) => s + ci.current_amount, 0);
-            const committed = departmentCommittedTotals?.[dept.id] ?? visibleCommitted;
-            const isDeptExpanded = expandedDepts.has(dept.id);
-            const color = getDeptColor(dept.id);
+              .reduce((s, ci) => s + ci.total_amount, 0);
+            const committed = functionalAreaCommittedTotals?.[fa.id] ?? visibleCommitted;
+            const isFAExpanded = expandedFAs.has(fa.id);
+            const color = getFAColor(fa.id);
 
             return (
-              <DepartmentGroup key={dept.id}>
-                {/* Department row */}
-                <DepartmentRow
-                  name={dept.name}
+              <FunctionalAreaGroup key={fa.id}>
+                {/* Functional Area row */}
+                <FunctionalAreaRow
+                  name={fa.name}
                   committed={committed}
-                  budget={dept.budget_total}
-                  itemCount={deptItems.length}
-                  expanded={isDeptExpanded}
-                  onToggle={() => toggleDept(dept.id)}
+                  budget={fa.budget_total}
+                  itemCount={faItems.length}
+                  expanded={isFAExpanded}
+                  onToggle={() => toggleFA(fa.id)}
                   onOpenContext={
-                    onOpenDepartmentContext
-                      ? () => onOpenDepartmentContext(dept.id)
+                    onOpenFunctionalAreaContext
+                      ? () => onOpenFunctionalAreaContext(fa.id)
                       : undefined
                   }
                   accentColor={color}
                 />
 
-                {/* Work areas (visible when department expanded) */}
-                {isDeptExpanded &&
-                  deptWAs.map((wa) => {
+                {/* Work areas (visible when functional area expanded) */}
+                {isFAExpanded &&
+                  faWAs.map((wa) => {
                     const items = wa.cost_items;
-                    const waTotal = items.reduce((s, ci) => s + ci.current_amount, 0);
+                    const waTotal = items.reduce((s, ci) => s + ci.total_amount, 0);
                     const isWAExpanded = expandedWAs.has(wa.id);
                     const sortedItems = [...items].sort((a, b) => compareCostItems(a, b, sort));
 
@@ -355,12 +355,12 @@ export default function CostbookTable({
                       </WorkAreaGroup>
                     );
                   })}
-              </DepartmentGroup>
+              </FunctionalAreaGroup>
             );
           })}
 
           {/* Empty state */}
-          {departments.length === 0 && (
+          {functionalAreas.length === 0 && (
             <tr>
               <td colSpan={8} className="px-4 py-16 text-center">
                 <div className="flex flex-col items-center gap-3">
@@ -396,7 +396,7 @@ export default function CostbookTable({
 // Lightweight wrapper fragments for semantic grouping (no extra DOM nodes)
 // ---------------------------------------------------------------------------
 
-function DepartmentGroup({ children }: { children: React.ReactNode }) {
+function FunctionalAreaGroup({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 

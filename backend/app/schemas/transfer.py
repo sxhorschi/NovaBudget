@@ -31,17 +31,17 @@ class TransferWorkAreasRequest(BaseModel):
     source_facility_id: UUID
     target_facility_id: UUID
     work_area_ids: list[UUID] = Field(min_length=1)
-    target_department_id: UUID
+    target_functional_area_id: UUID
     mode: Literal["copy", "move"]
     reset_status: bool = True
     reset_amounts: bool = False
     notes: str | None = None
 
 
-class TransferDepartmentsRequest(BaseModel):
+class TransferFunctionalAreasRequest(BaseModel):
     source_facility_id: UUID
     target_facility_id: UUID
-    department_ids: list[UUID] = Field(min_length=1)
+    functional_area_ids: list[UUID] = Field(min_length=1)
     mode: Literal["copy", "move"]
     reset_status: bool = True
     reset_amounts: bool = False

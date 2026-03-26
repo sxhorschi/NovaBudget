@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { FilterState } from './useFilterState';
-import type { Department, WorkArea, CostItem } from '../types/budget';
+import type { FunctionalArea, WorkArea, CostItem } from '../types/budget';
 import { useBudgetData } from '../context/BudgetDataContext';
 
 function normalizeSearchText(value: string): string {
@@ -29,7 +29,7 @@ export interface FilteredSummary {
 }
 
 export interface FilteredData {
-  filteredDepartments: Department[];
+  filteredFunctionalAreas: FunctionalArea[];
   filteredWorkAreas: WorkArea[];
   filteredItems: CostItem[];
   summary: FilteredSummary;
@@ -41,7 +41,7 @@ export interface FilteredData {
 
 export function useFilteredData(filters: FilterState): FilteredData {
   const {
-    departments: allDepartments,
+    functionalAreas: allFunctionalAreas,
     workAreas: allWorkAreas,
     costItems: allCostItems,
     budgetAdjustments,
@@ -59,11 +59,11 @@ export function useFilteredData(filters: FilterState): FilteredData {
   }, [allCostItems]);
 
   return useMemo(() => {
-    // ---- Step 1: Determine which departments are in scope ----
-    const departments =
-      filters.departments.length > 0
-        ? allDepartments.filter((d) => filters.departments.includes(d.id))
-        : allDepartments;
+    // ---- Step 1: Determine which functional areas are in scope ----
+    const functionalAreas =
+      filters.functionalAreas.length > 0
+        ? allFunctionalAreas.filter((d) => filters.functionalAreas.includes(d.id))
+        : allFunctionalAreas;
 
     const hasItemLevelFilters =
       filters.phases.length > 0 ||
@@ -72,13 +72,13 @@ export function useFilteredData(filters: FilterState): FilteredData {
       filters.search.trim().length > 0 ||
       filters.overBudget;
 
-    const departmentIds = new Set(departments.map((d) => d.id));
+    const functionalAreaIds = new Set(functionalAreas.map((d) => d.id));
 
-    // ---- Step 2: Work areas in those departments ----
-    const workAreasInDepts = allWorkAreas.filter((wa) =>
-      departmentIds.has(wa.department_id),
+    // ---- Step 2: Work areas in those functional areas ----
+    const workAreasInFAs = allWorkAreas.filter((wa) =>
+      functionalAreaIds.has(wa.functional_area_id),
     );
-    const workAreaIds = new Set(workAreasInDepts.map((wa) => wa.id));
+    const workAreaIds = new Set(workAreasInFAs.map((wa) => wa.id));
 
     // ---- Step 3: Filter cost items ----
     let items = allCostItems.filter((ci) => workAreaIds.has(ci.work_area_id));
@@ -108,44 +108,44 @@ export function useFilteredData(filters: FilterState): FilteredData {
     // ---- Step 4: Filter work areas to those that still have items ----
     const itemWorkAreaIds = new Set(items.map((ci) => ci.work_area_id));
     let filteredWorkAreas = hasItemLevelFilters
-      ? workAreasInDepts.filter((wa) => itemWorkAreaIds.has(wa.id))
-      : workAreasInDepts;
+      ? workAreasInFAs.filter((wa) => itemWorkAreaIds.has(wa.id))
+      : workAreasInFAs;
 
-    // ---- Step 5: Filter departments to those that still have work areas ----
-    const filteredWaDeptIds = new Set(
-      filteredWorkAreas.map((wa) => wa.department_id),
+    // ---- Step 5: Filter functional areas to those that still have work areas ----
+    const filteredWaFaIds = new Set(
+      filteredWorkAreas.map((wa) => wa.functional_area_id),
     );
-    let filteredDepartments = hasItemLevelFilters
-      ? departments.filter((d) => filteredWaDeptIds.has(d.id))
-      : departments;
+    let filteredFunctionalAreas = hasItemLevelFilters
+      ? functionalAreas.filter((d) => filteredWaFaIds.has(d.id))
+      : functionalAreas;
 
     // ---- Step 5b: Apply overBudget filter ----
     if (filters.overBudget) {
-      const overBudgetDeptIds = new Set<string>();
-      for (const dept of filteredDepartments) {
-        const deptWAs = workAreasInDepts.filter((wa) => wa.department_id === dept.id);
-        const deptWAIds = new Set(deptWAs.map((wa) => wa.id));
+      const overBudgetFaIds = new Set<string>();
+      for (const fa of filteredFunctionalAreas) {
+        const faWAs = workAreasInFAs.filter((wa) => wa.functional_area_id === fa.id);
+        const faWAIds = new Set(faWAs.map((wa) => wa.id));
         // Use forecast logic (exclude rejected/obsolete) for over-budget check,
         // consistent with remaining = budget - forecast
-        const deptTotal = items
+        const faTotal = items
           .filter((ci) =>
-            deptWAIds.has(ci.work_area_id) &&
+            faWAIds.has(ci.work_area_id) &&
             ci.approval_status !== 'rejected' &&
             ci.approval_status !== 'obsolete',
           )
-          .reduce((s, ci) => s + ci.current_amount, 0);
-        const deptAdjustments = budgetAdjustments
-          .filter((adj) => adj.department_id === dept.id)
+          .reduce((s, ci) => s + ci.total_amount, 0);
+        const faAdjustments = budgetAdjustments
+          .filter((adj) => adj.functional_area_id === fa.id)
           .reduce((sum, adj) => sum + adj.amount, 0);
-        const deptBudget = dept.budget_total + deptAdjustments;
-        if (deptTotal > deptBudget) {
-          overBudgetDeptIds.add(dept.id);
+        const faBudget = fa.budget_total + faAdjustments;
+        if (faTotal > faBudget) {
+          overBudgetFaIds.add(fa.id);
         }
       }
-      filteredDepartments = filteredDepartments.filter((d) => overBudgetDeptIds.has(d.id));
-      // Also restrict work areas and items to matching departments
-      const obd = new Set(filteredDepartments.map((d) => d.id));
-      filteredWorkAreas = filteredWorkAreas.filter((wa) => obd.has(wa.department_id));
+      filteredFunctionalAreas = filteredFunctionalAreas.filter((d) => overBudgetFaIds.has(d.id));
+      // Also restrict work areas and items to matching functionalAreas
+      const obd = new Set(filteredFunctionalAreas.map((d) => d.id));
+      filteredWorkAreas = filteredWorkAreas.filter((wa) => obd.has(wa.functional_area_id));
       const obWAIds = new Set(filteredWorkAreas.map((wa) => wa.id));
       items = items.filter((ci) => obWAIds.has(ci.work_area_id));
     }
@@ -155,7 +155,7 @@ export function useFilteredData(filters: FilterState): FilteredData {
     // Committed = nur freigegebene (approved) Items
     const committed = items
       .filter((ci) => ci.approval_status === 'approved')
-      .reduce((sum, ci) => sum + ci.current_amount, 0);
+      .reduce((sum, ci) => sum + ci.total_amount, 0);
 
     // Forecast = alle Items die nicht rejected oder obsolete sind
     const forecast = items
@@ -164,30 +164,27 @@ export function useFilteredData(filters: FilterState): FilteredData {
           ci.approval_status !== 'rejected' &&
           ci.approval_status !== 'obsolete',
       )
-      .reduce((sum, ci) => sum + ci.current_amount, 0);
+      .reduce((sum, ci) => sum + ci.total_amount, 0);
 
-    // Budget = Basis-Budget + Zielanpassungen fuer sichtbare Departments
-    const filteredDeptIds = new Set(filteredDepartments.map((d) => d.id));
-    const baseBudget = filteredDepartments.reduce(
+    // Budget = Basis-Budget + Zielanpassungen fuer sichtbare Functional Areas
+    const filteredFaIds = new Set(filteredFunctionalAreas.map((d) => d.id));
+    const baseBudget = filteredFunctionalAreas.reduce(
       (sum, d) => sum + d.budget_total,
       0,
     );
     const adjustmentTotal = budgetAdjustments
-      .filter((adj) => filteredDeptIds.has(adj.department_id))
+      .filter((adj) => filteredFaIds.has(adj.functional_area_id))
       .reduce((sum, adj) => sum + adj.amount, 0);
     const budget = baseBudget + adjustmentTotal;
 
     // Remaining = Budget - Forecast
     const remaining = budget - forecast;
 
-    // Delta = Summe (original - current) fuer alle sichtbaren Items
-    const delta = items.reduce(
-      (sum, ci) => sum + (ci.original_amount - ci.current_amount),
-      0,
-    );
+    // Delta: placeholder — will be replaced by PriceHistory in Phase 4
+    const delta = 0;
 
     return {
-      filteredDepartments,
+      filteredFunctionalAreas,
       filteredWorkAreas,
       filteredItems: items,
       summary: {
@@ -202,7 +199,7 @@ export function useFilteredData(filters: FilterState): FilteredData {
     };
   }, [
     filters,
-    allDepartments,
+    allFunctionalAreas,
     allWorkAreas,
     allCostItems,
     budgetAdjustments,

@@ -7,31 +7,31 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 
-# ── Department KPIs ──────────────────────────────────────────────────────
+# ── FunctionalArea KPIs ──────────────────────────────────────────────────────
 
-class DepartmentKPI(BaseModel):
-    """KPIs for a single department (Otto v4 business logic)."""
+class FunctionalAreaKPI(BaseModel):
+    """KPIs for a single functional area (Otto v4 business logic)."""
 
     model_config = ConfigDict(from_attributes=True)
 
-    department_id: UUID
-    department_name: str
+    functional_area_id: UUID
+    functional_area_name: str
     budget: Decimal              # budget_total + SUM(budget_adjustments)
-    budget_base: Decimal         # department.budget_total (original)
+    budget_base: Decimal         # functional_area.budget_total (original)
     adjustment_total: Decimal    # SUM(budget_adjustments.amount)
-    committed: Decimal           # SUM(current_amount) WHERE status = APPROVED
-    forecast: Decimal            # SUM(current_amount) WHERE status NOT IN (REJECTED, OBSOLETE)
+    committed: Decimal           # SUM(total_amount) WHERE status = APPROVED
+    forecast: Decimal            # SUM(total_amount) WHERE status NOT IN (REJECTED, OBSOLETE)
     remaining: Decimal           # budget - forecast
     cost_of_completion: Decimal  # = forecast (same metric, different label)
-    variance: Decimal            # SUM(original_amount - current_amount) for active items
+    variance: Decimal            # 0 for now (will use PriceHistory delta in Phase 4)
     item_count: int              # number of active items (excl. rejected/obsolete)
     budget_utilization_pct: Decimal  # committed / budget * 100
 
 
-# ── Facility KPIs (aggregate over all departments) ───────────────────────
+# ── Facility KPIs (aggregate over all functional areas) ───────────────────────
 
 class FacilityKPI(BaseModel):
-    """Aggregated KPIs across all departments in a facility."""
+    """Aggregated KPIs across all functional areas in a facility."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -46,26 +46,26 @@ class FacilityKPI(BaseModel):
     variance: Decimal
     item_count: int
     budget_utilization_pct: Decimal
-    department_count: int
-    departments: list[DepartmentKPI]
+    functional_area_count: int
+    functional_areas: list[FunctionalAreaKPI]
 
 
 # ── Cash-Out Forecast ────────────────────────────────────────────────────
 
-class CashOutDepartment(BaseModel):
-    """Cash-out for one department in a given month."""
+class CashOutFunctionalArea(BaseModel):
+    """Cash-out for one functional area in a given month."""
 
-    department_id: UUID
-    department_name: str
+    functional_area_id: UUID
+    functional_area_name: str
     amount: Decimal
 
 
 class CashOutMonth(BaseModel):
-    """Monthly cash-out forecast, broken down by department."""
+    """Monthly cash-out forecast, broken down by functional area."""
 
     month: date
     total: Decimal
-    departments: list[CashOutDepartment]
+    functional_areas: list[CashOutFunctionalArea]
 
 
 # ── Phase Breakdown ──────────────────────────────────────────────────────
@@ -102,10 +102,10 @@ class BudgetSummary(BaseModel):
     cost_of_completion: Decimal
 
 
-class DepartmentSummary(BaseModel):
-    """DEPRECATED — use DepartmentKPI instead."""
+class FunctionalAreaSummary(BaseModel):
+    """DEPRECATED — use FunctionalAreaKPI instead."""
 
-    department_name: str
+    functional_area_name: str
     budget_total: Decimal | None = None
     total_committed: Decimal
     total_approved: Decimal

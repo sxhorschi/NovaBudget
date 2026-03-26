@@ -19,14 +19,14 @@ from app.models import (
     AuditLog,
     BudgetAdjustment,
     CostItem,
-    Department,
+    FunctionalArea,
     Facility,
     WorkArea,
 )
 from app.models.enums import ApprovalStatus
 from app.schemas.dashboard import (
     CashOutTimelineEntry,
-    DashboardDepartment,
+    DashboardFunctionalArea,
     DashboardFacility,
     DashboardKPIs,
     DashboardPhase,
@@ -55,15 +55,15 @@ async def get_dashboard(
 ) -> DashboardResponse:
     """Compute the full dashboard payload for a facility in as few queries as possible."""
 
-    # ── 1. Facility + Departments + WorkAreas (eager load) ───────────────
+    # ── 1. Facility + FunctionalAreas + WorkAreas (eager load) ───────────────
     facility_stmt = (
         select(Facility)
         .where(Facility.id == facility_id)
         .options(
-            selectinload(Facility.departments)
-            .selectinload(Department.work_areas),
-            selectinload(Facility.departments)
-            .selectinload(Department.budget_adjustments),
+            selectinload(Facility.functional_areas)
+            .selectinload(FunctionalArea.work_areas),
+            selectinload(Facility.functional_areas)
+            .selectinload(FunctionalArea.budget_adjustments),
         )
     )
     facility_result = await session.execute(facility_stmt)
@@ -71,20 +71,20 @@ async def get_dashboard(
     if facility is None:
         raise ValueError(f"Facility {facility_id} not found")
 
-    dept_ids = [d.id for d in facility.departments]
+    fa_ids = [d.id for d in facility.functional_areas]
 
-    # ── 2. Aggregated cost-item stats per department ─────────────────────
-    # Single query: group by department, compute committed/forecast/counts
-    if dept_ids:
+    # ── 2. Aggregated cost-item stats per functional area ─────────────────────
+    # Single query: group by functional area, compute committed/forecast/counts
+    if fa_ids:
         agg_stmt = (
             select(
-                WorkArea.department_id,
+                WorkArea.functional_area_id,
                 func.count(CostItem.id).label("total_items"),
-                func.coalesce(func.sum(CostItem.current_amount), ZERO).label("total_amount"),
+                func.coalesce(func.sum(CostItem.total_amount), ZERO).label("total_amount"),
                 func.coalesce(
                     func.sum(
                         case(
-                            (CostItem.approval_status.in_(COMMITTED_STATUSES), CostItem.current_amount),
+                            (CostItem.approval_status.in_(COMMITTED_STATUSES), CostItem.total_amount),
                             else_=Decimal(0),
                         )
                     ),
@@ -93,7 +93,7 @@ async def get_dashboard(
                 func.coalesce(
                     func.sum(
                         case(
-                            (CostItem.approval_status.notin_(EXCLUDED_STATUSES), CostItem.current_amount),
+                            (CostItem.approval_status.notin_(EXCLUDED_STATUSES), CostItem.total_amount),
                             else_=Decimal(0),
                         )
                     ),
@@ -116,34 +116,34 @@ async def get_dashboard(
                 ).label("rejected_items"),
             )
             .join(WorkArea, CostItem.work_area_id == WorkArea.id)
-            .where(WorkArea.department_id.in_(dept_ids))
-            .group_by(WorkArea.department_id)
+            .where(WorkArea.functional_area_id.in_(fa_ids))
+            .group_by(WorkArea.functional_area_id)
         )
         agg_result = await session.execute(agg_stmt)
-        dept_agg = {row.department_id: row for row in agg_result.all()}
+        fa_agg = {row.functional_area_id: row for row in agg_result.all()}
     else:
-        dept_agg = {}
+        fa_agg = {}
 
     # ── 3. Work-area level aggregation ───────────────────────────────────
-    if dept_ids:
+    if fa_ids:
         wa_stmt = (
             select(
                 WorkArea.id,
-                WorkArea.department_id,
+                WorkArea.functional_area_id,
                 WorkArea.name,
                 func.count(CostItem.id).label("item_count"),
-                func.coalesce(func.sum(CostItem.current_amount), ZERO).label("total"),
+                func.coalesce(func.sum(CostItem.total_amount), ZERO).label("total"),
             )
             .outerjoin(CostItem, CostItem.work_area_id == WorkArea.id)
-            .where(WorkArea.department_id.in_(dept_ids))
-            .group_by(WorkArea.id, WorkArea.department_id, WorkArea.name)
+            .where(WorkArea.functional_area_id.in_(fa_ids))
+            .group_by(WorkArea.id, WorkArea.functional_area_id, WorkArea.name)
             .order_by(WorkArea.name)
         )
         wa_result = await session.execute(wa_stmt)
         wa_rows = wa_result.all()
-        wa_by_dept: dict[uuid.UUID, list] = defaultdict(list)
+        wa_by_fa: dict[uuid.UUID, list] = defaultdict(list)
         for row in wa_rows:
-            wa_by_dept[row.department_id].append(
+            wa_by_fa[row.functional_area_id].append(
                 DashboardWorkArea(
                     id=row.id,
                     name=row.name,
@@ -152,9 +152,9 @@ async def get_dashboard(
                 )
             )
     else:
-        wa_by_dept = {}
+        wa_by_fa = {}
 
-    # ── 4. Build department list + accumulate facility totals ────────────
+    # ── 4. Build functional area list + accumulate facility totals ────────────
     total_budget = ZERO
     total_adjustments = ZERO
     total_committed = ZERO
@@ -164,38 +164,38 @@ async def get_dashboard(
     total_pending = 0
     total_rejected = 0
 
-    departments_out: list[DashboardDepartment] = []
+    functional_areas_out: list[DashboardFunctionalArea] = []
 
-    for dept in sorted(facility.departments, key=lambda d: d.name):
-        dept_budget = dept.budget_total or ZERO
-        dept_adj = sum((a.amount or ZERO) for a in dept.budget_adjustments)
-        agg = dept_agg.get(dept.id)
+    for fa in sorted(facility.functional_areas, key=lambda d: d.name):
+        fa_budget = fa.budget_total or ZERO
+        fa_adj = sum((a.amount or ZERO) for a in fa.budget_adjustments)
+        agg = fa_agg.get(fa.id)
 
         committed = agg.committed if agg else ZERO
         forecast = agg.forecast if agg else ZERO
         items_total = agg.total_items if agg else 0
         items_approved = agg.approved_items if agg else 0
 
-        effective = dept_budget + dept_adj
+        effective = fa_budget + fa_adj
         remaining = effective - forecast
 
-        departments_out.append(
-            DashboardDepartment(
-                id=dept.id,
-                name=dept.name,
-                budget=dept_budget,
-                adjustments=dept_adj,
+        functional_areas_out.append(
+            DashboardFunctionalArea(
+                id=fa.id,
+                name=fa.name,
+                budget=fa_budget,
+                adjustments=fa_adj,
                 committed=committed,
                 forecast=forecast,
                 remaining=remaining,
                 items_total=items_total,
                 items_approved=items_approved,
-                work_areas=wa_by_dept.get(dept.id, []),
+                work_areas=wa_by_fa.get(fa.id, []),
             )
         )
 
-        total_budget += dept_budget
-        total_adjustments += dept_adj
+        total_budget += fa_budget
+        total_adjustments += fa_adj
         total_committed += committed
         total_forecast += forecast
         total_items += items_total
@@ -225,43 +225,43 @@ async def get_dashboard(
         rejected_items=total_rejected,
     )
 
-    # ── 5. Cash-out timeline (by month & department) ─────────────────────
-    if dept_ids:
+    # ── 5. Cash-out timeline (by month & functional area) ─────────────────
+    if fa_ids:
         cashout_stmt = (
             select(
                 func.to_char(
                     func.date_trunc("month", CostItem.expected_cash_out), "YYYY-MM"
                 ).label("month"),
-                WorkArea.department_id,
-                func.coalesce(func.sum(CostItem.current_amount), ZERO).label("amount"),
+                WorkArea.functional_area_id,
+                func.coalesce(func.sum(CostItem.total_amount), ZERO).label("amount"),
             )
             .join(WorkArea, CostItem.work_area_id == WorkArea.id)
             .where(
-                WorkArea.department_id.in_(dept_ids),
+                WorkArea.functional_area_id.in_(fa_ids),
                 CostItem.expected_cash_out.is_not(None),
                 CostItem.approval_status.notin_(EXCLUDED_STATUSES),
             )
             .group_by(
                 func.to_char(func.date_trunc("month", CostItem.expected_cash_out), "YYYY-MM"),
-                WorkArea.department_id,
+                WorkArea.functional_area_id,
             )
             .order_by("month")
         )
         cashout_result = await session.execute(cashout_stmt)
         cashout_rows = cashout_result.all()
 
-        # Pivot: month -> {dept_id: amount}
+        # Pivot: month -> {fa_id: amount}
         month_data: dict[str, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
         month_totals: dict[str, Decimal] = defaultdict(lambda: ZERO)
         for row in cashout_rows:
-            month_data[row.month][str(row.department_id)] += row.amount
+            month_data[row.month][str(row.functional_area_id)] += row.amount
             month_totals[row.month] += row.amount
 
         cash_out_timeline = [
             CashOutTimelineEntry(
                 month=month,
                 total=month_totals[month],
-                by_department=dict(month_data[month]),
+                by_functional_area=dict(month_data[month]),
             )
             for month in sorted(month_totals)
         ]
@@ -269,14 +269,14 @@ async def get_dashboard(
         cash_out_timeline = []
 
     # ── 6. Breakdown by phase ────────────────────────────────────────────
-    if dept_ids:
+    if fa_ids:
         phase_stmt = (
             select(
                 CostItem.project_phase,
                 func.coalesce(
                     func.sum(
                         case(
-                            (CostItem.approval_status.in_(COMMITTED_STATUSES), CostItem.current_amount),
+                            (CostItem.approval_status.in_(COMMITTED_STATUSES), CostItem.total_amount),
                             else_=Decimal(0),
                         )
                     ),
@@ -285,7 +285,7 @@ async def get_dashboard(
                 func.coalesce(
                     func.sum(
                         case(
-                            (CostItem.approval_status.notin_(EXCLUDED_STATUSES), CostItem.current_amount),
+                            (CostItem.approval_status.notin_(EXCLUDED_STATUSES), CostItem.total_amount),
                             else_=Decimal(0),
                         )
                     ),
@@ -295,7 +295,7 @@ async def get_dashboard(
             )
             .join(WorkArea, CostItem.work_area_id == WorkArea.id)
             .where(
-                WorkArea.department_id.in_(dept_ids),
+                WorkArea.functional_area_id.in_(fa_ids),
                 CostItem.project_phase.is_not(None),
             )
             .group_by(CostItem.project_phase)
@@ -315,15 +315,15 @@ async def get_dashboard(
         by_phase = []
 
     # ── 7. Breakdown by status ───────────────────────────────────────────
-    if dept_ids:
+    if fa_ids:
         status_stmt = (
             select(
                 CostItem.approval_status,
                 func.count(CostItem.id).label("count"),
-                func.coalesce(func.sum(CostItem.current_amount), ZERO).label("amount"),
+                func.coalesce(func.sum(CostItem.total_amount), ZERO).label("amount"),
             )
             .join(WorkArea, CostItem.work_area_id == WorkArea.id)
-            .where(WorkArea.department_id.in_(dept_ids))
+            .where(WorkArea.functional_area_id.in_(fa_ids))
             .group_by(CostItem.approval_status)
         )
         status_result = await session.execute(status_stmt)
@@ -335,9 +335,9 @@ async def get_dashboard(
         by_status = {}
 
     # ── 8. Recent changes (last 20 audit log entries for cost items) ─────
-    if dept_ids:
+    if fa_ids:
         # Get all work_area IDs for this facility
-        wa_ids_stmt = select(WorkArea.id).where(WorkArea.department_id.in_(dept_ids))
+        wa_ids_stmt = select(WorkArea.id).where(WorkArea.functional_area_id.in_(fa_ids))
         wa_ids_result = await session.execute(wa_ids_stmt)
         wa_ids = [row[0] for row in wa_ids_result.all()]
 
@@ -398,7 +398,7 @@ async def get_dashboard(
             location=facility.location,
         ),
         kpis=kpis,
-        departments=departments_out,
+        functional_areas=functional_areas_out,
         cash_out_timeline=cash_out_timeline,
         by_phase=by_phase,
         by_status=by_status,

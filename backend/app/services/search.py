@@ -12,7 +12,7 @@ from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.cost_item import CostItem
-from app.models.department import Department
+from app.models.functional_area import FunctionalArea
 from app.models.enums import ApprovalStatus
 from app.models.work_area import WorkArea
 
@@ -25,8 +25,8 @@ class CostItemSearchParams:
 
     facility_id: uuid.UUID
 
-    # multi-value filters (comma-separated → list)
-    department_ids: list[uuid.UUID] = field(default_factory=list)
+    # multi-value filters (comma-separated -> list)
+    functional_area_ids: list[uuid.UUID] = field(default_factory=list)
     work_area_id: uuid.UUID | None = None
     phases: list[str] = field(default_factory=list)
     products: list[str] = field(default_factory=list)
@@ -59,7 +59,7 @@ class CostItemSearchParams:
 # ── Allowed sort columns (whitelist to prevent injection) ────────────────
 
 _SORT_COLUMNS: dict[str, Any] = {
-    "amount": CostItem.current_amount,
+    "amount": CostItem.total_amount,
     "description": CostItem.description,
     "status": CostItem.approval_status,
     "cash_out": CostItem.expected_cash_out,
@@ -72,17 +72,17 @@ _SORT_COLUMNS: dict[str, Any] = {
 def _build_base_query(params: CostItemSearchParams) -> Select:
     """Build a filtered SELECT for CostItem rows (no pagination/sort)."""
 
-    # Always join through WorkArea → Department so we can filter by facility
+    # Always join through WorkArea -> FunctionalArea so we can filter by facility
     stmt = (
         select(CostItem)
         .join(WorkArea, CostItem.work_area_id == WorkArea.id)
-        .join(Department, WorkArea.department_id == Department.id)
-        .where(Department.facility_id == params.facility_id)
+        .join(FunctionalArea, WorkArea.functional_area_id == FunctionalArea.id)
+        .where(FunctionalArea.facility_id == params.facility_id)
     )
 
     # -- multi-value filters --
-    if params.department_ids:
-        stmt = stmt.where(Department.id.in_(params.department_ids))
+    if params.functional_area_ids:
+        stmt = stmt.where(FunctionalArea.id.in_(params.functional_area_ids))
 
     if params.work_area_id is not None:
         stmt = stmt.where(CostItem.work_area_id == params.work_area_id)
@@ -112,10 +112,10 @@ def _build_base_query(params: CostItemSearchParams) -> Select:
 
     # -- amount range --
     if params.min_amount is not None:
-        stmt = stmt.where(CostItem.current_amount >= params.min_amount)
+        stmt = stmt.where(CostItem.total_amount >= params.min_amount)
 
     if params.max_amount is not None:
-        stmt = stmt.where(CostItem.current_amount <= params.max_amount)
+        stmt = stmt.where(CostItem.total_amount <= params.max_amount)
 
     # -- cash-out date range --
     if params.cash_out_from is not None:
@@ -170,12 +170,12 @@ async def _compute_aggregations(
     from_clause = (
         CostItem.__table__
         .join(WorkArea.__table__, CostItem.work_area_id == WorkArea.id)
-        .join(Department.__table__, WorkArea.department_id == Department.id)
+        .join(FunctionalArea.__table__, WorkArea.functional_area_id == FunctionalArea.id)
     )
 
     # -- total amount --
     total_stmt = (
-        select(func.coalesce(func.sum(CostItem.current_amount), Decimal("0")))
+        select(func.coalesce(func.sum(CostItem.total_amount), Decimal("0")))
         .select_from(from_clause)
         .where(base_where)
     )
@@ -186,7 +186,7 @@ async def _compute_aggregations(
     status_stmt = (
         select(
             CostItem.approval_status,
-            func.coalesce(func.sum(CostItem.current_amount), Decimal("0")),
+            func.coalesce(func.sum(CostItem.total_amount), Decimal("0")),
         )
         .select_from(from_clause)
         .where(base_where)
@@ -199,7 +199,7 @@ async def _compute_aggregations(
     phase_stmt = (
         select(
             CostItem.project_phase,
-            func.coalesce(func.sum(CostItem.current_amount), Decimal("0")),
+            func.coalesce(func.sum(CostItem.total_amount), Decimal("0")),
         )
         .select_from(from_clause)
         .where(base_where)
@@ -211,24 +211,24 @@ async def _compute_aggregations(
         for row in phase_result.all()
     }
 
-    # -- by department --
-    dept_stmt = (
+    # -- by functional area --
+    fa_stmt = (
         select(
-            Department.id,
-            func.coalesce(func.sum(CostItem.current_amount), Decimal("0")),
+            FunctionalArea.id,
+            func.coalesce(func.sum(CostItem.total_amount), Decimal("0")),
         )
         .select_from(from_clause)
         .where(base_where)
-        .group_by(Department.id)
+        .group_by(FunctionalArea.id)
     )
-    dept_result = await session.execute(dept_stmt)
-    by_department = {str(row[0]): row[1] for row in dept_result.all()}
+    fa_result = await session.execute(fa_stmt)
+    by_functional_area = {str(row[0]): row[1] for row in fa_result.all()}
 
     return {
         "total_amount": total_amount,
         "by_status": by_status,
         "by_phase": by_phase,
-        "by_department": by_department,
+        "by_functional_area": by_functional_area,
     }
 
 

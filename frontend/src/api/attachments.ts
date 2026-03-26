@@ -4,7 +4,7 @@ import type { Attachment, AttachmentList, AttachmentType } from '../types/budget
 export interface UploadAttachmentParams {
   costItemId?: string;
   workAreaId?: string;
-  departmentId?: string;
+  functionalAreaId?: string;
   file: File;
   description?: string;
   attachmentType?: AttachmentType;
@@ -20,8 +20,8 @@ export async function uploadAttachment(params: UploadAttachmentParams): Promise<
   if (params.workAreaId) {
     formData.append('work_area_id', params.workAreaId);
   }
-  if (params.departmentId) {
-    formData.append('department_id', params.departmentId);
+  if (params.functionalAreaId) {
+    formData.append('functional_area_id', params.functionalAreaId);
   }
   if (params.description) {
     formData.append('description', params.description);
@@ -39,12 +39,12 @@ export async function uploadAttachment(params: UploadAttachmentParams): Promise<
 export async function getAttachments(filters: {
   costItemId?: string;
   workAreaId?: string;
-  departmentId?: string;
+  functionalAreaId?: string;
 }): Promise<AttachmentList> {
   const params: Record<string, string> = {};
   if (filters.costItemId) params.cost_item_id = filters.costItemId;
   if (filters.workAreaId) params.work_area_id = filters.workAreaId;
-  if (filters.departmentId) params.department_id = filters.departmentId;
+  if (filters.functionalAreaId) params.functional_area_id = filters.functionalAreaId;
 
   const response = await client.get<AttachmentList>('/attachments', { params });
   return response.data;

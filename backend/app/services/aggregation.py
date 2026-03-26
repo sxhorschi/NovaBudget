@@ -1,12 +1,12 @@
 """Aggregation service — correct business logic per Otto v4.
 
 Definitions:
-- Committed   = SUM(current_amount) WHERE status = APPROVED
-- Forecast    = SUM(current_amount) WHERE status NOT IN (REJECTED, OBSOLETE)
-- Budget      = department.budget_total + SUM(budget_adjustments.amount)
+- Committed   = SUM(total_amount) WHERE status = APPROVED
+- Forecast    = SUM(total_amount) WHERE status NOT IN (REJECTED, OBSOLETE)
+- Budget      = functional_area.budget_total + SUM(budget_adjustments.amount)
 - Remaining   = Budget - Forecast
 - Cost of Completion (CoC) = Forecast  (same metric, different label)
-- Variance    = SUM(original_amount - current_amount) for active items
+- Variance    = 0 for now (will use PriceHistory delta in Phase 4)
 """
 
 from __future__ import annotations
@@ -18,16 +18,16 @@ from decimal import Decimal
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import BudgetAdjustment, CostItem, Department, WorkArea
+from app.models import BudgetAdjustment, CostItem, FunctionalArea, WorkArea
 from app.models.enums import ApprovalStatus
 from app.schemas.summary import (
     ApprovalPipelineEntry,
     BudgetSummary,
-    CashOutDepartment,
+    CashOutFunctionalArea,
     CashOutEntry,
     CashOutMonth,
-    DepartmentKPI,
-    DepartmentSummary,
+    FunctionalAreaKPI,
+    FunctionalAreaSummary,
     FacilityKPI,
     PhaseBreakdown,
 )
@@ -55,57 +55,57 @@ def _pct(numerator: Decimal, denominator: Decimal) -> Decimal:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-async def get_department_kpis(
+async def get_functional_area_kpis(
     facility_id: uuid.UUID, session: AsyncSession
-) -> list[DepartmentKPI]:
-    """Compute KPIs per department for a given facility.
+) -> list[FunctionalAreaKPI]:
+    """Compute KPIs per functional area for a given facility.
 
     All monetary values use Decimal. Single query with conditional aggregation.
     """
 
-    # Subquery: adjustment totals per department
+    # Subquery: adjustment totals per functional area
     adj_sub = (
         select(
-            BudgetAdjustment.department_id,
+            BudgetAdjustment.functional_area_id,
             func.coalesce(func.sum(BudgetAdjustment.amount), ZERO).label(
                 "adj_total"
             ),
         )
-        .group_by(BudgetAdjustment.department_id)
+        .group_by(BudgetAdjustment.functional_area_id)
         .subquery("adj_sub")
     )
 
-    # Main query: aggregate cost items per department
+    # Main query: aggregate cost items per functional area
     is_active = CostItem.approval_status.notin_(EXCLUDED_STATUSES)
     is_committed = CostItem.approval_status.in_(COMMITTED_STATUSES)
 
     stmt = (
         select(
-            Department.id.label("department_id"),
-            Department.name.label("department_name"),
-            func.coalesce(Department.budget_total, ZERO).label("budget_base"),
+            FunctionalArea.id.label("functional_area_id"),
+            FunctionalArea.name.label("functional_area_name"),
+            func.coalesce(FunctionalArea.budget_total, ZERO).label("budget_base"),
             func.coalesce(adj_sub.c.adj_total, ZERO).label("adjustment_total"),
             # committed = approved items only
             func.coalesce(
                 func.sum(
-                    case((is_committed, CostItem.current_amount), else_=ZERO)
+                    case((is_committed, CostItem.total_amount), else_=ZERO)
                 ),
                 ZERO,
             ).label("committed"),
             # forecast = all except rejected/obsolete
             func.coalesce(
                 func.sum(
-                    case((is_active, CostItem.current_amount), else_=ZERO)
+                    case((is_active, CostItem.total_amount), else_=ZERO)
                 ),
                 ZERO,
             ).label("forecast"),
-            # variance = SUM(original - current) for active items
+            # variance = 0 for now (will use PriceHistory delta in Phase 4)
             func.coalesce(
                 func.sum(
                     case(
                         (
                             is_active,
-                            CostItem.original_amount - CostItem.current_amount,
+                            ZERO,
                         ),
                         else_=ZERO,
                     )
@@ -115,24 +115,24 @@ async def get_department_kpis(
             # item count (active only)
             func.count(case((is_active, CostItem.id))).label("item_count"),
         )
-        .select_from(Department)
-        .outerjoin(WorkArea, WorkArea.department_id == Department.id)
+        .select_from(FunctionalArea)
+        .outerjoin(WorkArea, WorkArea.functional_area_id == FunctionalArea.id)
         .outerjoin(CostItem, CostItem.work_area_id == WorkArea.id)
-        .outerjoin(adj_sub, adj_sub.c.department_id == Department.id)
-        .where(Department.facility_id == facility_id)
+        .outerjoin(adj_sub, adj_sub.c.functional_area_id == FunctionalArea.id)
+        .where(FunctionalArea.facility_id == facility_id)
         .group_by(
-            Department.id,
-            Department.name,
-            Department.budget_total,
+            FunctionalArea.id,
+            FunctionalArea.name,
+            FunctionalArea.budget_total,
             adj_sub.c.adj_total,
         )
-        .order_by(Department.name)
+        .order_by(FunctionalArea.name)
     )
 
     result = await session.execute(stmt)
     rows = result.all()
 
-    kpis: list[DepartmentKPI] = []
+    kpis: list[FunctionalAreaKPI] = []
     for row in rows:
         budget_base = Decimal(str(row.budget_base))
         adj_total = Decimal(str(row.adjustment_total))
@@ -145,9 +145,9 @@ async def get_department_kpis(
         utilization = _pct(committed, budget)
 
         kpis.append(
-            DepartmentKPI(
-                department_id=row.department_id,
-                department_name=row.department_name,
+            FunctionalAreaKPI(
+                functional_area_id=row.functional_area_id,
+                functional_area_name=row.functional_area_name,
                 budget=budget,
                 budget_base=budget_base,
                 adjustment_total=adj_total,
@@ -167,19 +167,19 @@ async def get_department_kpis(
 async def get_facility_kpis(
     facility_id: uuid.UUID, session: AsyncSession
 ) -> FacilityKPI:
-    """Aggregate KPIs across all departments in a facility."""
+    """Aggregate KPIs across all functional areas in a facility."""
 
-    dept_kpis = await get_department_kpis(facility_id, session)
+    fa_kpis = await get_functional_area_kpis(facility_id, session)
 
-    budget = sum((d.budget for d in dept_kpis), ZERO)
-    budget_base = sum((d.budget_base for d in dept_kpis), ZERO)
-    adj_total = sum((d.adjustment_total for d in dept_kpis), ZERO)
-    committed = sum((d.committed for d in dept_kpis), ZERO)
-    forecast = sum((d.forecast for d in dept_kpis), ZERO)
+    budget = sum((d.budget for d in fa_kpis), ZERO)
+    budget_base = sum((d.budget_base for d in fa_kpis), ZERO)
+    adj_total = sum((d.adjustment_total for d in fa_kpis), ZERO)
+    committed = sum((d.committed for d in fa_kpis), ZERO)
+    forecast = sum((d.forecast for d in fa_kpis), ZERO)
     remaining = budget - forecast
     cost_of_completion = forecast  # CoC = Forecast (same metric, different label)
-    variance = sum((d.variance for d in dept_kpis), ZERO)
-    item_count = sum(d.item_count for d in dept_kpis)
+    variance = sum((d.variance for d in fa_kpis), ZERO)
+    item_count = sum(d.item_count for d in fa_kpis)
     utilization = _pct(committed, budget)
 
     return FacilityKPI(
@@ -194,15 +194,15 @@ async def get_facility_kpis(
         variance=variance,
         item_count=item_count,
         budget_utilization_pct=utilization,
-        department_count=len(dept_kpis),
-        departments=dept_kpis,
+        functional_area_count=len(fa_kpis),
+        functional_areas=fa_kpis,
     )
 
 
 async def get_cash_out_forecast(
     facility_id: uuid.UUID, session: AsyncSession
 ) -> list[CashOutMonth]:
-    """Monthly cash-out forecast, split by department.
+    """Monthly cash-out forecast, split by functional area.
 
     Only includes active items (not rejected/obsolete) that have an
     expected_cash_out date.
@@ -213,26 +213,26 @@ async def get_cash_out_forecast(
     stmt = (
         select(
             func.date_trunc("month", CostItem.expected_cash_out).label("month"),
-            Department.id.label("department_id"),
-            Department.name.label("department_name"),
-            func.coalesce(func.sum(CostItem.current_amount), ZERO).label("amount"),
+            FunctionalArea.id.label("functional_area_id"),
+            FunctionalArea.name.label("functional_area_name"),
+            func.coalesce(func.sum(CostItem.total_amount), ZERO).label("amount"),
         )
         .select_from(CostItem)
         .join(WorkArea, CostItem.work_area_id == WorkArea.id)
-        .join(Department, WorkArea.department_id == Department.id)
+        .join(FunctionalArea, WorkArea.functional_area_id == FunctionalArea.id)
         .where(
-            Department.facility_id == facility_id,
+            FunctionalArea.facility_id == facility_id,
             CostItem.expected_cash_out.is_not(None),
             is_active,
         )
         .group_by(
             func.date_trunc("month", CostItem.expected_cash_out),
-            Department.id,
-            Department.name,
+            FunctionalArea.id,
+            FunctionalArea.name,
         )
         .order_by(
             func.date_trunc("month", CostItem.expected_cash_out),
-            Department.name,
+            FunctionalArea.name,
         )
     )
 
@@ -244,9 +244,9 @@ async def get_cash_out_forecast(
     for row in rows:
         month_date = row.month.date() if hasattr(row.month, "date") else row.month
         months_map[month_date].append(
-            CashOutDepartment(
-                department_id=row.department_id,
-                department_name=row.department_name,
+            CashOutFunctionalArea(
+                functional_area_id=row.functional_area_id,
+                functional_area_name=row.functional_area_name,
                 amount=Decimal(str(row.amount)),
             )
         )
@@ -254,10 +254,10 @@ async def get_cash_out_forecast(
     return [
         CashOutMonth(
             month=month,
-            total=sum((d.amount for d in depts), ZERO),
-            departments=depts,
+            total=sum((d.amount for d in fas), ZERO),
+            functional_areas=fas,
         )
-        for month, depts in sorted(months_map.items())
+        for month, fas in sorted(months_map.items())
     ]
 
 
@@ -274,13 +274,13 @@ async def get_phase_breakdown(
             CostItem.project_phase.label("phase"),
             func.coalesce(
                 func.sum(
-                    case((is_committed, CostItem.current_amount), else_=ZERO)
+                    case((is_committed, CostItem.total_amount), else_=ZERO)
                 ),
                 ZERO,
             ).label("committed"),
             func.coalesce(
                 func.sum(
-                    case((is_active, CostItem.current_amount), else_=ZERO)
+                    case((is_active, CostItem.total_amount), else_=ZERO)
                 ),
                 ZERO,
             ).label("forecast"),
@@ -288,8 +288,8 @@ async def get_phase_breakdown(
         )
         .select_from(CostItem)
         .join(WorkArea, CostItem.work_area_id == WorkArea.id)
-        .join(Department, WorkArea.department_id == Department.id)
-        .where(Department.facility_id == facility_id)
+        .join(FunctionalArea, WorkArea.functional_area_id == FunctionalArea.id)
+        .where(FunctionalArea.facility_id == facility_id)
         .group_by(CostItem.project_phase)
         .order_by(CostItem.project_phase)
     )
@@ -316,15 +316,15 @@ async def get_approval_pipeline(
     stmt = (
         select(
             CostItem.approval_status.label("status"),
-            func.coalesce(func.sum(CostItem.current_amount), ZERO).label(
+            func.coalesce(func.sum(CostItem.total_amount), ZERO).label(
                 "total_amount"
             ),
             func.count(CostItem.id).label("item_count"),
         )
         .select_from(CostItem)
         .join(WorkArea, CostItem.work_area_id == WorkArea.id)
-        .join(Department, WorkArea.department_id == Department.id)
-        .where(Department.facility_id == facility_id)
+        .join(FunctionalArea, WorkArea.functional_area_id == FunctionalArea.id)
+        .where(FunctionalArea.facility_id == facility_id)
         .group_by(CostItem.approval_status)
         .order_by(CostItem.approval_status)
     )
@@ -348,14 +348,14 @@ async def get_approval_pipeline(
 
 
 async def get_budget_summary(session: AsyncSession) -> BudgetSummary:
-    """DEPRECATED — global summary across ALL facilities/departments.
+    """DEPRECATED — global summary across ALL facilities/functional areas.
 
     Uses correct Otto v4 definitions.
     """
 
     # Budget = SUM(budget_total) + SUM(adjustments)
     budget_result = await session.execute(
-        select(func.coalesce(func.sum(Department.budget_total), ZERO))
+        select(func.coalesce(func.sum(FunctionalArea.budget_total), ZERO))
     )
     base_budget = Decimal(str(budget_result.scalar_one()))
 
@@ -367,7 +367,7 @@ async def get_budget_summary(session: AsyncSession) -> BudgetSummary:
 
     # Committed = approved only
     committed_result = await session.execute(
-        select(func.coalesce(func.sum(CostItem.current_amount), ZERO)).where(
+        select(func.coalesce(func.sum(CostItem.total_amount), ZERO)).where(
             CostItem.approval_status.in_(COMMITTED_STATUSES)
         )
     )
@@ -378,7 +378,7 @@ async def get_budget_summary(session: AsyncSession) -> BudgetSummary:
 
     # Forecast = all except rejected/obsolete
     forecast_result = await session.execute(
-        select(func.coalesce(func.sum(CostItem.current_amount), ZERO)).where(
+        select(func.coalesce(func.sum(CostItem.total_amount), ZERO)).where(
             CostItem.approval_status.notin_(EXCLUDED_STATUSES)
         )
     )
@@ -397,19 +397,19 @@ async def get_budget_summary(session: AsyncSession) -> BudgetSummary:
     )
 
 
-async def get_department_summaries(
+async def get_functional_area_summaries(
     session: AsyncSession,
-) -> list[DepartmentSummary]:
-    """DEPRECATED — use get_department_kpis instead."""
+) -> list[FunctionalAreaSummary]:
+    """DEPRECATED — use get_functional_area_kpis instead."""
 
     adj_sub = (
         select(
-            BudgetAdjustment.department_id,
+            BudgetAdjustment.functional_area_id,
             func.coalesce(func.sum(BudgetAdjustment.amount), ZERO).label(
                 "adj_total"
             ),
         )
-        .group_by(BudgetAdjustment.department_id)
+        .group_by(BudgetAdjustment.functional_area_id)
         .subquery("adj_sub")
     )
 
@@ -418,38 +418,38 @@ async def get_department_summaries(
 
     stmt = (
         select(
-            Department.name.label("department_name"),
-            func.coalesce(Department.budget_total, ZERO).label("budget_base"),
+            FunctionalArea.name.label("functional_area_name"),
+            func.coalesce(FunctionalArea.budget_total, ZERO).label("budget_base"),
             func.coalesce(adj_sub.c.adj_total, ZERO).label("adj_total"),
             func.coalesce(
                 func.sum(
-                    case((is_committed, CostItem.current_amount), else_=ZERO)
+                    case((is_committed, CostItem.total_amount), else_=ZERO)
                 ),
                 ZERO,
             ).label("committed"),
             func.coalesce(
                 func.sum(
-                    case((is_active, CostItem.current_amount), else_=ZERO)
+                    case((is_active, CostItem.total_amount), else_=ZERO)
                 ),
                 ZERO,
             ).label("forecast"),
         )
-        .select_from(Department)
-        .outerjoin(WorkArea, WorkArea.department_id == Department.id)
+        .select_from(FunctionalArea)
+        .outerjoin(WorkArea, WorkArea.functional_area_id == FunctionalArea.id)
         .outerjoin(CostItem, CostItem.work_area_id == WorkArea.id)
-        .outerjoin(adj_sub, adj_sub.c.department_id == Department.id)
+        .outerjoin(adj_sub, adj_sub.c.functional_area_id == FunctionalArea.id)
         .group_by(
-            Department.name,
-            Department.budget_total,
+            FunctionalArea.name,
+            FunctionalArea.budget_total,
             adj_sub.c.adj_total,
         )
-        .order_by(Department.name)
+        .order_by(FunctionalArea.name)
     )
 
     result = await session.execute(stmt)
     rows = result.all()
 
-    summaries: list[DepartmentSummary] = []
+    summaries: list[FunctionalAreaSummary] = []
     for row in rows:
         budget_base = Decimal(str(row.budget_base))
         adj = Decimal(str(row.adj_total))
@@ -459,8 +459,8 @@ async def get_department_summaries(
         remaining = budget - forecast
 
         summaries.append(
-            DepartmentSummary(
-                department_name=row.department_name,
+            FunctionalAreaSummary(
+                functional_area_name=row.functional_area_name,
                 budget_total=budget,
                 total_committed=committed,
                 total_approved=committed,
@@ -482,7 +482,7 @@ async def get_cash_out_timeline(session: AsyncSession) -> list[CashOutEntry]:
     stmt = (
         select(
             func.date_trunc("month", CostItem.expected_cash_out).label("month"),
-            func.sum(CostItem.current_amount).label("amount"),
+            func.sum(CostItem.total_amount).label("amount"),
         )
         .where(
             CostItem.expected_cash_out.is_not(None),
@@ -501,3 +501,11 @@ async def get_cash_out_timeline(session: AsyncSession) -> list[CashOutEntry]:
         )
         for row in rows
     ]
+
+
+# ── Backward-compatible aliases ──────────────────────────────────────────
+# These aliases allow old code that imported the old names to keep working
+# during the transition period.
+
+get_department_kpis = get_functional_area_kpis
+get_department_summaries = get_functional_area_summaries

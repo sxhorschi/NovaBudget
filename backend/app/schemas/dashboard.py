@@ -35,7 +35,7 @@ class DashboardKPIs(BaseModel):
     rejected_items: int
 
 
-# ── Work Area (nested under Department) ──────────────────────────────────
+# ── Work Area (nested under FunctionalArea) ──────────────────────────────
 
 class DashboardWorkArea(BaseModel):
     id: UUID
@@ -44,9 +44,9 @@ class DashboardWorkArea(BaseModel):
     total: Decimal
 
 
-# ── Department Breakdown ─────────────────────────────────────────────────
+# ── FunctionalArea Breakdown ─────────────────────────────────────────────
 
-class DashboardDepartment(BaseModel):
+class DashboardFunctionalArea(BaseModel):
     id: UUID
     name: str
     budget: Decimal
@@ -64,7 +64,7 @@ class DashboardDepartment(BaseModel):
 class CashOutTimelineEntry(BaseModel):
     month: str  # "2026-02" format
     total: Decimal
-    by_department: dict[str, Decimal]  # department_id (str) -> amount
+    by_functional_area: dict[str, Decimal]  # functional_area_id (str) -> amount
 
 
 # ── Phase Breakdown ─────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ class RecentChange(BaseModel):
 class DashboardResponse(BaseModel):
     facility: DashboardFacility
     kpis: DashboardKPIs
-    departments: list[DashboardDepartment]
+    functional_areas: list[DashboardFunctionalArea]
     cash_out_timeline: list[CashOutTimelineEntry]
     by_phase: list[DashboardPhase]
     by_status: dict[str, StatusEntry]

@@ -1,6 +1,6 @@
 import type {
   Facility,
-  Department,
+  FunctionalArea,
   WorkArea,
   CostItem,
   ApprovalStatus,
@@ -33,7 +33,7 @@ export function mapFacilityFromApi(data: any): Facility {
   };
 }
 
-export function mapDepartmentFromApi(data: any): Department {
+export function mapFunctionalAreaFromApi(data: any): FunctionalArea {
   return {
     id: data.id,
     facility_id: data.facility_id,
@@ -45,7 +45,7 @@ export function mapDepartmentFromApi(data: any): Department {
 export function mapWorkAreaFromApi(data: any): WorkArea {
   return {
     id: data.id,
-    department_id: data.department_id,
+    functional_area_id: data.functional_area_id ?? data.department_id,
     name: data.name,
   };
 }
@@ -55,8 +55,9 @@ export function mapCostItemFromApi(data: any): CostItem {
     id: data.id,
     work_area_id: data.work_area_id,
     description: data.description ?? '',
-    original_amount: Number(data.original_amount ?? 0),
-    current_amount: Number(data.current_amount ?? 0),
+    unit_price: Number(data.unit_price ?? 0),
+    quantity: Number(data.quantity ?? 1),
+    total_amount: Number(data.total_amount ?? 0),
     expected_cash_out: (data.expected_cash_out ?? '').slice(0, 7),
     cost_basis: data.cost_basis ?? '',
     cost_driver: data.cost_driver ?? '',
@@ -78,7 +79,7 @@ export function mapCostItemFromApi(data: any): CostItem {
 export function mapBudgetAdjustmentFromApi(data: any): BudgetAdjustment {
   return {
     id: data.id,
-    department_id: data.department_id,
+    functional_area_id: data.functional_area_id ?? data.department_id,
     amount: Number(data.amount ?? 0),
     reason: data.reason ?? '',
     category: toLower(data.category) as AdjustmentCategory,
@@ -96,8 +97,9 @@ export function mapCostItemToApi(item: Partial<CostItem>): Record<string, unknow
 
   if (item.work_area_id !== undefined) payload.work_area_id = item.work_area_id;
   if (item.description !== undefined) payload.description = item.description;
-  if (item.original_amount !== undefined) payload.original_amount = item.original_amount;
-  if (item.current_amount !== undefined) payload.current_amount = item.current_amount;
+  if (item.unit_price !== undefined) payload.unit_price = item.unit_price;
+  if (item.quantity !== undefined) payload.quantity = item.quantity;
+  if (item.total_amount !== undefined) payload.total_amount = item.total_amount;
   if (item.expected_cash_out !== undefined) {
     let cashOut = item.expected_cash_out || null;
     // Backend expects YYYY-MM-DD; frontend may send YYYY-MM

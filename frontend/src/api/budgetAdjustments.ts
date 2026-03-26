@@ -3,7 +3,7 @@ import { mapBudgetAdjustmentFromApi } from './mappers';
 import type { AdjustmentCategory, BudgetAdjustment } from '../types/budget';
 
 export interface CreateBudgetAdjustmentParams {
-  department_id: string;
+  functional_area_id: string;
   amount: number;
   reason: string;
   category: AdjustmentCategory;
@@ -18,9 +18,9 @@ const CATEGORY_TO_BACKEND: Record<AdjustmentCategory, string> = {
   other: 'OTHER',
 };
 
-export async function listBudgetAdjustments(departmentId: string): Promise<BudgetAdjustment[]> {
+export async function listBudgetAdjustments(functionalAreaId: string): Promise<BudgetAdjustment[]> {
   const { data } = await client.get('/budget-adjustments/', {
-    params: { department_id: departmentId },
+    params: { functional_area_id: functionalAreaId },
   });
   return (data as any[]).map(mapBudgetAdjustmentFromApi);
 }
@@ -29,7 +29,7 @@ export async function createBudgetAdjustment(
   params: CreateBudgetAdjustmentParams,
 ): Promise<void> {
   await client.post('/budget-adjustments/', {
-    department_id: params.department_id,
+    functional_area_id: params.functional_area_id,
     amount: params.amount,
     reason: params.reason,
     category: CATEGORY_TO_BACKEND[params.category] ?? 'OTHER',

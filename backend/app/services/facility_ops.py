@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.cost_item import CostItem
-from app.models.department import Department
+from app.models.functional_area import FunctionalArea
 from app.models.enums import ApprovalStatus
 from app.models.facility import Facility
 from app.models.work_area import WorkArea
@@ -24,7 +24,7 @@ async def clone_facility(
     reset_statuses: bool = True,
     user_id: str | None = None,
 ) -> Facility:
-    """Deep-clone a facility with all departments, work areas, and cost items.
+    """Deep-clone a facility with all functional areas, work areas, and cost items.
 
     Parameters
     ----------
@@ -35,7 +35,7 @@ async def clone_facility(
     name:
         Name for the new facility.
     include_amounts:
-        If False, set original_amount and current_amount to 0 on cloned items.
+        If False, set unit_price, quantity, and total_amount to 0/1/0 on cloned items.
     reset_statuses:
         If True, set all cloned cost item approval_status to OPEN.
     user_id:
@@ -51,8 +51,8 @@ async def clone_facility(
         select(Facility)
         .where(Facility.id == source_id)
         .options(
-            selectinload(Facility.departments)
-            .selectinload(Department.work_areas)
+            selectinload(Facility.functional_areas)
+            .selectinload(FunctionalArea.work_areas)
             .selectinload(WorkArea.cost_items)
         )
     )
@@ -72,28 +72,29 @@ async def clone_facility(
     await session.flush()  # get new_facility.id
 
     # Deep-copy hierarchy
-    for dept in source.departments:
-        new_dept = Department(
+    for fa in source.functional_areas:
+        new_fa = FunctionalArea(
             id=uuid.uuid4(),
             facility_id=new_facility.id,
-            name=dept.name,
-            budget_total=dept.budget_total,
+            name=fa.name,
+            budget_total=fa.budget_total,
         )
-        session.add(new_dept)
+        session.add(new_fa)
         await session.flush()
 
-        for wa in dept.work_areas:
+        for wa in fa.work_areas:
             new_wa = WorkArea(
                 id=uuid.uuid4(),
-                department_id=new_dept.id,
+                functional_area_id=new_fa.id,
                 name=wa.name,
             )
             session.add(new_wa)
             await session.flush()
 
             for item in wa.cost_items:
-                original_amount = item.original_amount if include_amounts else Decimal("0")
-                current_amount = item.current_amount if include_amounts else Decimal("0")
+                unit_price = item.unit_price if include_amounts else Decimal("0")
+                quantity = item.quantity if include_amounts else Decimal("1")
+                total_amount = item.total_amount if include_amounts else Decimal("0")
                 zielanpassung = item.zielanpassung if include_amounts else None
 
                 approval_status = ApprovalStatus.OPEN if reset_statuses else item.approval_status
@@ -103,8 +104,9 @@ async def clone_facility(
                     id=uuid.uuid4(),
                     work_area_id=new_wa.id,
                     description=item.description,
-                    original_amount=original_amount,
-                    current_amount=current_amount,
+                    unit_price=unit_price,
+                    quantity=quantity,
+                    total_amount=total_amount,
                     expected_cash_out=None,  # always reset
                     cost_basis=item.cost_basis,
                     cost_driver=item.cost_driver,

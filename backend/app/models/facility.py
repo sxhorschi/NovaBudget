@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
-    from app.models.department import Department
+    from app.models.functional_area import FunctionalArea
 
 
 class Facility(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -21,7 +21,7 @@ class Facility(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # ── Relationships ──────────────────────────────────────────────────
-    departments: Mapped[list[Department]] = relationship(
+    functional_areas: Mapped[list[FunctionalArea]] = relationship(
         back_populates="facility",
         cascade="all, delete-orphan",
         lazy="selectin",

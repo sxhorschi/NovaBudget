@@ -3,14 +3,14 @@ import { mapWorkAreaFromApi } from './mappers';
 import type { WorkArea } from '../types/budget';
 
 export async function listWorkAreas(
-  params: { facility_id?: string; department_id?: string },
+  params: { facility_id?: string; functional_area_id?: string },
 ): Promise<WorkArea[]> {
   const { data } = await client.get('/work-areas/', { params });
   return (data as any[]).map(mapWorkAreaFromApi);
 }
 
 export async function createWorkArea(
-  params: { department_id: string; name: string },
+  params: { functional_area_id: string; name: string },
 ): Promise<WorkArea> {
   const { data } = await client.post('/work-areas/', params);
   return mapWorkAreaFromApi(data);

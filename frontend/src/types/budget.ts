@@ -28,16 +28,17 @@ export interface Facility {
   updated_at?: string;
 }
 
-export interface Department {
+export interface FunctionalArea {
   id: string;
   facility_id: string;
   name: string;
   budget_total: number;
 }
 
+
 export interface WorkArea {
   id: string;
-  department_id: string;
+  functional_area_id: string;
   name: string;
 }
 
@@ -50,8 +51,9 @@ export interface CostItem {
   id: string;
   work_area_id: string;
   description: string;
-  original_amount: number;
-  current_amount: number;
+  unit_price: number;
+  quantity: number;
+  total_amount: number;
   expected_cash_out: string;
   cost_basis: CostBasis;
   cost_driver: CostDriver;
@@ -80,7 +82,7 @@ export type AdjustmentCategory =
 
 export interface BudgetAdjustment {
   id: string;
-  department_id: string;
+  functional_area_id: string;
   amount: number; // +80000 oder -20000
   reason: string; // "Produktaenderung CR-2026-042"
   category: AdjustmentCategory;
@@ -112,7 +114,7 @@ export interface Attachment {
   id: string;
   cost_item_id: string | null;
   work_area_id: string | null;
-  department_id: string | null;
+  functional_area_id: string | null;
   filename: string;
   original_filename: string;
   content_type: string;
@@ -147,8 +149,8 @@ export interface BudgetSummary {
   cost_of_completion: number;
 }
 
-export interface DepartmentSummary {
-  department_name: string;
+export interface FunctionalAreaSummary {
+  functional_area_name: string;
   budget: number;
   spent: number;
   approved: number;

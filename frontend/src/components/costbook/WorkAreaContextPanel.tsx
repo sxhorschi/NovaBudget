@@ -11,7 +11,7 @@ const inputClass =
 
 interface WorkAreaContextPanelProps {
   workArea: WorkArea | null;
-  departmentName?: string;
+  functionalAreaName?: string;
   costItems: CostItem[];
   onClose: () => void;
   onSave?: (workAreaId: string, data: { name: string }) => void;
@@ -20,7 +20,7 @@ interface WorkAreaContextPanelProps {
 
 export default function WorkAreaContextPanel({
   workArea,
-  departmentName,
+  functionalAreaName,
   costItems,
   onClose,
   onSave,
@@ -49,7 +49,7 @@ export default function WorkAreaContextPanel({
   }, [workArea, costItems]);
 
   const waTotal = useMemo(
-    () => waItems.reduce((s, ci) => s + ci.current_amount, 0),
+    () => waItems.reduce((s, ci) => s + ci.total_amount, 0),
     [waItems],
   );
 
@@ -89,8 +89,8 @@ export default function WorkAreaContextPanel({
                 Category
               </div>
               <h2 className="text-lg font-semibold text-gray-900 mt-1 truncate">{workArea.name}</h2>
-              {departmentName && (
-                <p className="text-xs text-gray-500 mt-1">Department: {departmentName}</p>
+              {functionalAreaName && (
+                <p className="text-xs text-gray-500 mt-1">Functional Area: {functionalAreaName}</p>
               )}
             </div>
             <button
@@ -152,14 +152,14 @@ export default function WorkAreaContextPanel({
               ) : (
                 <div className="divide-y divide-gray-100 max-h-72 overflow-auto">
                   {[...waItems]
-                    .sort((a, b) => b.current_amount - a.current_amount)
+                    .sort((a, b) => b.total_amount - a.total_amount)
                     .map((item) => (
                       <div key={item.id} className="px-3 py-2.5 flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-800 truncate">{item.description}</p>
                           <p className="text-xs text-gray-500">{STATUS_LABELS[item.approval_status]}</p>
                         </div>
-                        <p className="text-sm font-mono text-gray-700 whitespace-nowrap">{format(item.current_amount)}</p>
+                        <p className="text-sm font-mono text-gray-700 whitespace-nowrap">{format(item.total_amount)}</p>
                       </div>
                     ))}
                 </div>

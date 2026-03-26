@@ -10,8 +10,7 @@ import { useInflatedAmount } from '../../hooks/useInflatedAmount';
 // ---------------------------------------------------------------------------
 
 interface AmountCellProps {
-  original: number;
-  current: number;
+  amount: number;
   /** YYYY-MM formatted cash-out date. When provided and inflation is active,
    *  the displayed value is inflated and a "~" prefix is shown. */
   cashOutDate?: string;
@@ -68,24 +67,22 @@ export function useAmountFormatter(): (value: number) => string {
   return showThousands ? formatKEUR : formatEUR;
 }
 
-export default function AmountCell({ original, current, cashOutDate }: AmountCellProps) {
+export default function AmountCell({ amount, cashOutDate }: AmountCellProps) {
   const { inflationEnabled } = useDisplaySettings();
-  const displayAmount = useInflatedAmount(current, cashOutDate);
-  const isInflated = inflationEnabled && !!cashOutDate && displayAmount !== current;
+  const displayAmount = useInflatedAmount(amount, cashOutDate);
+  const isInflated = inflationEnabled && !!cashOutDate && displayAmount !== amount;
 
-  const delta = current - original;
-  const hasDelta = delta !== 0;
   const toast = useToast();
   const format = useAmountFormatter();
 
   const handleCopy = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      navigator.clipboard.writeText(String(current)).then(() => {
-        toast.info(`${format(current)} copied`);
+      navigator.clipboard.writeText(String(amount)).then(() => {
+        toast.info(`${format(amount)} copied`);
       });
     },
-    [current, toast, format],
+    [amount, toast, format],
   );
 
   return (
@@ -93,7 +90,7 @@ export default function AmountCell({ original, current, cashOutDate }: AmountCel
       className="inline-flex flex-col items-end font-mono tabular-nums font-medium text-sm leading-tight cursor-copy"
       style={{ fontVariantNumeric: 'tabular-nums' }}
       onClick={handleCopy}
-      title={isInflated ? `Inflated value (raw: ${format(current)}) — click to copy raw` : 'Click to copy'}
+      title={isInflated ? `Inflated value (raw: ${format(amount)}) — click to copy raw` : 'Click to copy'}
     >
       <span
         className="hover:text-black transition-colors duration-150"
@@ -102,14 +99,6 @@ export default function AmountCell({ original, current, cashOutDate }: AmountCel
         {isInflated && <span className="mr-0.5 opacity-70">~</span>}
         <span className={isInflated ? '' : 'text-slate-900'}>{format(displayAmount)}</span>
       </span>
-      {hasDelta && (
-        <span
-          className="text-[11px] font-normal"
-          style={{ color: delta > 0 ? '#dc2626' : '#16a34a' }}
-        >
-          ({delta > 0 ? '+' : ''}{format(delta)})
-        </span>
-      )}
     </span>
   );
 }

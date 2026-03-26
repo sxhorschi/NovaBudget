@@ -94,7 +94,7 @@ export default function CostItemRow({
 
       {/* Amount */}
       <td className="px-4 py-2.5 text-right whitespace-nowrap">
-        <AmountCell original={item.original_amount} current={item.current_amount} cashOutDate={item.expected_cash_out} />
+        <AmountCell amount={item.total_amount} cashOutDate={item.expected_cash_out} />
       </td>
 
       {/* Actions */}

@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import CostItem, Department, Facility, WorkArea
+from app.models import CostItem, FunctionalArea, Facility, WorkArea
 from app.models.enums import ApprovalStatus
 from app.services.aggregation import EXCLUDED_STATUSES
 
@@ -94,34 +94,34 @@ def _month_key(d: date) -> str:
     return d.strftime("%Y-%m")
 
 
-async def _load_departments(
+async def _load_functional_areas(
     session: AsyncSession,
     facility_id: UUID,
-    department_ids: list[UUID] | None = None,
-) -> list[Department]:
-    """Load departments with nested work_areas -> cost_items and budget_adjustments."""
+    functional_area_ids: list[UUID] | None = None,
+) -> list[FunctionalArea]:
+    """Load functional_areas with nested work_areas -> cost_items and budget_adjustments."""
     stmt = (
-        select(Department)
-        .where(Department.facility_id == facility_id)
+        select(FunctionalArea)
+        .where(FunctionalArea.facility_id == facility_id)
         .options(
-            selectinload(Department.work_areas).selectinload(WorkArea.cost_items),
-            selectinload(Department.budget_adjustments),
+            selectinload(FunctionalArea.work_areas).selectinload(WorkArea.cost_items),
+            selectinload(FunctionalArea.budget_adjustments),
         )
-        .order_by(Department.name)
+        .order_by(FunctionalArea.name)
     )
-    if department_ids:
-        stmt = stmt.where(Department.id.in_(department_ids))
+    if functional_area_ids:
+        stmt = stmt.where(FunctionalArea.id.in_(functional_area_ids))
     result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
-def _dept_effective_budget(dept: Department) -> Decimal:
+def _fa_effective_budget(fa: FunctionalArea) -> Decimal:
     """Compute effective budget = budget_total + sum(adjustments).
 
     Matches the canonical definition from aggregation.py.
     """
-    base = dept.budget_total or Decimal(0)
-    adj = sum((a.amount or Decimal(0)) for a in dept.budget_adjustments)
+    base = fa.budget_total or Decimal(0)
+    adj = sum((a.amount or Decimal(0)) for a in fa.budget_adjustments)
     return base + adj
 
 
@@ -144,33 +144,33 @@ def _filter_items(
 async def generate_standard_export(
     session: AsyncSession,
     facility_id: UUID,
-    department_ids: list[UUID] | None = None,
+    functional_area_ids: list[UUID] | None = None,
     phase: str | None = None,
 ) -> tuple[bytes, str]:
-    """Generate a standard department-based Excel export.
+    """Generate a standard functional area-based Excel export.
 
     Returns a tuple of (xlsx_bytes, suggested_filename).
     """
     facility = await _load_facility(session, facility_id)
     facility_name = facility.name if facility else "Unknown"
-    departments = await _load_departments(session, facility_id, department_ids)
+    functional_areas = await _load_functional_areas(session, facility_id, functional_area_ids)
 
     wb = Workbook()
     # Remove default sheet
     wb.remove(wb.active)
 
-    for dept in departments:
-        ws = wb.create_sheet(title=dept.name[:31])  # Excel sheet name max 31 chars
+    for fa in functional_areas:
+        ws = wb.create_sheet(title=fa.name[:31])  # Excel sheet name max 31 chars
 
         # --- Header area ---
         ws.merge_cells("A1:P1")
-        ws["A1"] = dept.name
+        ws["A1"] = fa.name
         ws["A1"].font = _TITLE_FONT
 
-        budget = _dept_effective_budget(dept)
+        budget = _fa_effective_budget(dept)
         forecast = sum(
-            item.current_amount
-            for wa in dept.work_areas
+            item.total_amount
+            for wa in fa.work_areas
             for item in _filter_items(wa.cost_items, phase)
             if item.approval_status not in EXCLUDED_STATUSES
         )
@@ -205,14 +205,14 @@ async def generate_standard_export(
             cell.alignment = Alignment(horizontal="center")
 
         row = 5
-        for wa in dept.work_areas:
+        for wa in fa.work_areas:
             items = _filter_items(wa.cost_items, phase)
             if not items:
                 continue
 
             # Work Area Subtotal row (active items only, matching forecast definition)
             wa_total = sum(
-                i.current_amount for i in items
+                i.total_amount for i in items
                 if i.approval_status not in EXCLUDED_STATUSES
             )
             ws.cell(row=row, column=1, value=wa.name).font = _SUBTOTAL_FONT
@@ -230,7 +230,7 @@ async def generate_standard_export(
                 ws.cell(row=row, column=2, value=_enum_display(item.project_phase))
                 ws.cell(row=row, column=3, value=_enum_display(item.product))
                 ws.cell(row=row, column=4, value=item.description)
-                amt = ws.cell(row=row, column=5, value=float(item.current_amount))
+                amt = ws.cell(row=row, column=5, value=float(item.total_amount))
                 amt.number_format = _NUM_FMT
                 ws.cell(row=row, column=6, value=_date_str(item.expected_cash_out))
                 ws.cell(row=row, column=7, value=_enum_display(item.cost_basis))
@@ -336,7 +336,7 @@ async def generate_finance_export(
       Row 5: "TYTAN Technologies" merged title
       Row 6: "CAPITAL EXPENSES" label + monthly/quarterly/yearly sub-headers
       Row 7: Column headers (Identifier, Account, ...)
-      Row 8+: Data rows grouped by department
+      Row 8+: Data rows grouped by functional area
       Last:  SUM totals row
 
     Core formula: IF(item.cash_out == month, amount * factor, 0)
@@ -345,7 +345,7 @@ async def generate_finance_export(
     """
     facility = await _load_facility(session, facility_id)
     facility_name = facility.name if facility else "Unknown"
-    departments = await _load_departments(session, facility_id)
+    functional_areas = await _load_functional_areas(session, facility_id)
 
     months = _generate_month_range(start_year, start_month, end_year, end_month)
     month_keys = [_month_key(m) for m in months]
@@ -497,31 +497,31 @@ async def generate_finance_export(
         cell.border = _FIN_BORDER_THIN
 
     # ================================================================
-    # ROW 8+ — Data rows, grouped by department
+    # ROW 8+ — Data rows, grouped by functional area
     # ================================================================
     DATA_START_ROW = 8
     row_num = DATA_START_ROW
     item_counter = 1
-    dept_group_starts: list[tuple[int, int, str]] = []  # (start_row, end_row, name)
+    fa_group_starts: list[tuple[int, int, str]] = []  # (start_row, end_row, name)
 
-    for dept in departments:
-        dept_start = row_num
+    for fa in functional_areas:
+        fa_start = row_num
 
-        # -- Department separator row --
+        # -- FunctionalArea separator row --
         for c in range(1, total_col_end + 1):
             cell = ws.cell(row=row_num, column=c)
             cell.fill = _FIN_DEPT_FILL
             cell.border = _FIN_BORDER_THIN
-        ws.cell(row=row_num, column=1, value=dept.name).font = _FIN_DEPT_FONT
+        ws.cell(row=row_num, column=1, value=fa.name).font = _FIN_DEPT_FONT
         row_num += 1
 
-        dept_has_items = False
+        fa_has_items = False
 
-        for wa in dept.work_areas:
+        for wa in fa.work_areas:
             for item in wa.cost_items:
                 if item.approval_status in EXCLUDED_STATUSES:
                     continue
-                dept_has_items = True
+                fa_has_items = True
 
                 # --- Meta columns ---
                 ws.cell(row=row_num, column=1, value=f"CAPEX-{item_counter:04d}")
@@ -539,7 +539,7 @@ async def generate_finance_export(
                 ws.cell(row=row_num, column=11,
                         value=_date_str(item.expected_cash_out))   # Date
 
-                unit_cost = float(item.current_amount * budget_factor)
+                unit_cost = float(item.total_amount * budget_factor)
                 uc_cell = ws.cell(row=row_num, column=12, value=unit_cost)
                 uc_cell.number_format = _FIN_NUM_FMT
 
@@ -600,8 +600,8 @@ async def generate_finance_export(
                 row_num += 1
                 item_counter += 1
 
-        dept_end = row_num - 1 if dept_has_items else dept_start
-        dept_group_starts.append((dept_start + 1, dept_end, dept.name))
+        fa_end = row_num - 1 if fa_has_items else fa_start
+        fa_group_starts.append((fa_start + 1, fa_end, fa.name))
 
     # ================================================================
     # TOTALS ROW — SUM formulas over all data rows
@@ -641,9 +641,9 @@ async def generate_finance_export(
             cell.fill = _FIN_TOTAL_FILL
 
     # ================================================================
-    # Row grouping (outline) by department
+    # Row grouping (outline) by functional area
     # ================================================================
-    for grp_start, grp_end, _name in dept_group_starts:
+    for grp_start, grp_end, _name in fa_group_starts:
         if grp_end >= grp_start:
             ws.row_dimensions.group(grp_start, grp_end, outline_level=1, hidden=False)
 
@@ -713,7 +713,7 @@ async def generate_steering_committee_export(
     """Generate a one-page steering committee summary Excel.
 
     Contents:
-    - Budget vs. Committed vs. Remaining per Department
+    - Budget vs. Committed vs. Remaining per FunctionalArea
     - Top 10 largest open items
     - Top 5 risk items (no offer / cost_estimation + high amount)
     - Cash-out next 3 months
@@ -722,7 +722,7 @@ async def generate_steering_committee_export(
     """
     facility = await _load_facility(session, facility_id)
     facility_name = facility.name if facility else "Unknown"
-    departments = await _load_departments(session, facility_id)
+    functional_areas = await _load_functional_areas(session, facility_id)
 
     wb = Workbook()
     ws = wb.active
@@ -738,41 +738,41 @@ async def generate_steering_committee_export(
     ws["A2"].font = Font(italic=True, color="808080")
 
     # ======================================================================
-    # Section 1: Department Overview
+    # Section 1: FunctionalArea Overview
     # ======================================================================
     section_row = 4
-    ws.cell(row=section_row, column=1, value="Department Overview").font = Font(bold=True, size=13, color="2F5496")
+    ws.cell(row=section_row, column=1, value="Functional Area Overview").font = Font(bold=True, size=13, color="2F5496")
 
-    headers_dept = ["Department", "Budget", "Committed", "Forecast", "Remaining", "% Used"]
-    for col_idx, h in enumerate(headers_dept, 1):
+    headers_fa = ["Functional Area", "Budget", "Committed", "Forecast", "Remaining", "% Used"]
+    for col_idx, h in enumerate(headers_fa, 1):
         cell = ws.cell(row=section_row + 1, column=col_idx, value=h)
         cell.font = _HEADER_FONT
         cell.fill = _HEADER_FILL
 
-    all_items: list[tuple[CostItem, str]] = []  # (item, dept_name)
+    all_items: list[tuple[CostItem, str]] = []  # (item, fa_name)
     row = section_row + 2
     total_budget = Decimal(0)
     total_committed = Decimal(0)
     total_forecast = Decimal(0)
 
-    for dept in departments:
-        budget = _dept_effective_budget(dept)
+    for fa in functional_areas:
+        budget = _fa_effective_budget(dept)
         committed = sum(
-            item.current_amount
-            for wa in dept.work_areas
+            item.total_amount
+            for wa in fa.work_areas
             for item in wa.cost_items
             if item.approval_status == ApprovalStatus.APPROVED
         )
         forecast = sum(
-            item.current_amount
-            for wa in dept.work_areas
+            item.total_amount
+            for wa in fa.work_areas
             for item in wa.cost_items
             if item.approval_status not in EXCLUDED_STATUSES
         )
         remaining = budget - forecast
         pct = float(forecast / budget * 100) if budget else 0
 
-        ws.cell(row=row, column=1, value=dept.name)
+        ws.cell(row=row, column=1, value=fa.name)
         ws.cell(row=row, column=2, value=float(budget)).number_format = _NUM_FMT
         ws.cell(row=row, column=3, value=float(committed)).number_format = _NUM_FMT
         ws.cell(row=row, column=4, value=float(forecast)).number_format = _NUM_FMT
@@ -784,9 +784,9 @@ async def generate_steering_committee_export(
         total_committed += committed
         total_forecast += forecast
 
-        for wa in dept.work_areas:
+        for wa in fa.work_areas:
             for item in wa.cost_items:
-                all_items.append((item, dept.name))
+                all_items.append((item, fa.name))
 
         row += 1
 
@@ -814,7 +814,7 @@ async def generate_steering_committee_export(
     ws.cell(row=row, column=1, value="Top 10 Largest Open Items").font = Font(bold=True, size=13, color="2F5496")
     row += 1
 
-    top10_headers = ["#", "Department", "Description", "Amount", "Status", "Cash Out"]
+    top10_headers = ["#", "Functional Area", "Description", "Amount", "Status", "Cash Out"]
     for col_idx, h in enumerate(top10_headers, 1):
         cell = ws.cell(row=row, column=col_idx, value=h)
         cell.font = _HEADER_FONT
@@ -825,13 +825,13 @@ async def generate_steering_committee_export(
                      ApprovalStatus.ON_HOLD, ApprovalStatus.PENDING_SUPPLIER_NEGOTIATION,
                      ApprovalStatus.PENDING_TECHNICAL_CLARIFICATION}
     open_items = [(i, dn) for i, dn in all_items if i.approval_status in open_statuses]
-    open_items.sort(key=lambda x: x[0].current_amount, reverse=True)
+    open_items.sort(key=lambda x: x[0].total_amount, reverse=True)
 
-    for rank, (item, dept_name) in enumerate(open_items[:10], 1):
+    for rank, (item, fa_name) in enumerate(open_items[:10], 1):
         ws.cell(row=row, column=1, value=rank)
-        ws.cell(row=row, column=2, value=dept_name)
+        ws.cell(row=row, column=2, value=fa_name)
         ws.cell(row=row, column=3, value=item.description)
-        ws.cell(row=row, column=4, value=float(item.current_amount)).number_format = _NUM_FMT
+        ws.cell(row=row, column=4, value=float(item.total_amount)).number_format = _NUM_FMT
         ws.cell(row=row, column=5, value=_enum_display(item.approval_status))
         ws.cell(row=row, column=6, value=_date_str(item.expected_cash_out))
         row += 1
@@ -845,7 +845,7 @@ async def generate_steering_committee_export(
     ws.cell(row=row, column=3, value="(No supplier offer + high amount)").font = Font(italic=True, color="808080", size=9)
     row += 1
 
-    risk_headers = ["#", "Department", "Description", "Amount", "Cost Basis", "Status"]
+    risk_headers = ["#", "Functional Area", "Description", "Amount", "Cost Basis", "Status"]
     for col_idx, h in enumerate(risk_headers, 1):
         cell = ws.cell(row=row, column=col_idx, value=h)
         cell.font = _HEADER_FONT
@@ -857,13 +857,13 @@ async def generate_steering_committee_export(
         (i, dn) for i, dn in all_items
         if i.cost_basis == "cost_estimation" and i.approval_status in open_statuses
     ]
-    risk_items.sort(key=lambda x: x[0].current_amount, reverse=True)
+    risk_items.sort(key=lambda x: x[0].total_amount, reverse=True)
 
-    for rank, (item, dept_name) in enumerate(risk_items[:5], 1):
+    for rank, (item, fa_name) in enumerate(risk_items[:5], 1):
         ws.cell(row=row, column=1, value=rank)
-        ws.cell(row=row, column=2, value=dept_name)
+        ws.cell(row=row, column=2, value=fa_name)
         ws.cell(row=row, column=3, value=item.description)
-        ws.cell(row=row, column=4, value=float(item.current_amount)).number_format = _NUM_FMT
+        ws.cell(row=row, column=4, value=float(item.total_amount)).number_format = _NUM_FMT
         ws.cell(row=row, column=5, value=_enum_display(item.cost_basis))
         ws.cell(row=row, column=6, value=_enum_display(item.approval_status))
         row += 1
@@ -886,7 +886,7 @@ async def generate_steering_committee_export(
         else:
             current_month = date(current_month.year, current_month.month + 1, 1)
 
-    cashout_headers = ["Department"] + [m.strftime("%b %Y") for m in next_months] + ["Total"]
+    cashout_headers = ["Functional Area"] + [m.strftime("%b %Y") for m in next_months] + ["Total"]
     for col_idx, h in enumerate(cashout_headers, 1):
         cell = ws.cell(row=row, column=col_idx, value=h)
         cell.font = _HEADER_FONT
@@ -896,11 +896,11 @@ async def generate_steering_committee_export(
     month_keys_next = [_month_key(m) for m in next_months]
     grand_totals = [Decimal(0)] * len(next_months)
 
-    for dept in departments:
-        ws.cell(row=row, column=1, value=dept.name)
-        dept_month_totals = [Decimal(0)] * len(next_months)
+    for fa in functional_areas:
+        ws.cell(row=row, column=1, value=fa.name)
+        fa_month_totals = [Decimal(0)] * len(next_months)
 
-        for wa in dept.work_areas:
+        for wa in fa.work_areas:
             for item in wa.cost_items:
                 if item.approval_status in EXCLUDED_STATUSES:
                     continue
@@ -908,15 +908,15 @@ async def generate_steering_committee_export(
                     item_mk = _month_key(item.expected_cash_out)
                     for mi, mk in enumerate(month_keys_next):
                         if item_mk == mk:
-                            dept_month_totals[mi] += item.current_amount
+                            fa_month_totals[mi] += item.total_amount
 
-        dept_total = Decimal(0)
-        for mi, val in enumerate(dept_month_totals):
+        fa_total = Decimal(0)
+        for mi, val in enumerate(fa_month_totals):
             ws.cell(row=row, column=2 + mi, value=float(val)).number_format = _NUM_FMT
             grand_totals[mi] += val
-            dept_total += val
+            fa_total += val
 
-        ws.cell(row=row, column=2 + len(next_months), value=float(dept_total)).number_format = _NUM_FMT
+        ws.cell(row=row, column=2 + len(next_months), value=float(fa_total)).number_format = _NUM_FMT
         row += 1
 
     # Grand total row

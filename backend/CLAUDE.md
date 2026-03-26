@@ -119,7 +119,9 @@ class CostItemRead(BaseModel):
 
     id: UUID
     description: str
-    current_amount: Decimal
+    unit_price: Decimal
+    quantity: Decimal
+    total_amount: Decimal
     # ... alle Felder
     created_at: datetime
     updated_at: datetime

@@ -116,8 +116,9 @@ async def test_create_cost_item(client: AsyncClient):
     payload = {
         "work_area_id": wa_id,
         "description": "Test equipment purchase",
-        "original_amount": "50000.00",
-        "current_amount": "50000.00",
+        "unit_price": "50000.00",
+        "quantity": "1",
+        "total_amount": "50000.00",
         "cost_basis": "COST_ESTIMATION",
         "cost_driver": "INITIAL_SETUP",
         "approval_status": "OPEN",
@@ -132,7 +133,7 @@ async def test_create_cost_item(client: AsyncClient):
     body = resp.json()
     assert body["description"] == "Test equipment purchase"
     assert body["approval_status"] == "OPEN"
-    assert Decimal(body["current_amount"]) == Decimal("50000.00")
+    assert Decimal(body["total_amount"]) == Decimal("50000.00")
 
 
 async def test_filter_by_status(client: AsyncClient):
@@ -143,8 +144,9 @@ async def test_filter_by_status(client: AsyncClient):
     await client.post("/api/v1/cost-items/", json={
         "work_area_id": wa_id,
         "description": "Open item",
-        "original_amount": "10000",
-        "current_amount": "10000",
+        "unit_price": "10000",
+        "quantity": "1",
+        "total_amount": "10000",
         "cost_basis": "COST_ESTIMATION",
         "cost_driver": "INITIAL_SETUP",
         "approval_status": "OPEN",
@@ -156,8 +158,9 @@ async def test_filter_by_status(client: AsyncClient):
     await client.post("/api/v1/cost-items/", json={
         "work_area_id": wa_id,
         "description": "Approved item",
-        "original_amount": "20000",
-        "current_amount": "20000",
+        "unit_price": "20000",
+        "quantity": "1",
+        "total_amount": "20000",
         "cost_basis": "INITIAL_SUPPLIER_OFFER",
         "cost_driver": "PRODUCT",
         "approval_status": "APPROVED",
@@ -188,8 +191,9 @@ async def test_update_cost_item(client: AsyncClient):
     create_resp = await client.post("/api/v1/cost-items/", json={
         "work_area_id": wa_id,
         "description": "Original description",
-        "original_amount": "10000",
-        "current_amount": "10000",
+        "unit_price": "10000",
+        "quantity": "1",
+        "total_amount": "10000",
         "cost_basis": "COST_ESTIMATION",
         "cost_driver": "INITIAL_SETUP",
         "approval_status": "OPEN",
@@ -200,7 +204,7 @@ async def test_update_cost_item(client: AsyncClient):
 
     update_resp = await client.put(
         f"/api/v1/cost-items/{item_id}",
-        json={"description": "Updated description", "current_amount": "15000"},
+        json={"description": "Updated description", "total_amount": "15000"},
     )
 
     assert update_resp.status_code == 200, (
@@ -208,7 +212,7 @@ async def test_update_cost_item(client: AsyncClient):
     )
     body = update_resp.json()
     assert body["description"] == "Updated description"
-    assert Decimal(body["current_amount"]) == Decimal("15000")
+    assert Decimal(body["total_amount"]) == Decimal("15000")
 
 
 async def test_create_cost_item_invalid_work_area_returns_404(client: AsyncClient):
@@ -216,8 +220,9 @@ async def test_create_cost_item_invalid_work_area_returns_404(client: AsyncClien
     payload = {
         "work_area_id": "00000000-0000-0000-0000-000000000000",
         "description": "Test equipment purchase",
-        "original_amount": "50000.00",
-        "current_amount": "50000.00",
+        "unit_price": "50000.00",
+        "quantity": "1",
+        "total_amount": "50000.00",
         "cost_basis": "COST_ESTIMATION",
         "cost_driver": "INITIAL_SETUP",
         "approval_status": "OPEN",
@@ -238,8 +243,9 @@ async def test_create_cost_item_negative_amount_returns_422(client: AsyncClient)
     payload = {
         "work_area_id": wa_id,
         "description": "Invalid negative amount",
-        "original_amount": "-1.00",
-        "current_amount": "10.00",
+        "unit_price": "-1.00",
+        "quantity": "1",
+        "total_amount": "10.00",
         "cost_basis": "COST_ESTIMATION",
         "cost_driver": "INITIAL_SETUP",
         "approval_status": "OPEN",
@@ -281,8 +287,9 @@ async def test_export_standard_returns_xlsx(client: AsyncClient):
     await client.post("/api/v1/cost-items/", json={
         "work_area_id": wa_id,
         "description": "Export test item",
-        "original_amount": "25000",
-        "current_amount": "25000",
+        "unit_price": "25000",
+        "quantity": "1",
+        "total_amount": "25000",
         "cost_basis": "COST_ESTIMATION",
         "cost_driver": "INITIAL_SETUP",
         "approval_status": "OPEN",

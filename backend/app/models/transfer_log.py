@@ -22,7 +22,7 @@ class TransferLog(Base):
     )
     entity_type: Mapped[str] = mapped_column(
         String(50), nullable=False, index=True,
-    )  # "cost_item", "work_area", "department"
+    )  # "cost_item", "work_area", "functional_area"
     source_entity_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), nullable=False,
     )

@@ -472,7 +472,7 @@ const ImportPage: React.FC = () => {
 
   const totalAmount = useMemo(() => {
     if (!parseResult) return 0;
-    return parseResult.costItems.reduce((sum, ci) => sum + ci.current_amount, 0);
+    return parseResult.costItems.reduce((sum, ci) => sum + ci.total_amount, 0);
   }, [parseResult]);
 
   return (

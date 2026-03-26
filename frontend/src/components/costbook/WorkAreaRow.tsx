@@ -14,7 +14,7 @@ interface WorkAreaRowProps {
   expanded: boolean;
   onToggle: () => void;
   onOpenContext?: () => void;
-  /** Department accent color (hex) for left-border */
+  /** Functional Area accent color (hex) for left-border */
   accentColor: string;
 }
 

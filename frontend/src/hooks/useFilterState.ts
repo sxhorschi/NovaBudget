@@ -7,7 +7,7 @@ import type { ProjectPhase, Product, ApprovalStatus } from '../types/budget';
 // ---------------------------------------------------------------------------
 
 export interface FilterState {
-  departments: string[];
+  functionalAreas: string[];
   phases: ProjectPhase[];
   products: Product[];
   statuses: ApprovalStatus[];
@@ -18,7 +18,7 @@ export interface FilterState {
 type FilterField = keyof FilterState;
 
 const EMPTY_FILTER: FilterState = {
-  departments: [],
+  functionalAreas: [],
   phases: [],
   products: [],
   statuses: [],
@@ -31,7 +31,7 @@ const EMPTY_FILTER: FilterState = {
 // ---------------------------------------------------------------------------
 
 const PARAM_KEYS: Record<string, string> = {
-  departments: 'dept',
+  functionalAreas: 'fa',
   phases: 'phase',
   products: 'product',
   statuses: 'status',
@@ -43,7 +43,7 @@ const PARAM_KEYS: Record<string, string> = {
 // Serialisation helpers
 // ---------------------------------------------------------------------------
 
-function parseDepartmentIds(raw: string | null): string[] {
+function parseFunctionalAreaIds(raw: string | null): string[] {
   if (!raw) return [];
   return raw
     .split(',')
@@ -69,7 +69,7 @@ export function useFilterState() {
   // --- Deserialise URL -> FilterState (memoised on searchParams string) ---
   const filters: FilterState = useMemo(() => {
     return {
-      departments: parseDepartmentIds(searchParams.get(PARAM_KEYS.departments)),
+      functionalAreas: parseFunctionalAreaIds(searchParams.get(PARAM_KEYS.functionalAreas)),
       phases: parseStringArray<ProjectPhase>(searchParams.get(PARAM_KEYS.phases)),
       products: parseStringArray<Product>(searchParams.get(PARAM_KEYS.products)),
       statuses: parseStringArray<ApprovalStatus>(searchParams.get(PARAM_KEYS.statuses)),
@@ -122,9 +122,9 @@ export function useFilterState() {
         // Clear existing filter params first
         Object.values(PARAM_KEYS).forEach((key) => next.delete(key));
 
-        // Set departments
-        if (newFilters.departments.length > 0) {
-          next.set(PARAM_KEYS.departments, newFilters.departments.join(','));
+        // Set functional areas
+        if (newFilters.functionalAreas.length > 0) {
+          next.set(PARAM_KEYS.functionalAreas, newFilters.functionalAreas.join(','));
         }
         // Set phases
         if (newFilters.phases.length > 0) {
@@ -165,7 +165,7 @@ export function useFilterState() {
   // --- Convenience: is any filter active? ---
   const hasActiveFilters = useMemo(() => {
     return (
-      filters.departments.length > 0 ||
+      filters.functionalAreas.length > 0 ||
       filters.phases.length > 0 ||
       filters.products.length > 0 ||
       filters.statuses.length > 0 ||

@@ -14,7 +14,7 @@ from app.config import settings
 from app.db import engine
 from app.rate_limit import limiter
 from app.api.facilities import router as facilities_router
-from app.api.departments import router as departments_router
+from app.api.functional_areas import router as functional_areas_router
 from app.api.work_areas import router as work_areas_router
 from app.api.cost_items import router as cost_items_router
 from app.api.summary import router as summary_router
@@ -115,7 +115,7 @@ async def security_headers(request: Request, call_next):
 
 # ── Routers ──────────────────────────────────────────────────────────────
 app.include_router(facilities_router)
-app.include_router(departments_router)
+app.include_router(functional_areas_router)
 app.include_router(work_areas_router)
 app.include_router(cost_items_router)
 app.include_router(summary_router)

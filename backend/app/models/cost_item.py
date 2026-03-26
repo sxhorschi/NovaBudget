@@ -29,7 +29,7 @@ class CostItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_cost_items_project_phase", "project_phase"),
         Index("ix_cost_items_product", "product"),
         Index("ix_cost_items_expected_cash_out", "expected_cash_out"),
-        Index("ix_cost_items_current_amount", "current_amount"),
+        Index("ix_cost_items_total_amount", "total_amount"),
         Index("ix_cost_items_created_at", "created_at"),
     )
 
@@ -43,11 +43,16 @@ class CostItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
 
     # financial
-    original_amount: Mapped[Decimal] = mapped_column(
+    unit_price: Mapped[Decimal] = mapped_column(
         Numeric(precision=15, scale=2),
         nullable=False,
     )
-    current_amount: Mapped[Decimal] = mapped_column(
+    quantity: Mapped[Decimal] = mapped_column(
+        Numeric(precision=15, scale=2),
+        nullable=False,
+        default=Decimal("1"),
+    )
+    total_amount: Mapped[Decimal] = mapped_column(
         Numeric(precision=15, scale=2),
         nullable=False,
     )
@@ -102,5 +107,5 @@ class CostItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     def __repr__(self) -> str:
         return (
             f"<CostItem id={self.id} description={self.description!r} "
-            f"current_amount={self.current_amount}>"
+            f"total_amount={self.total_amount}>"
         )

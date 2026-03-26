@@ -1,7 +1,7 @@
 """
 CSV-based persistent data store.
 
-All business data (facilities, departments, work areas, cost items, budget
+All business data (facilities, functional_areas, work areas, cost items, budget
 adjustments) lives in CSV files under ``backend/data/``.  This module provides
 typed loaders and savers so the rest of the app never touches raw CSV I/O.
 """
@@ -43,12 +43,12 @@ def write_csv(filename: str, rows: list[dict[str, Any]], fieldnames: list[str]) 
 
 FACILITY_FIELDS = ["id", "name", "location", "description"]
 
-DEPARTMENT_FIELDS = ["id", "facility_id", "name", "budget_total"]
+FUNCTIONAL_AREA_FIELDS = ["id", "facility_id", "name", "budget_total"]
 
-WORK_AREA_FIELDS = ["id", "department_id", "name"]
+WORK_AREA_FIELDS = ["id", "functional_area_id", "name"]
 
 COST_ITEM_FIELDS = [
-    "id", "work_area_id", "description", "original_amount", "current_amount",
+    "id", "work_area_id", "description", "unit_price", "quantity", "total_amount",
     "approval_status", "approval_date", "project_phase", "product",
     "cost_basis", "cost_driver", "expected_cash_out", "requester",
     "zielanpassung", "zielanpassung_reason", "basis_description",
@@ -56,7 +56,7 @@ COST_ITEM_FIELDS = [
 ]
 
 BUDGET_ADJUSTMENT_FIELDS = [
-    "id", "department_id", "amount", "reason", "category",
+    "id", "functional_area_id", "amount", "reason", "category",
     "created_at", "created_by",
 ]
 
@@ -90,8 +90,8 @@ def load_facilities() -> list[dict[str, Any]]:
     ]
 
 
-def load_departments() -> list[dict[str, Any]]:
-    rows = read_csv("departments.csv")
+def load_functional_areas() -> list[dict[str, Any]]:
+    rows = read_csv("functional_areas.csv")
     return [
         {
             "id": r["id"],
@@ -108,7 +108,7 @@ def load_work_areas() -> list[dict[str, Any]]:
     return [
         {
             "id": r["id"],
-            "department_id": r["department_id"],
+            "functional_area_id": r["functional_area_id"],
             "name": r["name"],
         }
         for r in rows
@@ -123,8 +123,9 @@ def load_cost_items() -> list[dict[str, Any]]:
             "id": r["id"],
             "work_area_id": r["work_area_id"],
             "description": r.get("description", ""),
-            "original_amount": _parse_number(r.get("original_amount", "0")),
-            "current_amount": _parse_number(r.get("current_amount", "0")),
+            "unit_price": _parse_number(r.get("unit_price", "0")),
+            "quantity": _parse_number(r.get("quantity", "1")),
+            "total_amount": _parse_number(r.get("total_amount", "0")),
             "approval_status": r.get("approval_status", "open"),
             "approval_date": r.get("approval_date") or None,
             "project_phase": r.get("project_phase", "phase_1"),
@@ -149,7 +150,7 @@ def load_budget_adjustments() -> list[dict[str, Any]]:
     return [
         {
             "id": r["id"],
-            "department_id": r["department_id"],
+            "functional_area_id": r["functional_area_id"],
             "amount": _parse_number(r.get("amount", "0")),
             "reason": r.get("reason", ""),
             "category": r.get("category", "other"),
@@ -168,7 +169,7 @@ def load_all_data() -> dict[str, Any]:
     """Load all CSV files and return a single dict suitable for JSON response."""
     return {
         "facilities": load_facilities(),
-        "departments": load_departments(),
+        "functional_areas": load_functional_areas(),
         "workAreas": load_work_areas(),
         "costItems": load_cost_items(),
         "budgetAdjustments": load_budget_adjustments(),
@@ -183,8 +184,8 @@ def save_facilities(rows: list[dict[str, Any]]) -> None:
     write_csv("facilities.csv", rows, FACILITY_FIELDS)
 
 
-def save_departments(rows: list[dict[str, Any]]) -> None:
-    write_csv("departments.csv", rows, DEPARTMENT_FIELDS)
+def save_functional_areas(rows: list[dict[str, Any]]) -> None:
+    write_csv("functional_areas.csv", rows, FUNCTIONAL_AREA_FIELDS)
 
 
 def save_work_areas(rows: list[dict[str, Any]]) -> None:
@@ -203,8 +204,8 @@ def save_all_data(data: dict[str, Any]) -> None:
     """Accept the same shape as load_all_data() and write all CSVs."""
     if "facilities" in data:
         save_facilities(data["facilities"])
-    if "departments" in data:
-        save_departments(data["departments"])
+    if "functional_areas" in data:
+        save_functional_areas(data["functional_areas"])
     if "workAreas" in data:
         save_work_areas(data["workAreas"])
     if "costItems" in data:
@@ -219,7 +220,7 @@ def save_all_data(data: dict[str, Any]) -> None:
 
 CSV_FILES = [
     "facilities.csv",
-    "departments.csv",
+    "functional_areas.csv",
     "work_areas.csv",
     "cost_items.csv",
     "budget_adjustments.csv",

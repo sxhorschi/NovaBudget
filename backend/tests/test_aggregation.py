@@ -1,8 +1,8 @@
 """Tests for app.services.aggregation — budget summaries, KPIs, and cash-out timeline.
 
 Business logic per Otto v4:
-- Committed   = SUM(current_amount) WHERE status = APPROVED
-- Forecast    = SUM(current_amount) WHERE status NOT IN (REJECTED, OBSOLETE)
+- Committed   = SUM(total_amount) WHERE status = APPROVED
+- Forecast    = SUM(total_amount) WHERE status NOT IN (REJECTED, OBSOLETE)
 - Budget      = department.budget_total + SUM(budget_adjustments.amount)
 - Remaining   = Budget - Forecast
 - Cost of Completion = Forecast - Committed
@@ -40,7 +40,7 @@ async def test_committed_only_counts_approved_items(session: AsyncSession, sampl
     summary = await get_budget_summary(session)
 
     approved_total = sum(
-        item.current_amount
+        item.total_amount
         for item in sample_data["cost_items"]
         if item.approval_status in COMMITTED_STATUSES
     )
@@ -56,7 +56,7 @@ async def test_forecast_excludes_rejected_and_obsolete(session: AsyncSession, sa
     summary = await get_budget_summary(session)
 
     expected_forecast = sum(
-        item.current_amount
+        item.total_amount
         for item in sample_data["cost_items"]
         if item.approval_status not in EXCLUDED_STATUSES
     )

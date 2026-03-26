@@ -5,7 +5,7 @@ from app.models.audit_log import AuditLog
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.budget_adjustment import BudgetAdjustment
 from app.models.cost_item import CostItem
-from app.models.department import Department
+from app.models.functional_area import FunctionalArea
 from app.models.enums import (
     AdjustmentCategory,
     ApprovalStatus,
@@ -30,7 +30,7 @@ __all__ = [
     "EntraGroupMapping",
     "FacilityPermission",
     "Facility",
-    "Department",
+    "FunctionalArea",
     "TransferLog",
     "User",
     "WorkArea",

@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import UserDep, require_role
 from app.db import get_session
 from app.models.budget_adjustment import BudgetAdjustment
-from app.models.department import Department
+from app.models.functional_area import FunctionalArea
 from app.schemas.budget_adjustment import BudgetAdjustmentCreate, BudgetAdjustmentRead
 from app.services.audit import log_change
 
@@ -22,13 +22,13 @@ router = APIRouter(prefix="/api/v1/budget-adjustments", tags=["budget-adjustment
 
 @router.get("/", response_model=list[BudgetAdjustmentRead])
 async def list_budget_adjustments(
-    department_id: UUID | None = None,
+    functional_area_id: UUID | None = None,
     session: AsyncSession = Depends(get_session),
 ):
-    """List all budget adjustments, optionally filtered by department."""
+    """List all budget adjustments, optionally filtered by functional area."""
     stmt = select(BudgetAdjustment).order_by(BudgetAdjustment.created_at)
-    if department_id:
-        stmt = stmt.where(BudgetAdjustment.department_id == department_id)
+    if functional_area_id:
+        stmt = stmt.where(BudgetAdjustment.functional_area_id == functional_area_id)
     result = await session.execute(stmt)
     return result.scalars().all()
 
@@ -56,10 +56,10 @@ async def create_budget_adjustment(
     The adjustment is immutable once created — there is no update or delete
     endpoint.
     """
-    # Verify department exists
-    dept = await session.get(Department, data.department_id)
-    if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
+    # Verify functional area exists
+    fa = await session.get(FunctionalArea, data.functional_area_id)
+    if not fa:
+        raise HTTPException(status_code=404, detail="Functional area not found")
 
     adjustment = BudgetAdjustment(**data.model_dump())
     session.add(adjustment)

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Copy, ClipboardCopy, ChevronDown, ChevronRight } from 'lucide-react';
 import type { CostItem } from '../../types/budget';
-import { getDeptColor } from '../../styles/design-tokens';
+import { getFAColor } from '../../styles/design-tokens';
 import { formatEUR } from '../costbook/AmountCell';
 import SidePanelForm from './SidePanelForm';
 import AttachmentList from './AttachmentList';
@@ -79,15 +79,15 @@ function formatDateDE(iso: string | null | undefined): string {
 
 interface SidePanelProps {
   item: CostItem | null;
-  departmentName?: string;
-  departmentId?: string;
-  departmentBudget?: number;
+  functionalAreaName?: string;
+  functionalAreaId?: string;
+  functionalAreaBudget?: number;
   workAreaName?: string;
   onSave?: (data: Partial<CostItem>) => void;
   onClose: () => void;
   onDelete?: () => void;
   onDuplicate?: (item: CostItem) => void;
-  onFilterDepartment?: (departmentName: string) => void;
+  onFilterFunctionalArea?: (functionalAreaName: string) => void;
   onScrollToWorkArea?: (workAreaName: string) => void;
 }
 
@@ -97,15 +97,15 @@ interface SidePanelProps {
 
 const SidePanel: React.FC<SidePanelProps> = ({
   item,
-  departmentName,
-  departmentId,
-  departmentBudget,
+  functionalAreaName,
+  functionalAreaId,
+  functionalAreaBudget,
   workAreaName,
   onSave,
   onClose,
   onDelete,
   onDuplicate,
-  onFilterDepartment,
+  onFilterFunctionalArea,
   onScrollToWorkArea,
 }) => {
   // Local draft state -- cloned from item prop
@@ -191,7 +191,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
 
   const handleCopyToClipboard = useCallback(async () => {
     if (!draft) return;
-    const text = `${draft.description}\n${formatEUR(draft.current_amount)}`;
+    const text = `${draft.description}\n${formatEUR(draft.total_amount)}`;
     try {
       await navigator.clipboard.writeText(text);
       setCopiedToClipboard(true);
@@ -201,8 +201,8 @@ const SidePanel: React.FC<SidePanelProps> = ({
     }
   }, [draft]);
 
-  // Resolve accent color from department ID
-  const accentColor = departmentId != null ? getDeptColor(departmentId) : '#6366f1';
+  // Resolve accent color from functional area ID
+  const accentColor = functionalAreaId != null ? getFAColor(functionalAreaId) : '#6366f1';
 
   // Don't render if no item
   if (!item) return null;
@@ -226,21 +226,21 @@ const SidePanel: React.FC<SidePanelProps> = ({
           borderTop: `3px solid ${accentColor}`,
         }}
       >
-        {/* Breadcrumb: Department > Work Area > Item */}
-        {(departmentName || workAreaName) && (
+        {/* Breadcrumb: Functional Area > Work Area > Item */}
+        {(functionalAreaName || workAreaName) && (
           <div className="flex items-center gap-1.5 text-[11px] mb-2 overflow-hidden" style={{ color: 'rgba(255,255,255,0.6)' }}>
-            {departmentName && (
+            {functionalAreaName && (
               <button
                 type="button"
-                onClick={() => onFilterDepartment?.(departmentName)}
+                onClick={() => onFilterFunctionalArea?.(functionalAreaName)}
                 className="transition-colors cursor-pointer font-medium flex-shrink-0 hover:text-white"
                 style={{ color: 'rgba(255,255,255,0.6)' }}
-                title={`Filter: ${departmentName}`}
+                title={`Filter: ${functionalAreaName}`}
               >
-                {departmentName}
+                {functionalAreaName}
               </button>
             )}
-            {departmentName && workAreaName && (
+            {functionalAreaName && workAreaName && (
               <ChevronRight size={11} className="flex-shrink-0" style={{ color: 'rgba(255,255,255,0.4)' }} />
             )}
             {workAreaName && (
@@ -254,7 +254,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
                 {workAreaName}
               </button>
             )}
-            {(departmentName || workAreaName) && draft?.description && (
+            {(functionalAreaName || workAreaName) && draft?.description && (
               <>
                 <ChevronRight size={11} className="flex-shrink-0" style={{ color: 'rgba(255,255,255,0.4)' }} />
                 <span className="truncate font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>{draft.description}</span>
@@ -312,14 +312,14 @@ const SidePanel: React.FC<SidePanelProps> = ({
         )}
 
         {/* ---- Budget Adjustments (collapsible, default closed unless active) ---- */}
-        {departmentId != null && departmentBudget != null && (
+        {functionalAreaId != null && functionalAreaBudget != null && (
           <CollapsibleSection
             title="Budget Adjustments"
             defaultOpen={!!item.zielanpassung}
           >
             <BudgetAdjustmentHistory
-              departmentId={departmentId}
-              originalBudget={departmentBudget}
+              functionalAreaId={functionalAreaId}
+              originalBudget={functionalAreaBudget}
             />
           </CollapsibleSection>
         )}

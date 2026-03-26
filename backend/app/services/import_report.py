@@ -1,4 +1,4 @@
-"""Structured import report for Excel imports — detailed per-department stats, warnings, errors."""
+"""Structured import report for Excel imports — detailed per-functional-area stats, warnings, errors."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from decimal import Decimal
 
 
 @dataclass
-class DepartmentReport:
-    """Import stats for a single department."""
+class FunctionalAreaReport:
+    """Import stats for a single functional area."""
 
     name: str
     items_imported: int = 0
@@ -37,19 +37,23 @@ class DepartmentReport:
         return result
 
 
+# Backward-compatible alias
+DepartmentReport = FunctionalAreaReport
+
+
 @dataclass
 class ImportReport:
-    """Complete import report with per-department breakdowns, warnings, and errors."""
+    """Complete import report with per-functional-area breakdowns, warnings, and errors."""
 
-    departments_created: int = 0
-    departments_updated: int = 0
+    functional_areas_created: int = 0
+    functional_areas_updated: int = 0
     total_work_areas: int = 0
     total_items_imported: int = 0
     total_items_updated: int = 0
     total_items_skipped: int = 0
     total_amount: Decimal = Decimal(0)
 
-    department_reports: list[DepartmentReport] = field(default_factory=list)
+    functional_area_reports: list[FunctionalAreaReport] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     info: list[str] = field(default_factory=list)
@@ -69,19 +73,19 @@ class ImportReport:
         self.info.append(msg)
 
     def finalize(self) -> None:
-        """Aggregate department-level stats into report totals."""
-        self.total_items_imported = sum(d.items_imported for d in self.department_reports)
-        self.total_items_updated = sum(d.items_updated for d in self.department_reports)
-        self.total_items_skipped = sum(d.items_skipped for d in self.department_reports)
+        """Aggregate functional-area-level stats into report totals."""
+        self.total_items_imported = sum(d.items_imported for d in self.functional_area_reports)
+        self.total_items_updated = sum(d.items_updated for d in self.functional_area_reports)
+        self.total_items_skipped = sum(d.items_skipped for d in self.functional_area_reports)
         self.total_work_areas = sum(
-            d.work_areas_created + d.work_areas_found for d in self.department_reports
+            d.work_areas_created + d.work_areas_found for d in self.functional_area_reports
         )
         self.total_amount = sum(
-            (d.total_amount for d in self.department_reports), Decimal(0)
+            (d.total_amount for d in self.functional_area_reports), Decimal(0)
         )
 
         # Generate budget comparison info lines
-        for dr in self.department_reports:
+        for dr in self.functional_area_reports:
             if dr.budget_total is not None and dr.budget_total > 0:
                 delta = dr.budget_total - dr.total_amount
                 dr.budget_delta = delta
@@ -101,15 +105,15 @@ class ImportReport:
         return {
             "status": status,
             "summary": {
-                "departments_created": self.departments_created,
-                "departments_updated": self.departments_updated,
+                "functional_areas_created": self.functional_areas_created,
+                "functional_areas_updated": self.functional_areas_updated,
                 "total_work_areas": self.total_work_areas,
                 "total_items_imported": self.total_items_imported,
                 "total_items_updated": self.total_items_updated,
                 "total_items_skipped": self.total_items_skipped,
                 "total_amount": float(self.total_amount),
             },
-            "departments": [d.to_dict() for d in self.department_reports],
+            "functional_areas": [d.to_dict() for d in self.functional_area_reports],
             "budget_template_sheet": self.budget_template_sheet,
             "sheets_detected": self.sheets_detected,
             "sheets_skipped": self.sheets_skipped,

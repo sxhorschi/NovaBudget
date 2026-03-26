@@ -136,7 +136,7 @@ async def change_status(
         )
 
     # Erforderliche Freigabestufe bestimmen
-    required_approver = get_required_approver(item.current_amount)
+    required_approver = get_required_approver(item.total_amount)
 
     # 3. Wenn APPROVED: approval_date setzen
     old_approval_date = item.approval_date

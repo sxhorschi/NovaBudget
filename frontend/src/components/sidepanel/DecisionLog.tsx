@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { CheckCircle2, DollarSign, FileText, Clock, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, FileText, Clock, AlertTriangle } from 'lucide-react';
 import type { CostItem } from '../../types/budget';
 import { STATUS_LABELS } from '../../types/budget';
 import { useConfig } from '../../context/ConfigContext';
@@ -32,18 +32,7 @@ function deriveDecisions(item: CostItem, costBasisLabel: string): DecisionEntry[
     detail: `Basis: ${costBasisLabel}`,
   });
 
-  // 2. Amount changed?
-  if (item.current_amount !== item.original_amount) {
-    const diff = item.current_amount - item.original_amount;
-    const sign = diff > 0 ? '+' : '';
-    entries.push({
-      date: item.updated_at,
-      icon: DollarSign,
-      iconColor: diff > 0 ? 'text-amber-500' : 'text-emerald-500',
-      text: `Amount adjusted ${sign}${diff.toLocaleString('de-DE')} EUR`,
-      detail: item.zielanpassung ? `Target adjustment: ${item.zielanpassung_reason}` : undefined,
-    });
-  }
+  // 2. Amount changes — will be derived from PriceHistory in Phase 4
 
   // 3. Approval status transitions
   if (item.approval_status === 'approved' && item.approval_date) {

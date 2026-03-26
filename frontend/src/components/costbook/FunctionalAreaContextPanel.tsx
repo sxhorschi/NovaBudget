@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X, Save, Building2 } from 'lucide-react';
-import type { CostItem, Department, WorkArea } from '../../types/budget';
+import type { CostItem, FunctionalArea, WorkArea } from '../../types/budget';
 import { useAmountFormatter, formatThousands, parseGermanNumber } from './AmountCell';
 import Section from './Section';
 
@@ -55,76 +55,76 @@ const labelClass = 'text-xs font-medium text-gray-500 block mb-1';
 const inputClass =
   'w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-colors';
 
-interface DepartmentContextPanelProps {
-  department: Department | null;
+interface FunctionalAreaContextPanelProps {
+  functionalArea: FunctionalArea | null;
   workAreas: WorkArea[];
   costItems: CostItem[];
   onClose: () => void;
-  onSave?: (departmentId: string, data: { name: string; budget_total: number }) => void;
-  onDelete?: (departmentId: string) => void;
+  onSave?: (functionalAreaId: string, data: { name: string; budget_total: number }) => void;
+  onDelete?: (functionalAreaId: string) => void;
 }
 
-export default function DepartmentContextPanel({
-  department,
+export default function FunctionalAreaContextPanel({
+  functionalArea,
   workAreas,
   costItems,
   onClose,
   onSave,
   onDelete,
-}: DepartmentContextPanelProps) {
+}: FunctionalAreaContextPanelProps) {
   const format = useAmountFormatter();
   const [nameDraft, setNameDraft] = useState('');
   const [budgetDraft, setBudgetDraft] = useState('0');
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (department) {
+    if (functionalArea) {
       requestAnimationFrame(() => setIsVisible(true));
     } else {
       setIsVisible(false);
     }
-  }, [department]);
+  }, [functionalArea]);
 
   useEffect(() => {
-    if (!department) return;
-    setNameDraft(department.name);
-    setBudgetDraft(String(department.budget_total ?? 0));
-  }, [department]);
+    if (!functionalArea) return;
+    setNameDraft(functionalArea.name);
+    setBudgetDraft(String(functionalArea.budget_total ?? 0));
+  }, [functionalArea]);
 
-  const deptWorkAreas = useMemo(() => {
-    if (!department) return [];
-    return workAreas.filter((wa) => wa.department_id === department.id);
-  }, [department, workAreas]);
+  const faWorkAreas = useMemo(() => {
+    if (!functionalArea) return [];
+    return workAreas.filter((wa) => wa.functional_area_id === functionalArea.id);
+  }, [functionalArea, workAreas]);
 
-  const deptItems = useMemo(() => {
-    if (!department) return [];
-    const waIds = new Set(deptWorkAreas.map((wa) => wa.id));
+  const faItems = useMemo(() => {
+    if (!functionalArea) return [];
+    const waIds = new Set(faWorkAreas.map((wa) => wa.id));
     return costItems.filter((ci) => waIds.has(ci.work_area_id));
-  }, [department, deptWorkAreas, costItems]);
+  }, [functionalArea, faWorkAreas, costItems]);
 
   const committed = useMemo(
-    () => deptItems
+    () => faItems
       .filter(ci => ci.approval_status === 'approved')
       .reduce((s, ci) => s + ci.total_amount, 0),
-    [deptItems],
+    [faItems],
   );
 
   // Forecast = all items not rejected or obsolete (consistent with useFilteredData)
   const forecast = useMemo(
-    () => deptItems
+    () => faItems
       .filter((ci) => ci.approval_status !== 'rejected' && ci.approval_status !== 'obsolete')
       .reduce((s, ci) => s + ci.total_amount, 0),
-    [deptItems],
+    [faItems],
   );
 
-  if (!department) return null;
+  if (!functionalArea) return null;
 
   const budget = Math.max(0, Number(budgetDraft) || 0);
   // Remaining = Budget - Forecast (consistent with useFilteredData source of truth)
   const remaining = budget - forecast;
   const hasChanges =
-    nameDraft.trim() !== department.name ||
-    budget !== department.budget_total;
+    nameDraft.trim() !== functionalArea.name ||
+    budget !== functionalArea.budget_total;
 
   return (
     <>
@@ -147,9 +147,9 @@ export default function DepartmentContextPanel({
             <div className="min-w-0 flex-1">
               <div className="inline-flex items-center gap-2 text-[11px] tracking-wider text-indigo-600 font-semibold uppercase">
                 <Building2 size={13} />
-                Department
+                Functional Area
               </div>
-              <h2 className="text-lg font-semibold text-gray-900 mt-1 truncate">{department.name}</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mt-1 truncate">{functionalArea.name}</h2>
             </div>
             <button
               onClick={onClose}
@@ -205,18 +205,18 @@ export default function DepartmentContextPanel({
               </div>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              {deptWorkAreas.length} categories, {deptItems.length} items
+              {faWorkAreas.length} categories, {faItems.length} items
             </p>
           </Section>
 
           <Section title="Categories" defaultOpen={true}>
             <div className="rounded-lg border border-gray-200 overflow-hidden">
-              {deptWorkAreas.length === 0 ? (
+              {faWorkAreas.length === 0 ? (
                 <p className="px-3 py-3 text-sm text-gray-500">No categories found.</p>
               ) : (
                 <div className="divide-y divide-gray-100">
-                  {deptWorkAreas.map((wa) => {
-                    const waItems = deptItems.filter((ci) => ci.work_area_id === wa.id);
+                  {faWorkAreas.map((wa) => {
+                    const waItems = faItems.filter((ci) => ci.work_area_id === wa.id);
                     const waTotal = waItems.reduce((s, ci) => s + ci.total_amount, 0);
                     return (
                       <div key={wa.id} className="px-3 py-2.5 flex items-center justify-between gap-3">
@@ -247,10 +247,10 @@ export default function DepartmentContextPanel({
                 onClick={() => {
                   if (
                     window.confirm(
-                      `Really delete department "${department.name}"? All contained categories and items will be removed.`,
+                      `Really delete functional area "${functionalArea.name}"? All contained categories and items will be removed.`,
                     )
                   ) {
-                    onDelete(department.id);
+                    onDelete(functionalArea.id);
                   }
                 }}
                 className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors duration-150"
@@ -270,7 +270,7 @@ export default function DepartmentContextPanel({
               </button>
               {onSave && (
                 <button
-                  onClick={() => onSave(department.id, { name: nameDraft.trim(), budget_total: budget })}
+                  onClick={() => onSave(functionalArea.id, { name: nameDraft.trim(), budget_total: budget })}
                   disabled={!hasChanges}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-150 inline-flex items-center gap-1.5 ${
                     hasChanges

@@ -15,7 +15,7 @@ from app.models.enums import AdjustmentCategory
 class BudgetAdjustmentCreate(BaseModel):
     """POST body for creating a new budget adjustment."""
 
-    department_id: UUID
+    functional_area_id: UUID
     amount: Decimal = Field(..., description="Positive = budget increase, negative = decrease")
     reason: str = Field(..., min_length=1, description="Mandatory justification")
     category: AdjustmentCategory
@@ -28,7 +28,7 @@ class BudgetAdjustmentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    department_id: UUID
+    functional_area_id: UUID
     amount: Decimal
     reason: str
     category: AdjustmentCategory

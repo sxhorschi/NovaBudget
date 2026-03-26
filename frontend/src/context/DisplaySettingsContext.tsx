@@ -15,7 +15,7 @@ const LS_INFLATION_RATE = 'capex-planner:inflation-rate';
 
 /**
  * Applies annual inflation to an amount based on cash-out date.
- * @param amount      Raw amount (e.g. current_amount)
+ * @param amount      Raw amount (e.g. total_amount)
  * @param cashOutDate YYYY-MM formatted string
  * @param rate        Inflation rate in percent (e.g. 3.0 for 3%)
  * @param currentYear The reference year (usually new Date().getFullYear())

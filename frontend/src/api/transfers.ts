@@ -19,17 +19,17 @@ export interface TransferWorkAreasParams {
   source_facility_id: string;
   target_facility_id: string;
   work_area_ids: string[];
-  target_department_id: string;
+  target_functional_area_id: string;
   mode: 'copy' | 'move';
   reset_status: boolean;
   reset_amounts: boolean;
   notes?: string;
 }
 
-export interface TransferDepartmentsParams {
+export interface TransferFunctionalAreasParams {
   source_facility_id: string;
   target_facility_id: string;
-  department_ids: string[];
+  functional_area_ids: string[];
   mode: 'copy' | 'move';
   reset_status: boolean;
   reset_amounts: boolean;
@@ -74,8 +74,8 @@ export async function transferWorkAreas(params: TransferWorkAreasParams): Promis
   return response.data;
 }
 
-export async function transferDepartments(params: TransferDepartmentsParams): Promise<TransferResult> {
-  const response = await client.post<TransferResult>('/transfers/departments', params);
+export async function transferFunctionalAreas(params: TransferFunctionalAreasParams): Promise<TransferResult> {
+  const response = await client.post<TransferResult>('/transfers/functional-areas', params);
   return response.data;
 }
 
