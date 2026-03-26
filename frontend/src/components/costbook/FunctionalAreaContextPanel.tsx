@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { X, Save, Building2 } from 'lucide-react';
-import type { CostItem, FunctionalArea, WorkArea } from '../../types/budget';
+import { X, Save, Building2, Plus, Pencil, Trash2, Check } from 'lucide-react';
+import type { CostItem, FunctionalArea, FunctionalAreaBudget, WorkArea } from '../../types/budget';
 import { useAmountFormatter, formatThousands, parseGermanNumber } from './AmountCell';
 import Section from './Section';
+import { useBudgetData } from '../../context/BudgetDataContext';
 
 // ---------------------------------------------------------------------------
 // Formatted EUR input for budget field
@@ -54,6 +55,199 @@ const BudgetAmountInput: React.FC<BudgetAmountInputProps> = ({ value, onChange, 
 const labelClass = 'text-xs font-medium text-gray-500 block mb-1';
 const inputClass =
   'w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-colors';
+
+// ---------------------------------------------------------------------------
+// Yearly Budget Row (inline edit)
+// ---------------------------------------------------------------------------
+
+interface YearlyBudgetRowProps {
+  budget: FunctionalAreaBudget;
+  faId: string;
+  format: (v: number) => string;
+}
+
+const YearlyBudgetRow: React.FC<YearlyBudgetRowProps> = ({ budget, faId, format }) => {
+  const { updateYearlyBudget, deleteYearlyBudget } = useBudgetData();
+  const [editing, setEditing] = useState(false);
+  const [amountDraft, setAmountDraft] = useState(String(budget.amount));
+  const [commentDraft, setCommentDraft] = useState(budget.comment ?? '');
+
+  useEffect(() => {
+    setAmountDraft(String(budget.amount));
+    setCommentDraft(budget.comment ?? '');
+  }, [budget]);
+
+  const handleSave = useCallback(async () => {
+    const amount = Math.max(0, Number(parseGermanNumber(amountDraft)) || 0);
+    await updateYearlyBudget(faId, budget.id, {
+      amount,
+      comment: commentDraft.trim() || null,
+    });
+    setEditing(false);
+  }, [faId, budget.id, amountDraft, commentDraft, updateYearlyBudget]);
+
+  const handleDelete = useCallback(async () => {
+    if (window.confirm(`Delete budget for ${budget.year}?`)) {
+      await deleteYearlyBudget(faId, budget.id);
+    }
+  }, [faId, budget.id, budget.year, deleteYearlyBudget]);
+
+  if (editing) {
+    return (
+      <div className="px-3 py-2 space-y-1.5 bg-indigo-50/50">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700 w-12">{budget.year}</span>
+          <BudgetAmountInput
+            value={amountDraft}
+            onChange={setAmountDraft}
+            className={`${inputClass} tabular-nums flex-1 !py-1.5 text-xs`}
+          />
+        </div>
+        <input
+          value={commentDraft}
+          onChange={(e) => setCommentDraft(e.target.value)}
+          placeholder="Comment (optional)"
+          className={`${inputClass} !py-1.5 text-xs`}
+        />
+        <div className="flex justify-end gap-1.5">
+          <button
+            onClick={() => setEditing(false)}
+            className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800 rounded"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 inline-flex items-center gap-1"
+          >
+            <Check size={12} /> Save
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-3 py-2 flex items-center justify-between gap-2 group">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700 w-12">{budget.year}</span>
+          <span className="text-sm font-mono font-semibold text-indigo-700">{format(budget.amount)}</span>
+        </div>
+        {budget.comment && (
+          <p className="text-xs text-gray-500 mt-0.5 ml-14 truncate">{budget.comment}</p>
+        )}
+      </div>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={() => setEditing(true)}
+          className="p-1 text-gray-400 hover:text-indigo-600 rounded"
+          aria-label="Edit"
+        >
+          <Pencil size={13} />
+        </button>
+        <button
+          onClick={handleDelete}
+          className="p-1 text-gray-400 hover:text-red-600 rounded"
+          aria-label="Delete"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Add Budget Row
+// ---------------------------------------------------------------------------
+
+interface AddBudgetRowProps {
+  faId: string;
+  existingYears: Set<number>;
+}
+
+const AddBudgetRow: React.FC<AddBudgetRowProps> = ({ faId, existingYears }) => {
+  const { createYearlyBudget } = useBudgetData();
+  const [open, setOpen] = useState(false);
+  const currentYear = new Date().getFullYear();
+  const [yearDraft, setYearDraft] = useState(String(currentYear));
+  const [amountDraft, setAmountDraft] = useState('0');
+  const [commentDraft, setCommentDraft] = useState('');
+
+  const handleAdd = useCallback(async () => {
+    const year = Number(yearDraft);
+    if (!year || existingYears.has(year)) return;
+    const amount = Math.max(0, Number(parseGermanNumber(amountDraft)) || 0);
+    const result = await createYearlyBudget(faId, year, amount, commentDraft.trim() || null);
+    if (result) {
+      setOpen(false);
+      setAmountDraft('0');
+      setCommentDraft('');
+      setYearDraft(String(currentYear));
+    }
+  }, [faId, yearDraft, amountDraft, commentDraft, existingYears, createYearlyBudget, currentYear]);
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full px-3 py-2 text-xs text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 flex items-center gap-1.5 transition-colors"
+      >
+        <Plus size={13} /> Add yearly budget
+      </button>
+    );
+  }
+
+  return (
+    <div className="px-3 py-2 space-y-1.5 bg-indigo-50/50 border-t border-gray-100">
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          value={yearDraft}
+          onChange={(e) => setYearDraft(e.target.value)}
+          placeholder="Year"
+          className={`${inputClass} !py-1.5 text-xs w-20`}
+          min={2020}
+          max={2099}
+        />
+        <BudgetAmountInput
+          value={amountDraft}
+          onChange={setAmountDraft}
+          className={`${inputClass} tabular-nums flex-1 !py-1.5 text-xs`}
+        />
+      </div>
+      <input
+        value={commentDraft}
+        onChange={(e) => setCommentDraft(e.target.value)}
+        placeholder="Comment (optional)"
+        className={`${inputClass} !py-1.5 text-xs`}
+      />
+      {existingYears.has(Number(yearDraft)) && (
+        <p className="text-xs text-red-500">Budget for {yearDraft} already exists.</p>
+      )}
+      <div className="flex justify-end gap-1.5">
+        <button
+          onClick={() => setOpen(false)}
+          className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800 rounded"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleAdd}
+          disabled={existingYears.has(Number(yearDraft))}
+          className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Plus size={12} /> Add
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Main Panel
+// ---------------------------------------------------------------------------
 
 interface FunctionalAreaContextPanelProps {
   functionalArea: FunctionalArea | null;
@@ -117,11 +311,30 @@ export default function FunctionalAreaContextPanel({
     [faItems],
   );
 
+  // Sorted yearly budgets
+  const sortedBudgets = useMemo(() => {
+    if (!functionalArea) return [];
+    return [...(functionalArea.budgets ?? [])].sort((a, b) => a.year - b.year);
+  }, [functionalArea]);
+
+  const existingYears = useMemo(
+    () => new Set(sortedBudgets.map((b) => b.year)),
+    [sortedBudgets],
+  );
+
+  // Total yearly budgets
+  const yearlyBudgetTotal = useMemo(
+    () => sortedBudgets.reduce((s, b) => s + b.amount, 0),
+    [sortedBudgets],
+  );
+
   if (!functionalArea) return null;
 
   const budget = Math.max(0, Number(budgetDraft) || 0);
+  // If we have yearly budgets, use their sum; otherwise fall back to budget_total
+  const effectiveBudget = sortedBudgets.length > 0 ? yearlyBudgetTotal : budget;
   // Remaining = Budget - Forecast (consistent with useFilteredData source of truth)
-  const remaining = budget - forecast;
+  const remaining = effectiveBudget - forecast;
   const hasChanges =
     nameDraft.trim() !== functionalArea.name ||
     budget !== functionalArea.budget_total;
@@ -173,13 +386,39 @@ export default function FunctionalAreaContextPanel({
                 />
               </div>
               <div>
-                <label className={labelClass}>Budget (EUR)</label>
+                <label className={labelClass}>Base Budget (EUR)</label>
                 <BudgetAmountInput
                   value={budgetDraft}
                   onChange={setBudgetDraft}
                   className={`${inputClass} tabular-nums`}
                 />
+                <p className="text-xs text-gray-400 mt-1">Legacy single budget value. Use yearly budgets below for per-year planning.</p>
               </div>
+            </div>
+          </Section>
+
+          <Section title="Yearly Budgets" defaultOpen={true}>
+            <div className="rounded-lg border border-gray-200 overflow-hidden">
+              {sortedBudgets.length === 0 ? (
+                <p className="px-3 py-3 text-sm text-gray-500">No yearly budgets defined yet.</p>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {sortedBudgets.map((b) => (
+                    <YearlyBudgetRow
+                      key={b.id}
+                      budget={b}
+                      faId={functionalArea.id}
+                      format={format}
+                    />
+                  ))}
+                  {/* Total row */}
+                  <div className="px-3 py-2 flex items-center justify-between bg-gray-50">
+                    <span className="text-sm font-medium text-gray-600 w-12">Total</span>
+                    <span className="text-sm font-mono font-bold text-indigo-700">{format(yearlyBudgetTotal)}</span>
+                  </div>
+                </div>
+              )}
+              <AddBudgetRow faId={functionalArea.id} existingYears={existingYears} />
             </div>
           </Section>
 
@@ -187,7 +426,7 @@ export default function FunctionalAreaContextPanel({
             <div className="rounded-lg border border-gray-200 overflow-hidden">
               <div className="px-3 py-2.5 flex items-center justify-between gap-3 border-b border-gray-100">
                 <p className="text-sm text-gray-600">Budget</p>
-                <p className="text-sm font-mono font-semibold text-indigo-700">{format(budget)}</p>
+                <p className="text-sm font-mono font-semibold text-indigo-700">{format(effectiveBudget)}</p>
               </div>
               <div className="px-3 py-2.5 flex items-center justify-between gap-3 border-b border-gray-100">
                 <p className="text-sm text-gray-600">Committed</p>

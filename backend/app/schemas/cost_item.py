@@ -87,3 +87,9 @@ class CostItemUpdate(BaseModel):
     zielanpassung_reason: str | None = Field(default=None, max_length=2000)
     comments: str | None = Field(default=None, max_length=4000)
     requester: str | None = Field(default=None, max_length=200)
+    # When unit_price or quantity changes, frontend should provide the reason
+    price_change_basis: str | None = Field(
+        default=None,
+        max_length=50,
+        description="Required when unit_price or quantity changes. One of: cost_estimation, initial_supplier_offer, revised_supplier_offer, final",
+    )

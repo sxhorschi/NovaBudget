@@ -4,7 +4,7 @@ import type { ApprovalStatus } from '../../types/budget';
 import { STATUS_LABELS } from '../../types/budget';
 
 // Statuses that require confirmation before applying
-const CRITICAL_STATUSES: Set<ApprovalStatus> = new Set(['rejected', 'obsolete']);
+const CRITICAL_STATUSES: Set<ApprovalStatus> = new Set(['rejected', 'obsolete', 'delivered']);
 
 // ---------------------------------------------------------------------------
 // Status color mapping
@@ -12,45 +12,68 @@ const CRITICAL_STATUSES: Set<ApprovalStatus> = new Set(['rejected', 'obsolete'])
 
 const STATUS_STYLE: Record<ApprovalStatus, { bg: string; text: string; dot: string }> = {
   open:                            { bg: '#f1f5f9', text: '#475569', dot: '#94a3b8' },
+  reviewed:                        { bg: '#cffafe', text: '#155e75', dot: '#06b6d4' },
   submitted_for_approval:          { bg: '#fef3c7', text: '#92400e', dot: '#f59e0b' },
   approved:                        { bg: '#dcfce7', text: '#166534', dot: '#22c55e' },
   rejected:                        { bg: '#fee2e2', text: '#991b1b', dot: '#ef4444' },
   on_hold:                         { bg: '#ffedd5', text: '#9a3412', dot: '#f97316' },
   pending_supplier_negotiation:    { bg: '#dbeafe', text: '#1e40af', dot: '#3b82f6' },
   pending_technical_clarification: { bg: '#e0e7ff', text: '#3730a3', dot: '#6366f1' },
+  purchase_order_sent:             { bg: '#e0e7ff', text: '#3730a3', dot: '#6366f1' },
+  purchase_order_confirmed:        { bg: '#ede9fe', text: '#5b21b6', dot: '#8b5cf6' },
+  delivered:                       { bg: '#d1fae5', text: '#065f46', dot: '#10b981' },
   obsolete:                        { bg: '#e2e8f0', text: '#334155', dot: '#64748b' },
 };
 
 // Tailwind gradient badge classes per status
 const STATUS_BADGE_CLASS: Record<ApprovalStatus, string> = {
-  approved:
-    'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200',
   open:
     'bg-gradient-to-r from-gray-50 to-slate-50 text-gray-600 border border-gray-200',
-  rejected:
-    'bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border border-red-200',
+  reviewed:
+    'bg-gradient-to-r from-cyan-50 to-sky-50 text-cyan-700 border border-cyan-200',
   submitted_for_approval:
     'bg-gradient-to-r from-blue-50 to-yellow-50 text-blue-700 border border-blue-200',
+  approved:
+    'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200',
+  rejected:
+    'bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border border-red-200',
   on_hold:
     'bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 border border-amber-200',
   pending_supplier_negotiation:
     'bg-gradient-to-r from-violet-50 to-purple-50 text-violet-700 border border-violet-200',
   pending_technical_clarification:
     'bg-gradient-to-r from-violet-50 to-purple-50 text-violet-700 border border-violet-200',
+  purchase_order_sent:
+    'bg-gradient-to-r from-indigo-50 to-blue-50 text-indigo-700 border border-indigo-200',
+  purchase_order_confirmed:
+    'bg-gradient-to-r from-violet-50 to-fuchsia-50 text-violet-700 border border-violet-200',
+  delivered:
+    'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-800 border border-emerald-300',
   obsolete:
     'bg-gradient-to-r from-slate-50 to-gray-50 text-slate-500 border border-slate-200 opacity-70',
 };
 
-const ALL_STATUSES: ApprovalStatus[] = [
-  'open',
-  'submitted_for_approval',
-  'approved',
-  'rejected',
-  'on_hold',
-  'pending_supplier_negotiation',
-  'pending_technical_clarification',
-  'obsolete',
+// Status groups for organized dropdown display
+const STATUS_GROUPS: { label: string; statuses: ApprovalStatus[] }[] = [
+  {
+    label: 'Pre-Approval',
+    statuses: ['open', 'reviewed', 'submitted_for_approval'],
+  },
+  {
+    label: 'Post-Approval',
+    statuses: ['approved', 'purchase_order_sent', 'purchase_order_confirmed', 'delivered'],
+  },
+  {
+    label: 'On Hold / Pending',
+    statuses: ['on_hold', 'pending_supplier_negotiation', 'pending_technical_clarification'],
+  },
+  {
+    label: 'Terminal',
+    statuses: ['rejected', 'obsolete'],
+  },
 ];
+
+const ALL_STATUSES: ApprovalStatus[] = STATUS_GROUPS.flatMap((g) => g.statuses);
 
 // All statuses are reachable from any status — free workflow
 const ALLOWED_TRANSITIONS: Record<ApprovalStatus, ApprovalStatus[]> = Object.fromEntries(
@@ -171,28 +194,32 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
         {STATUS_LABELS[status]}
       </button>
 
-      {allowed.length > 0 && (
-        <>
-          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 border-t border-gray-100 mt-0.5">
-            Change to
+      {allowed.length > 0 && STATUS_GROUPS.map((group) => {
+        const groupStatuses = group.statuses.filter((s) => allowed.includes(s));
+        if (groupStatuses.length === 0) return null;
+        return (
+          <div key={group.label}>
+            <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 border-t border-gray-100 mt-0.5">
+              {group.label}
+            </div>
+            {groupStatuses.map((s) => {
+              const sStyle = STATUS_STYLE[s];
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleSelect(s); }}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-slate-50"
+                  style={{ color: '#1e293b' }}
+                >
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: sStyle.dot }} />
+                  {STATUS_LABELS[s]}
+                </button>
+              );
+            })}
           </div>
-          {allowed.map((s) => {
-            const sStyle = STATUS_STYLE[s];
-            return (
-              <button
-                key={s}
-                type="button"
-                onClick={(e) => { e.stopPropagation(); handleSelect(s); }}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-slate-50"
-                style={{ color: '#1e293b' }}
-              >
-                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: sStyle.dot }} />
-                {STATUS_LABELS[s]}
-              </button>
-            );
-          })}
-        </>
-      )}
+        );
+      })}
     </div>,
     document.body,
   );

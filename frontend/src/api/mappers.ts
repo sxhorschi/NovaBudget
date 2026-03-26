@@ -1,6 +1,7 @@
 import type {
   Facility,
   FunctionalArea,
+  FunctionalAreaBudget,
   WorkArea,
   CostItem,
   ApprovalStatus,
@@ -33,12 +34,25 @@ export function mapFacilityFromApi(data: any): Facility {
   };
 }
 
+function mapFunctionalAreaBudgetFromApi(data: any): FunctionalAreaBudget {
+  return {
+    id: data.id,
+    functional_area_id: data.functional_area_id,
+    year: Number(data.year),
+    amount: Number(data.amount ?? 0),
+    comment: data.comment ?? null,
+    created_at: data.created_at,
+    updated_at: data.updated_at,
+  };
+}
+
 export function mapFunctionalAreaFromApi(data: any): FunctionalArea {
   return {
     id: data.id,
     facility_id: data.facility_id,
     name: data.name,
     budget_total: Number(data.budget_total ?? 0),
+    budgets: (data.budgets ?? []).map(mapFunctionalAreaBudgetFromApi),
   };
 }
 
@@ -121,6 +135,11 @@ export function mapCostItemToApi(item: Partial<CostItem>): Record<string, unknow
     payload.zielanpassung_reason = item.zielanpassung_reason || null;
   if (item.comments !== undefined) payload.comments = item.comments || null;
   if (item.requester !== undefined) payload.requester = item.requester || null;
+
+  // PriceHistory: when price/quantity changes, include the cost basis reason
+  if ((item as any).price_change_basis !== undefined) {
+    payload.price_change_basis = (item as any).price_change_basis;
+  }
 
   return payload;
 }

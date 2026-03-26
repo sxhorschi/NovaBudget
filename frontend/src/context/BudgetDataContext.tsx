@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import type { Facility, FunctionalArea, WorkArea, CostItem, BudgetAdjustment } from '../types/budget';
+import type { Facility, FunctionalArea, FunctionalAreaBudget, WorkArea, CostItem, BudgetAdjustment } from '../types/budget';
 import { useFacility } from './FacilityContext';
 import * as faApi from '../api/functionalAreas';
+import * as faBudgetApi from '../api/functionalAreaBudgets';
 import * as waApi from '../api/workAreas';
 import * as ciApi from '../api/costItems';
 import { changeStatus as ciChangeStatus } from '../api/costItems';
@@ -31,6 +32,11 @@ export interface BudgetDataContextValue {
   deleteFunctionalArea: (functionalAreaId: string) => void;
   updateFunctionalAreaBudget: (faId: string, newBudget: number) => void;
   addBudgetAdjustment: (functionalAreaId: string, amount: number, reason: string, category?: string) => void;
+
+  // Yearly budget CRUD
+  createYearlyBudget: (faId: string, year: number, amount: number, comment?: string | null) => Promise<FunctionalAreaBudget | null>;
+  updateYearlyBudget: (faId: string, budgetId: string, data: { year?: number; amount?: number; comment?: string | null }) => Promise<void>;
+  deleteYearlyBudget: (faId: string, budgetId: string) => Promise<void>;
 
   // Bulk operations
   bulkImport: (data: {
@@ -336,6 +342,64 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     [],
   );
 
+  // --- Yearly Budget CRUD ---
+
+  const createYearlyBudget = useCallback(
+    async (faId: string, year: number, amount: number, comment?: string | null): Promise<FunctionalAreaBudget | null> => {
+      try {
+        const newBudget = await faBudgetApi.createFunctionalAreaBudget(faId, { year, amount, comment });
+        setFunctionalAreas((prev) =>
+          prev.map((fa) =>
+            fa.id === faId
+              ? { ...fa, budgets: [...fa.budgets, newBudget] }
+              : fa,
+          ),
+        );
+        return newBudget;
+      } catch {
+        dispatchToastEvent('error', 'Failed to create yearly budget.');
+        return null;
+      }
+    },
+    [],
+  );
+
+  const updateYearlyBudget = useCallback(
+    async (faId: string, budgetId: string, data: { year?: number; amount?: number; comment?: string | null }) => {
+      try {
+        const updated = await faBudgetApi.updateFunctionalAreaBudget(faId, budgetId, data);
+        setFunctionalAreas((prev) =>
+          prev.map((fa) =>
+            fa.id === faId
+              ? { ...fa, budgets: fa.budgets.map((b) => (b.id === budgetId ? updated : b)) }
+              : fa,
+          ),
+        );
+      } catch {
+        dispatchToastEvent('error', 'Failed to update yearly budget.');
+      }
+    },
+    [],
+  );
+
+  const deleteYearlyBudget = useCallback(
+    async (faId: string, budgetId: string) => {
+      try {
+        await faBudgetApi.deleteFunctionalAreaBudget(faId, budgetId);
+        setFunctionalAreas((prev) =>
+          prev.map((fa) =>
+            fa.id === faId
+              ? { ...fa, budgets: fa.budgets.filter((b) => b.id !== budgetId) }
+              : fa,
+          ),
+        );
+      } catch {
+        dispatchToastEvent('error', 'Failed to delete yearly budget.');
+      }
+    },
+    [],
+  );
+
   // --- Bulk import (after backend import, reload all data) ---
 
   const bulkImport = useCallback(
@@ -366,6 +430,9 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       deleteFunctionalArea,
       updateFunctionalAreaBudget,
       addBudgetAdjustment,
+      createYearlyBudget,
+      updateYearlyBudget,
+      deleteYearlyBudget,
       bulkImport,
       reloadData: () => loadFacilityData(facilityId),
       isLoading,
@@ -375,7 +442,9 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       updateCostItem, deleteCostItem, createCostItem,
       createWorkArea, updateWorkArea, deleteWorkArea,
       createFunctionalArea, updateFunctionalArea, deleteFunctionalArea,
-      updateFunctionalAreaBudget, addBudgetAdjustment, bulkImport,
+      updateFunctionalAreaBudget, addBudgetAdjustment,
+      createYearlyBudget, updateYearlyBudget, deleteYearlyBudget,
+      bulkImport,
       loadFacilityData, facilityId, isLoading,
     ],
   );

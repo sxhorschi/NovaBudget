@@ -11,6 +11,7 @@ from app.auth import UserDep, require_role
 from app.db import get_session
 from app.models import AuditLog, CostItem, WorkArea
 from app.models.enums import ApprovalStatus
+from app.models.price_history import PriceHistory
 from app.schemas.approval import AuditLogRead, StatusChangeRequest, StatusChangeWithComment
 from app.schemas.cost_item import (
     CostItemCreate,
@@ -139,6 +140,19 @@ async def create_cost_item(
     item = CostItem(**data.model_dump())
     session.add(item)
     await session.flush()
+
+    # Create initial PriceHistory entry
+    initial_history = PriceHistory(
+        cost_item_id=item.id,
+        unit_price=item.unit_price,
+        quantity=item.quantity,
+        total_amount=item.total_amount,
+        cost_basis=item.cost_basis or "cost_estimation",
+        comment="Initial price at creation",
+        created_by=user.email,
+    )
+    session.add(initial_history)
+
     await log_change(session, "cost_item", item.id, "created", user_id=user.email)
     await session.commit()
     await session.refresh(item)
@@ -166,13 +180,37 @@ async def update_cost_item(
                 "POST .../submit, .../approve, .../reject oder PATCH .../status."
             ),
         )
+    # Extract price_change_basis before applying updates (not a model field)
+    price_change_basis = update_data.pop("price_change_basis", None)
+
+    # Detect if price/quantity is changing (before mutation)
+    price_changing = (
+        ("unit_price" in update_data and update_data["unit_price"] != item.unit_price)
+        or ("quantity" in update_data and update_data["quantity"] != item.quantity)
+    )
+
     # Capture old values before mutation
     old_values = {k: getattr(item, k) for k in update_data}
+
     for key, value in update_data.items():
         setattr(item, key, value)
     changes = build_changes(old_values, update_data)
     if changes:
         await log_change(session, "cost_item", item.id, "updated", changes=changes, user_id=user.email)
+
+    # Create PriceHistory entry when price or quantity changed
+    if price_changing:
+        history_entry = PriceHistory(
+            cost_item_id=item.id,
+            unit_price=item.unit_price,
+            quantity=item.quantity,
+            total_amount=item.total_amount,
+            cost_basis=price_change_basis or "revised_supplier_offer",
+            comment=None,
+            created_by=user.email,
+        )
+        session.add(history_entry)
+
     await session.commit()
     await session.refresh(item)
     return item

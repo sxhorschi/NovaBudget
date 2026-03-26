@@ -120,6 +120,19 @@ const CostbookPage: React.FC = () => {
     useFilteredData(filters);
   const toast = useToast();
 
+  // -- Year selector for SummaryStrip --
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    for (const fa of functionalAreas) {
+      for (const b of fa.budgets ?? []) {
+        years.add(b.year);
+      }
+    }
+    return Array.from(years).sort();
+  }, [functionalAreas]);
+
   // -- Functional Area filter options (derived from context) --
   const faOptions = useMemo(
     () => functionalAreas.map((d) => ({ value: String(d.id), label: d.name })),
@@ -658,6 +671,9 @@ const CostbookPage: React.FC = () => {
           committed={summary.committed}
           forecast={summary.forecast}
           remaining={summary.remaining}
+          availableYears={availableYears}
+          selectedYear={selectedYear}
+          onYearChange={setSelectedYear}
         />
       </div>
 

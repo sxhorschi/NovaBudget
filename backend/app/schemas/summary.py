@@ -16,10 +16,12 @@ class FunctionalAreaKPI(BaseModel):
 
     functional_area_id: UUID
     functional_area_name: str
+    year: int | None = None      # budget year (None = all years aggregated)
     budget: Decimal              # budget_total + SUM(budget_adjustments)
     budget_base: Decimal         # functional_area.budget_total (original)
     adjustment_total: Decimal    # SUM(budget_adjustments.amount)
     committed: Decimal           # SUM(total_amount) WHERE status = APPROVED
+    spent: Decimal               # SUM(total_amount) WHERE status = DELIVERED
     forecast: Decimal            # SUM(total_amount) WHERE status NOT IN (REJECTED, OBSOLETE)
     remaining: Decimal           # budget - forecast
     cost_of_completion: Decimal  # = forecast (same metric, different label)
@@ -40,6 +42,7 @@ class FacilityKPI(BaseModel):
     budget_base: Decimal
     adjustment_total: Decimal
     committed: Decimal
+    spent: Decimal
     forecast: Decimal
     remaining: Decimal
     cost_of_completion: Decimal

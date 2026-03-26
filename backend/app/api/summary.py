@@ -37,6 +37,7 @@ from app.services.aggregation import (
     get_cash_out_forecast,
     get_cash_out_timeline,
     get_functional_area_kpis,
+    get_functional_area_kpis_by_year,
     get_functional_area_summaries,
     get_facility_kpis,
     get_phase_breakdown,
@@ -75,9 +76,12 @@ async def facility_kpis(
 async def functional_area_kpis(
     facility_id: UUID,
     user: UserDep,
+    year: int | None = None,
     session: AsyncSession = Depends(get_session),
 ):
     try:
+        if year is not None:
+            return await get_functional_area_kpis_by_year(facility_id, year, session)
         return await get_functional_area_kpis(facility_id, session)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

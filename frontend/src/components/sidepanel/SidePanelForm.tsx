@@ -374,6 +374,11 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
       : '';
   }
 
+  // Track whether price/quantity was changed (triggers cost_basis selector)
+  const priceChanged = originalItem
+    ? item.unit_price !== originalItem.unit_price || item.quantity !== originalItem.quantity
+    : false;
+
   /** When unit_price or quantity changes, auto-calculate total_amount */
   const handleUnitPriceChange = useCallback((v: number) => {
     onChange('unit_price', v);
@@ -419,6 +424,26 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
               </div>
             </div>
           </div>
+
+          {/* Price Change Basis — shown when unit_price or quantity changed */}
+          {priceChanged && (
+            <div className="mt-3 pt-3 border-t border-gray-200/60">
+              <label className={labelClass}>
+                Reason for Price Change <span className="text-red-400">*</span>
+              </label>
+              <select
+                className={selectClass}
+                value={(item as any).price_change_basis ?? ''}
+                onChange={(e) => onChange('price_change_basis' as any, e.target.value || null)}
+              >
+                <option value="">Select reason...</option>
+                <option value="cost_estimation">Cost Estimation</option>
+                <option value="initial_supplier_offer">Initial Supplier Offer</option>
+                <option value="revised_supplier_offer">Revised Supplier Offer</option>
+                <option value="final">Final Price</option>
+              </select>
+            </div>
+          )}
         </div>
       </FormSection>
 

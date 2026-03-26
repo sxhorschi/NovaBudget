@@ -137,7 +137,8 @@ export function useFilteredData(filters: FilterState): FilteredData {
         const faAdjustments = budgetAdjustments
           .filter((adj) => adj.functional_area_id === fa.id)
           .reduce((sum, adj) => sum + adj.amount, 0);
-        const faBudget = fa.budget_total + faAdjustments;
+        const faYearlyTotal = (fa.budgets ?? []).reduce((s, b) => s + b.amount, 0);
+        const faBudget = (faYearlyTotal > 0 ? faYearlyTotal : fa.budget_total) + faAdjustments;
         if (faTotal > faBudget) {
           overBudgetFaIds.add(fa.id);
         }
@@ -166,10 +167,14 @@ export function useFilteredData(filters: FilterState): FilteredData {
       )
       .reduce((sum, ci) => sum + ci.total_amount, 0);
 
-    // Budget = Basis-Budget + Zielanpassungen fuer sichtbare Functional Areas
+    // Budget = Yearly budgets sum (if available) or budget_total + Zielanpassungen
     const filteredFaIds = new Set(filteredFunctionalAreas.map((d) => d.id));
     const baseBudget = filteredFunctionalAreas.reduce(
-      (sum, d) => sum + d.budget_total,
+      (sum, d) => {
+        // If yearly budgets exist, use their total; otherwise fall back to budget_total
+        const yearlyTotal = (d.budgets ?? []).reduce((s, b) => s + b.amount, 0);
+        return sum + (yearlyTotal > 0 ? yearlyTotal : d.budget_total);
+      },
       0,
     );
     const adjustmentTotal = budgetAdjustments

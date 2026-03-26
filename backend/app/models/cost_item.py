@@ -18,6 +18,7 @@ from app.models.enums import (
 )
 
 if TYPE_CHECKING:
+    from app.models.price_history import PriceHistory
     from app.models.work_area import WorkArea
 
 
@@ -103,6 +104,11 @@ class CostItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     # relationships
     work_area: Mapped[WorkArea] = relationship(back_populates="cost_items")
+    price_history: Mapped[list[PriceHistory]] = relationship(
+        back_populates="cost_item",
+        cascade="all, delete-orphan",
+        order_by="PriceHistory.created_at",
+    )
 
     def __repr__(self) -> str:
         return (

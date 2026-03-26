@@ -2,12 +2,16 @@
 
 export type ApprovalStatus =
   | 'open'
+  | 'reviewed'
   | 'submitted_for_approval'
   | 'approved'
   | 'rejected'
   | 'on_hold'
   | 'pending_supplier_negotiation'
   | 'pending_technical_clarification'
+  | 'purchase_order_sent'
+  | 'purchase_order_confirmed'
+  | 'delivered'
   | 'obsolete';
 
 // Classification types are now plain strings driven by config.
@@ -28,11 +32,22 @@ export interface Facility {
   updated_at?: string;
 }
 
+export interface FunctionalAreaBudget {
+  id: string;
+  functional_area_id: string;
+  year: number;
+  amount: number;
+  comment: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FunctionalArea {
   id: string;
   facility_id: string;
   name: string;
   budget_total: number;
+  budgets: FunctionalAreaBudget[];
 }
 
 
@@ -69,6 +84,20 @@ export interface CostItem {
   requester?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// --- Price History ---
+
+export interface PriceHistory {
+  id: string;
+  cost_item_id: string;
+  unit_price: number;
+  quantity: number;
+  total_amount: number;
+  cost_basis: string;
+  comment: string | null;
+  created_by: string | null;
+  created_at: string;
 }
 
 // --- Budget Adjustment (Zielanpassung) ---
@@ -168,35 +197,47 @@ export interface CashOutEntry {
 
 export const STATUS_LABELS: Record<ApprovalStatus, string> = {
   open: 'Open',
+  reviewed: 'Reviewed',
   submitted_for_approval: 'Submitted for Approval',
   approved: 'Approved',
   rejected: 'Rejected',
   on_hold: 'On Hold',
   pending_supplier_negotiation: 'Pending Supplier Negotiation',
   pending_technical_clarification: 'Pending Technical Clarification',
+  purchase_order_sent: 'PO Sent',
+  purchase_order_confirmed: 'PO Confirmed',
+  delivered: 'Delivered',
   obsolete: 'Obsolete',
 };
 
 export const STATUS_COLORS: Record<ApprovalStatus, string> = {
   open: 'bg-gray-200 text-gray-800',
+  reviewed: 'bg-cyan-200 text-cyan-800',
   submitted_for_approval: 'bg-yellow-200 text-yellow-800',
   approved: 'bg-green-200 text-green-800',
   rejected: 'bg-red-200 text-red-800',
   on_hold: 'bg-orange-200 text-orange-800',
   pending_supplier_negotiation: 'bg-blue-200 text-blue-800',
   pending_technical_clarification: 'bg-blue-100 text-blue-700',
+  purchase_order_sent: 'bg-indigo-200 text-indigo-800',
+  purchase_order_confirmed: 'bg-violet-200 text-violet-800',
+  delivered: 'bg-emerald-200 text-emerald-800',
   obsolete: 'bg-gray-300 text-gray-600',
 };
 
 /** Dot colors for status indicator in dropdowns / badges */
 export const STATUS_DOT_COLORS: Record<ApprovalStatus, string> = {
   open: '#9ca3af',
+  reviewed: '#06b6d4',
   submitted_for_approval: '#eab308',
   approved: '#22c55e',
   rejected: '#ef4444',
   on_hold: '#f97316',
   pending_supplier_negotiation: '#3b82f6',
   pending_technical_clarification: '#60a5fa',
+  purchase_order_sent: '#6366f1',
+  purchase_order_confirmed: '#8b5cf6',
+  delivered: '#10b981',
   obsolete: '#6b7280',
 };
 

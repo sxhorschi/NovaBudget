@@ -7,6 +7,7 @@ import SidePanelForm from './SidePanelForm';
 import AttachmentList from './AttachmentList';
 import DecisionLog from './DecisionLog';
 import BudgetAdjustmentHistory from './BudgetAdjustmentHistory';
+import PriceTimeline from './PriceTimeline';
 
 function isDraftDirty(draft: CostItem | null, item: CostItem | null): boolean {
   if (!draft || !item) return false;
@@ -321,6 +322,13 @@ const SidePanel: React.FC<SidePanelProps> = ({
               functionalAreaId={functionalAreaId}
               originalBudget={functionalAreaBudget}
             />
+          </CollapsibleSection>
+        )}
+
+        {/* ---- Price History (collapsible, default closed) ---- */}
+        {item?.id && (
+          <CollapsibleSection title="Price History" defaultOpen={false}>
+            <PriceTimeline costItemId={String(item.id)} />
           </CollapsibleSection>
         )}
 

@@ -14,6 +14,9 @@ interface AmountCellProps {
   /** YYYY-MM formatted cash-out date. When provided and inflation is active,
    *  the displayed value is inflated and a "~" prefix is shown. */
   cashOutDate?: string;
+  /** Optional price delta (current total_amount - initial total_amount from PriceHistory).
+   *  When provided and non-zero, a small delta indicator is shown beneath the amount. */
+  priceDelta?: number;
 }
 
 /** Shared EUR formatter instance (avoid re-creating on every call). */
@@ -67,7 +70,7 @@ export function useAmountFormatter(): (value: number) => string {
   return showThousands ? formatKEUR : formatEUR;
 }
 
-export default function AmountCell({ amount, cashOutDate }: AmountCellProps) {
+export default function AmountCell({ amount, cashOutDate, priceDelta }: AmountCellProps) {
   const { inflationEnabled } = useDisplaySettings();
   const displayAmount = useInflatedAmount(amount, cashOutDate);
   const isInflated = inflationEnabled && !!cashOutDate && displayAmount !== amount;
@@ -99,6 +102,15 @@ export default function AmountCell({ amount, cashOutDate }: AmountCellProps) {
         {isInflated && <span className="mr-0.5 opacity-70">~</span>}
         <span className={isInflated ? '' : 'text-slate-900'}>{format(displayAmount)}</span>
       </span>
+      {priceDelta != null && priceDelta !== 0 && (
+        <span
+          className="text-[10px] font-medium tabular-nums leading-none"
+          style={{ color: priceDelta > 0 ? '#ef4444' : '#10b981' }}
+          title={`Price change vs. initial estimate: ${priceDelta > 0 ? '+' : ''}${format(priceDelta)}`}
+        >
+          {priceDelta > 0 ? '+' : ''}{format(priceDelta)}
+        </span>
+      )}
     </span>
   );
 }

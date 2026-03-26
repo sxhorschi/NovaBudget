@@ -15,6 +15,7 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 if TYPE_CHECKING:
     from app.models.change_cost import ChangeCost
     from app.models.facility import Facility
+    from app.models.functional_area_budget import FunctionalAreaBudget
     from app.models.work_area import WorkArea
 
 
@@ -42,6 +43,11 @@ class FunctionalArea(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         lazy="selectin",
     )
     change_costs: Mapped[list[ChangeCost]] = relationship(
+        back_populates="functional_area",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    budgets: Mapped[list[FunctionalAreaBudget]] = relationship(
         back_populates="functional_area",
         cascade="all, delete-orphan",
         lazy="selectin",

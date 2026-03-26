@@ -31,6 +31,8 @@ from app.api.permissions import router as permissions_router
 from app.api.users import router as users_router
 from app.api.config import router as config_router
 from app.api.auth_api import router as auth_router
+from app.api.functional_area_budgets import router as functional_area_budgets_router
+from app.api.price_history import router as price_history_router
 
 
 @asynccontextmanager
@@ -132,6 +134,8 @@ app.include_router(permissions_router)
 app.include_router(users_router)
 app.include_router(config_router)
 app.include_router(auth_router)
+app.include_router(functional_area_budgets_router)
+app.include_router(price_history_router)
 
 
 # ── Health check ─────────────────────────────────────────────────────────

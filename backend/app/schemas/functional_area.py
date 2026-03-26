@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.functional_area_budget import FunctionalAreaBudgetRead
 from app.schemas.work_area import WorkAreaRead
 
 
@@ -25,6 +26,7 @@ class FunctionalAreaRead(BaseModel):
     name: str
     facility_id: UUID
     budget_total: Decimal | None = None
+    budgets: list[FunctionalAreaBudgetRead] = []
     created_at: datetime
     updated_at: datetime
 
