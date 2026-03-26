@@ -64,13 +64,13 @@ const SearchInput: React.FC<SearchInputProps> = ({
     <div
       className={`relative w-64 rounded-xl border bg-white shadow-sm transition-all duration-150 ${
         focused
-          ? 'border-indigo-300 shadow'
+          ? 'border-indigo-600 shadow'
           : 'border-gray-200 hover:shadow'
       }`}
     >
       <Search
         className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors duration-150 ${
-          focused ? 'text-indigo-400' : 'text-gray-400'
+          focused ? 'text-indigo-600' : 'text-gray-400'
         }`}
       />
       <input

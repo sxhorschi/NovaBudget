@@ -71,7 +71,7 @@ type Tab = 'users' | 'permissions' | 'group-mapping' | 'configuration';
 const ROLES = ['admin', 'editor', 'viewer'] as const;
 
 const ROLE_BADGE: Record<string, string> = {
-  admin: 'bg-indigo-100 text-indigo-700',
+  admin: 'bg-indigo-50 text-indigo-600',
   editor: 'bg-emerald-100 text-emerald-700',
   viewer: 'bg-gray-100 text-gray-600',
   pending: 'bg-amber-100 text-amber-700',
@@ -996,7 +996,7 @@ const ConfigSection: React.FC<{
                   value={editLabel}
                   onChange={(e) => setEditLabel(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                  className="flex-1 rounded border border-indigo-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="flex-1 rounded border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   autoFocus
                 />
                 <button onClick={saveEdit} className="p-1 text-green-600 hover:text-green-800"><Check size={14} /></button>
@@ -1007,7 +1007,7 @@ const ConfigSection: React.FC<{
                 <span className="flex-1 text-sm text-gray-700">{item.label}</span>
                 <button
                   onClick={() => startEdit(item)}
-                  className="p-1 text-gray-300 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="p-1 text-gray-300 hover:text-black opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <Pencil size={12} />
                 </button>
@@ -1050,25 +1050,19 @@ const ConfigSection: React.FC<{
 // Branding section — logo upload
 // ---------------------------------------------------------------------------
 
-const LOGO_STORAGE_KEY = 'budget-tool:custom-logo';
-const LOGO_API_URL = `${client.defaults.baseURL}/config/logo`;
+const LOGO_API_PATH = '/config/logo';
 
 const BrandingSection: React.FC = () => {
-  const [logoUrl, setLogoUrl] = useState<string>(() => {
-    // Check localStorage first, then API
-    const stored = localStorage.getItem(LOGO_STORAGE_KEY);
-    return stored || LOGO_API_URL;
-  });
+  const [logoUrl, setLogoUrl] = useState<string>(`${client.defaults.baseURL}${LOGO_API_PATH}`);
   const [uploading, setUploading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [logoKey, setLogoKey] = useState(0);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (max 2MB for localStorage safety)
     if (file.size > 2 * 1024 * 1024) {
       setFeedback({ type: 'error', message: 'File too large. Max 2 MB.' });
       return;
@@ -1077,38 +1071,22 @@ const BrandingSection: React.FC = () => {
     setUploading(true);
     setFeedback(null);
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const dataUrl = reader.result as string;
-      try {
-        localStorage.setItem(LOGO_STORAGE_KEY, dataUrl);
-      } catch {
-        setFeedback({ type: 'error', message: 'Logo too large for local storage.' });
-        setUploading(false);
-        return;
-      }
-      setLogoUrl(dataUrl);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await client.post(LOGO_API_PATH, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setLogoUrl(`${client.defaults.baseURL}${LOGO_API_PATH}?t=${Date.now()}`);
       setLogoKey((k) => k + 1);
-      setFeedback({ type: 'success', message: 'Logo updated.' });
+      setFeedback({ type: 'success', message: 'Logo updated for all users.' });
       window.dispatchEvent(new Event('budget-tool:logo-changed'));
-
-      // Also try uploading to backend (fire-and-forget)
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        await client.post('/config/logo', formData);
-      } catch {
-        // Backend not available — localStorage fallback is fine
-      }
-
+    } catch {
+      setFeedback({ type: 'error', message: 'Failed to upload logo.' });
+    } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
-    };
-    reader.onerror = () => {
-      setFeedback({ type: 'error', message: 'Failed to read file.' });
-      setUploading(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   return (
@@ -1344,7 +1322,7 @@ const AdminPage: React.FC = () => {
       {/* Page header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
-          <Shield size={20} className="text-indigo-600" />
+          <Shield size={20} className="text-black" />
           <h1 className="text-xl font-semibold text-gray-900">Administration</h1>
         </div>
         <p className="text-sm text-gray-500">

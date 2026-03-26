@@ -27,7 +27,7 @@ interface ToastProps {
 const CONTAINER_CLASS: Record<ToastType, string> = {
   success: 'bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200',
   error:   'bg-gradient-to-r from-red-50 to-rose-50 border-red-200',
-  info:    'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200',
+  info:    'bg-gradient-to-r from-blue-50 to-yellow-50 border-blue-200',
   warning: 'bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-200',
 };
 

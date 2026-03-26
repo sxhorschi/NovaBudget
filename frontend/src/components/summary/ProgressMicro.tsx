@@ -10,14 +10,14 @@ const COLOR_MAP: Record<ProgressMicroProps['color'], string> = {
   green: 'bg-green-500',
   yellow: 'bg-yellow-500',
   red: 'bg-red-500',
-  indigo: 'bg-indigo-500',
+  indigo: 'bg-indigo-600',
 };
 
 const TRACK_MAP: Record<ProgressMicroProps['color'], string> = {
   green: 'bg-green-100',
   yellow: 'bg-yellow-100',
   red: 'bg-red-100',
-  indigo: 'bg-indigo-100',
+  indigo: 'bg-indigo-50',
 };
 
 const ProgressMicro: React.FC<ProgressMicroProps> = ({ value, max, color }) => {

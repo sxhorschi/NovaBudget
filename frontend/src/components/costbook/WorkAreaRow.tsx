@@ -1,7 +1,7 @@
 import { ChevronRight, Pencil } from 'lucide-react';
 import { useAmountFormatter } from './AmountCell';
 
-const contextActionButtonClass = 'rounded p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-150 opacity-0 group-hover:opacity-100 focus-visible:opacity-100';
+const contextActionButtonClass = 'rounded p-1 text-slate-400 hover:text-black hover:bg-gray-50 transition-all duration-150 opacity-0 group-hover:opacity-100 focus-visible:opacity-100';
 
 // ---------------------------------------------------------------------------
 // WorkAreaRow — Second-level collapsible row

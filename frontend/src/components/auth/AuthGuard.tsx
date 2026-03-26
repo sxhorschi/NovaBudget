@@ -20,7 +20,7 @@ const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <div className="flex flex-col items-center gap-4">
           <img src={`${import.meta.env.VITE_URL_PREFIX || ''}/logo-placeholder.svg`} alt="Logo" className="h-8 w-auto" />
           <svg
-            className="animate-spin h-5 w-5 text-indigo-500"
+            className="animate-spin h-5 w-5 text-indigo-600"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"

@@ -587,10 +587,10 @@ const CostbookPage: React.FC = () => {
               }
             />
             {canEdit && (
-              <div className="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50/70 p-0.5">
+              <div className="inline-flex items-center rounded-lg border border-gray-200 bg-indigo-50/70 p-0.5">
                 <button
                   onClick={() => openCreate('item')}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-black hover:bg-gray-100 transition-colors"
                   title="New Item"
                 >
                   <Plus size={12} />
@@ -598,14 +598,14 @@ const CostbookPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => openCreate('work-area')}
-                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
+                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-black hover:bg-gray-100 transition-colors"
                   title="New Category"
                 >
                   <FolderPlus size={12} />
                 </button>
                 <button
                   onClick={() => openCreate('department')}
-                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
+                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-black hover:bg-gray-100 transition-colors"
                   title="New Department"
                 >
                   <Building2 size={12} />
@@ -683,7 +683,7 @@ const CostbookPage: React.FC = () => {
           >
             <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
               <h3 className="text-base font-semibold text-gray-900 inline-flex items-center gap-2">
-                <Layers size={16} className="text-indigo-600" />
+                <Layers size={16} className="text-black" />
                 Create New
               </h3>
               <button
@@ -700,7 +700,7 @@ const CostbookPage: React.FC = () => {
                 <button
                   onClick={() => setCreateMode('item')}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    createMode === 'item' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    createMode === 'item' ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
                   Item
@@ -708,7 +708,7 @@ const CostbookPage: React.FC = () => {
                 <button
                   onClick={() => setCreateMode('work-area')}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    createMode === 'work-area' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    createMode === 'work-area' ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
                   Category
@@ -716,7 +716,7 @@ const CostbookPage: React.FC = () => {
                 <button
                   onClick={() => setCreateMode('department')}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    createMode === 'department' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    createMode === 'department' ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
                   Department

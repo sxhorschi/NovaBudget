@@ -226,7 +226,7 @@ const SavedViews: React.FC<SavedViewsProps> = ({ currentFilters, onApplyView }) 
               onClick={() => handleApply(view)}
               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
                 isActive
-                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                  ? 'bg-indigo-50 text-indigo-600 border border-gray-200'
                   : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
               }`}
             >
@@ -253,7 +253,7 @@ const SavedViews: React.FC<SavedViewsProps> = ({ currentFilters, onApplyView }) 
                       }
                     }
                   }}
-                  className={`ml-0.5 rounded-full p-0.5 ${view.isCustom ? 'hover:bg-red-200' : 'hover:bg-indigo-100'}`}
+                  className={`ml-0.5 rounded-full p-0.5 ${view.isCustom ? 'hover:bg-red-200' : 'hover:bg-gray-100'}`}
                   title={view.isCustom ? 'Delete view' : 'Hide view'}
                 >
                   <XIcon size={10} />
@@ -290,7 +290,7 @@ const SavedViews: React.FC<SavedViewsProps> = ({ currentFilters, onApplyView }) 
                 }
               }}
               placeholder="View name..."
-              className="px-2 py-1 text-xs rounded-lg border border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-40"
+              className="px-2 py-1 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-40"
             />
             <button
               onClick={handleSaveView}

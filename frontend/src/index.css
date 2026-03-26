@@ -317,14 +317,15 @@
   }
 
   .btn-primary {
-    background-color: var(--color-brand-600);
-    color: var(--text-on-brand);
-    border-color: var(--color-brand-600);
+    background-color: #fcff2a;
+    color: #000000;
+    border-color: #fcff2a;
+    font-weight: 600;
   }
 
   .btn-primary:hover:not(:disabled) {
-    background-color: var(--color-brand-700);
-    border-color: var(--color-brand-700);
+    background-color: #e0e300;
+    border-color: #e0e300;
   }
 
   .btn-secondary {

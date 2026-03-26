@@ -31,6 +31,8 @@ services:
       ADMIN_NAME: ${ADMIN_NAME:-Administrator}
       AZURE_CLIENT_ID: ${VITE_AZURE_CLIENT_ID:-}
       AZURE_TENANT_ID: ${VITE_AZURE_TENANT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+      MAIL_SENDER_EMAIL: ${MAIL_SENDER_EMAIL:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:5173"]'}
       URL_PREFIX: ${URL_PREFIX:-}
     volumes:

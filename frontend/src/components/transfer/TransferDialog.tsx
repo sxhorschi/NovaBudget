@@ -220,7 +220,7 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
                     s === step
                       ? 'bg-indigo-600 text-white'
                       : s < step
-                        ? 'bg-indigo-100 text-indigo-700'
+                        ? 'bg-indigo-50 text-indigo-600'
                         : 'bg-gray-100 text-gray-400'
                   }`}
                 >
@@ -229,7 +229,7 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
                 {s < maxStep && (
                   <ChevronRight
                     size={14}
-                    className={s < step ? 'text-indigo-400' : 'text-gray-300'}
+                    className={s < step ? 'text-indigo-600' : 'text-gray-300'}
                   />
                 )}
               </React.Fragment>
@@ -256,7 +256,7 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
                       key={f.id}
                       className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
                         targetFacilityId === f.id
-                          ? 'border-indigo-300 bg-indigo-50/50'
+                          ? 'border-gray-200 bg-indigo-50/50'
                           : 'border-slate-200 hover:border-slate-300'
                       }`}
                     >
@@ -355,7 +355,7 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
                   <label
                     className={`flex-1 flex items-center gap-2 rounded-lg border p-3 cursor-pointer transition-colors ${
                       transferMode === 'copy'
-                        ? 'border-indigo-300 bg-indigo-50/50'
+                        ? 'border-gray-200 bg-indigo-50/50'
                         : 'border-slate-200 hover:border-slate-300'
                     }`}
                   >
@@ -377,7 +377,7 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
                   <label
                     className={`flex-1 flex items-center gap-2 rounded-lg border p-3 cursor-pointer transition-colors ${
                       transferMode === 'move'
-                        ? 'border-indigo-300 bg-indigo-50/50'
+                        ? 'border-gray-200 bg-indigo-50/50'
                         : 'border-slate-200 hover:border-slate-300'
                     }`}
                   >

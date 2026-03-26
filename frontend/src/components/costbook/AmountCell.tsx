@@ -96,7 +96,7 @@ export default function AmountCell({ original, current, cashOutDate }: AmountCel
       title={isInflated ? `Inflated value (raw: ${format(current)}) — click to copy raw` : 'Click to copy'}
     >
       <span
-        className="hover:text-indigo-600 transition-colors duration-150"
+        className="hover:text-black transition-colors duration-150"
         style={{ color: isInflated ? '#d97706' : undefined }}
       >
         {isInflated && <span className="mr-0.5 opacity-70">~</span>}

@@ -231,7 +231,7 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
           rounded-lg transition-all duration-150
           ${
             isDragOver
-              ? 'border-2 border-dashed border-indigo-400 bg-indigo-50 p-4'
+              ? 'border-2 border-dashed border-indigo-600 bg-indigo-50 p-4'
               : 'border border-transparent'
           }
         `}
@@ -312,7 +312,7 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => downloadAttachment(att.id)}
-                    className="p-1 rounded text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                    className="p-1 rounded text-gray-400 hover:text-black hover:bg-gray-50 transition-colors"
                     title="Download"
                   >
                     <Download size={14} />

@@ -11,7 +11,9 @@ class Settings(BaseSettings):
     ADMIN_NAME: str = "Administrator"
     AZURE_CLIENT_ID: str = ""
     AZURE_TENANT_ID: str = ""
+    AZURE_CLIENT_SECRET: str = ""
     AZURE_ADMIN_GROUP_ID: str = ""
+    MAIL_SENDER_EMAIL: str = ""
     URL_PREFIX: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}

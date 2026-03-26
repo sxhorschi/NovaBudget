@@ -1,7 +1,7 @@
 import { ChevronRight, Pencil } from 'lucide-react';
 import { useAmountFormatter } from './AmountCell';
 
-const contextActionButtonClass = 'rounded p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-150 opacity-0 group-hover:opacity-100 focus-visible:opacity-100';
+const contextActionButtonClass = 'rounded p-1 text-slate-400 hover:text-black hover:bg-gray-50 transition-all duration-150 opacity-0 group-hover:opacity-100 focus-visible:opacity-100';
 
 // ---------------------------------------------------------------------------
 // DepartmentRow — Top-level collapsible row with progress bar
@@ -56,7 +56,7 @@ export default function DepartmentRow({
               transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
             }}
           />
-          <span className="font-bold text-indigo-900 text-sm">{name}</span>
+          <span className="font-bold text-slate-800 text-sm">{name}</span>
           <span className="text-xs font-normal text-slate-400 ml-1 tabular-nums">
             ({itemCount})
           </span>

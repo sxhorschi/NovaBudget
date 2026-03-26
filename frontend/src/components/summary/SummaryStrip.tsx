@@ -85,7 +85,7 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
         <KPICard
           label="Budget"
           value={format(budget)}
-          textColor="text-indigo-700"
+          textColor="text-black"
           barValue={budget}
           barMax={budget}
           barColor="indigo"

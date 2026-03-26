@@ -10,9 +10,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import UserDep, require_role
+from app.config import settings
 from app.db import get_session
 from app.models.user import User
 from app.schemas.user import UserBrief, UserCreate, UserRead, UserUpdate
+from app.services.email_service import send_invite_email
 from app.services.entra_sync import sync_user_from_entra
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
@@ -182,6 +184,20 @@ async def create_user(
     session.add(user)
     await session.commit()
     await session.refresh(user)
+
+    # Send invite email (best-effort, never blocks user creation)
+    cors = settings.CORS_ORIGINS
+    app_url = cors[-1] if cors else "https://localhost"
+    if settings.URL_PREFIX:
+        app_url = f"{app_url}{settings.URL_PREFIX}"
+    await send_invite_email(
+        to_email=data.email,
+        to_name=user.name,
+        role=data.role,
+        invited_by_name=current_user.name or current_user.email,
+        app_url=app_url,
+    )
+
     return user
 
 

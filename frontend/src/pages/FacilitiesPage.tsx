@@ -232,9 +232,9 @@ const FacilitiesPage: React.FC = () => {
         {canEdit && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className="rounded-xl border-2 border-dashed border-slate-300 bg-white/50 p-6 flex flex-col items-center justify-center gap-3 min-h-[200px] hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors group cursor-pointer"
+            className="rounded-xl border-2 border-dashed border-slate-300 bg-white/50 p-6 flex flex-col items-center justify-center gap-3 min-h-[200px] hover:border-indigo-600 hover:bg-indigo-50/30 transition-colors group cursor-pointer"
           >
-            <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-indigo-100 flex items-center justify-center transition-colors">
+            <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-indigo-50 flex items-center justify-center transition-colors">
               <Plus size={24} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
             </div>
             <span className="text-sm font-medium text-slate-500 group-hover:text-indigo-600 transition-colors">

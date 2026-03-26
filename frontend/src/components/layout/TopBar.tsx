@@ -37,7 +37,7 @@ function getInitials(name: string): string {
 // ---------------------------------------------------------------------------
 
 const ROLE_COLORS: Record<User['role'], string> = {
-  admin: 'bg-indigo-100 text-indigo-700',
+  admin: 'bg-indigo-50 text-indigo-600',
   editor: 'bg-emerald-100 text-emerald-700',
   viewer: 'bg-gray-100 text-gray-600',
   pending: 'bg-amber-100 text-amber-700',
@@ -83,7 +83,7 @@ const UserMenu: React.FC = () => {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 group"
+        className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 group"
         aria-label={`User menu for ${user.name}`}
         aria-expanded={open}
       >
@@ -91,11 +91,11 @@ const UserMenu: React.FC = () => {
           <img
             src={user.photo_url}
             alt={user.name}
-            className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm group-hover:ring-indigo-300 transition-all"
+            className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm group-hover:ring-indigo-500 transition-all"
           />
         ) : (
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white select-none ring-2 ring-white shadow-sm group-hover:ring-indigo-300 transition-all"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white select-none ring-2 ring-white shadow-sm group-hover:ring-indigo-500 transition-all"
             style={avatarStyle}
           >
             {initials}
@@ -172,11 +172,11 @@ const UserMenu: React.FC = () => {
               <Link
                 to="/admin"
                 onClick={() => setOpen(false)}
-                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors group/item"
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-black transition-colors group/item"
               >
                 <Shield
                   size={15}
-                  className="text-gray-400 group-hover/item:text-indigo-500 transition-colors flex-shrink-0"
+                  className="text-gray-400 group-hover/item:text-indigo-600 transition-colors flex-shrink-0"
                 />
                 Admin
               </Link>
@@ -209,14 +209,17 @@ const UserMenu: React.FC = () => {
 const TopBar: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { inflationEnabled, inflationRate } = useDisplaySettings();
-  const [logoSrc, setLogoSrc] = useState(() => localStorage.getItem('budget-tool:custom-logo') || '/logo-placeholder.svg');
+  const urlPrefix = import.meta.env.VITE_URL_PREFIX || '';
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+  const fallbackLogo = `${urlPrefix}/logo-placeholder.svg`;
+  const [logoSrc, setLogoSrc] = useState(`${apiBaseUrl}/config/logo`);
 
   // Re-render logo when it's changed in Admin
   useEffect(() => {
-    const handler = () => setLogoSrc(localStorage.getItem('budget-tool:custom-logo') || '/logo-placeholder.svg');
+    const handler = () => setLogoSrc(`${apiBaseUrl}/config/logo?t=${Date.now()}`);
     window.addEventListener('budget-tool:logo-changed', handler);
     return () => window.removeEventListener('budget-tool:logo-changed', handler);
-  }, []);
+  }, [apiBaseUrl]);
 
   return (
     <>
@@ -230,6 +233,13 @@ const TopBar: React.FC = () => {
               alt="Logo"
               className="h-8 w-auto select-none"
               draggable={false}
+              onError={(e) => {
+                const img = e.currentTarget;
+                if (!img.dataset.fallback) {
+                  img.dataset.fallback = '1';
+                  img.src = fallbackLogo;
+                }
+              }}
             />
           </Link>
           {/* Facility switcher */}

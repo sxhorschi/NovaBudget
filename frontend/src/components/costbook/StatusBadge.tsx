@@ -30,7 +30,7 @@ const STATUS_BADGE_CLASS: Record<ApprovalStatus, string> = {
   rejected:
     'bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border border-red-200',
   submitted_for_approval:
-    'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200',
+    'bg-gradient-to-r from-blue-50 to-yellow-50 text-blue-700 border border-blue-200',
   on_hold:
     'bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 border border-amber-200',
   pending_supplier_negotiation:

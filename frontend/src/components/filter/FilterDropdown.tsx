@@ -109,7 +109,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search..."
-              className="w-full pl-8 pr-8 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+              className="w-full pl-8 pr-8 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
             {query && (
               <button
@@ -127,7 +127,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-100">
         <button
           onClick={selectAll}
-          className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+          className="text-xs text-indigo-600 hover:text-gray-900 font-medium"
         >
           Select all
         </button>

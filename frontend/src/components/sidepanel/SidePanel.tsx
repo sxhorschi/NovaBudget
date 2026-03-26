@@ -42,7 +42,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-1.5 w-full text-left group py-2 border-l-2 border-indigo-300 pl-2 hover:bg-gray-50 rounded-r transition-colors"
+        className="flex items-center gap-1.5 w-full text-left group py-2 border-l-2 border-gray-200 pl-2 hover:bg-gray-50 rounded-r transition-colors"
       >
         {isOpen ? (
           <ChevronDown size={14} className="text-gray-400 group-hover:text-gray-600 transition-colors flex-shrink-0" />
@@ -221,7 +221,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
     >
       {/* ---- Header with gradient background ---- */}
       <div
-        className="flex-shrink-0 px-6 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700"
+        className="flex-shrink-0 px-6 py-4 bg-gradient-to-r from-indigo-900 to-indigo-700"
         style={{
           borderTop: `3px solid ${accentColor}`,
         }}
@@ -331,7 +331,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
             defaultOpen={false}
             badge={
               attachmentCount > 0 ? (
-                <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 text-[10px] font-semibold bg-indigo-100 text-indigo-700 rounded-full">
+                <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 text-[10px] font-semibold bg-indigo-50 text-indigo-600 rounded-full">
                   {attachmentCount}
                 </span>
               ) : undefined
@@ -389,7 +389,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
                   px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
                   ${
                     _hasChanges
-                      ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white shadow-md hover:shadow-lg'
+                      ? 'bg-gradient-to-r from-indigo-900 to-indigo-700 hover:from-indigo-800 hover:to-indigo-600 text-white shadow-md hover:shadow-lg'
                       : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   }
                 `}

@@ -1,1 +1,5 @@
 id,label
+cost_estimation,Cost Estimation
+initial_supplier_offer,Initial Supplier Offer
+revised_supplier_offer,Revised Supplier Offer
+change_cost,Change Cost

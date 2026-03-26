@@ -53,7 +53,7 @@ const FilterChip: React.FC<FilterChipProps> = ({
           transition-all duration-150 cursor-pointer select-none shadow-sm
           ${
             hasSelection
-              ? 'border border-indigo-300 bg-indigo-50 text-indigo-700 shadow-sm'
+              ? 'border border-gray-200 bg-indigo-50 text-indigo-600 shadow-sm'
               : 'border border-gray-200 bg-white text-gray-600 hover:shadow hover:border-gray-300'
           }
         `}
@@ -80,7 +80,7 @@ const FilterChip: React.FC<FilterChipProps> = ({
                 setOpen(false);
               }
             }}
-            className="inline-flex items-center justify-center rounded-full hover:bg-indigo-200 p-0.5 transition-colors duration-100"
+            className="inline-flex items-center justify-center rounded-full hover:bg-gray-200 p-0.5 transition-colors duration-100"
             aria-label={`Clear ${label} filter`}
           >
             <X className="h-3.5 w-3.5" />

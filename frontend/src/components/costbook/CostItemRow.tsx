@@ -48,8 +48,8 @@ export default function CostItemRow({
       className={[
         'group cursor-pointer border-b transition-all duration-150 ease-out',
         selected
-          ? 'bg-indigo-50 border-l-4 border-l-indigo-500'
-          : 'border-l-4 border-l-transparent hover:bg-indigo-50/30 hover:shadow-sm hover:border-l-indigo-200',
+          ? 'bg-indigo-50 border-l-4 border-l-indigo-600'
+          : 'border-l-4 border-l-transparent hover:bg-gray-50/30 hover:shadow-sm hover:border-l-gray-200',
       ].join(' ')}
       style={{
         borderBottomColor: 'var(--border-default)',
@@ -67,7 +67,7 @@ export default function CostItemRow({
 
       {/* Phase */}
       <td className="px-4 py-2.5 whitespace-nowrap">
-        <span className="inline-block rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+        <span className="inline-block rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-600">
           {getLabel(config.phases, item.project_phase)}
         </span>
       </td>
@@ -106,7 +106,7 @@ export default function CostItemRow({
               e.stopPropagation();
               onClick();
             }}
-            className="rounded p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-150"
+            className="rounded p-1 text-slate-400 hover:text-indigo-600 hover:bg-gray-50 transition-all duration-150"
             title="Edit"
           >
             <Pencil size={14} />

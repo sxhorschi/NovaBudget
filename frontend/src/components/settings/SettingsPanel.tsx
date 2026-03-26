@@ -21,7 +21,7 @@ const SectionTitle: React.FC<{
   badge?: React.ReactNode;
 }> = ({ icon, title, badge }) => (
   <div className="flex items-center gap-2 mb-3">
-    <span className="text-indigo-500">{icon}</span>
+    <span className="text-indigo-600">{icon}</span>
     <h3 className="text-sm font-semibold text-gray-900 tracking-tight">{title}</h3>
     {badge}
   </div>

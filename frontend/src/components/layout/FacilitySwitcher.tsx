@@ -35,14 +35,14 @@ const CreateFacilityForm: React.FC<{
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Facility name"
-        className="w-full text-sm border border-gray-200 rounded-md px-2.5 py-1.5 mb-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400"
+        className="w-full text-sm border border-gray-200 rounded-md px-2.5 py-1.5 mb-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
       />
       <input
         type="text"
         value={location}
         onChange={(e) => setLocation(e.target.value)}
         placeholder="Location"
-        className="w-full text-sm border border-gray-200 rounded-md px-2.5 py-1.5 mb-2 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400"
+        className="w-full text-sm border border-gray-200 rounded-md px-2.5 py-1.5 mb-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
       />
       <div className="flex items-center gap-2">
         <button
@@ -112,7 +112,7 @@ const FacilitySwitcher: React.FC = () => {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 group"
+        className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-indigo-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 group"
         aria-label={`Switch facility. Current: ${currentFacility.name}`}
         aria-expanded={open}
       >
@@ -141,7 +141,7 @@ const FacilitySwitcher: React.FC = () => {
                 className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
                   isActive
                     ? 'bg-indigo-50'
-                    : 'hover:bg-gray-50'
+                    : 'hover:bg-indigo-50'
                 }`}
               >
                 <div className="min-w-0 flex-1">
@@ -151,7 +151,7 @@ const FacilitySwitcher: React.FC = () => {
                   <p className="text-xs text-gray-400 truncate">{facility.location}</p>
                 </div>
                 {isActive && (
-                  <span className="text-[10px] font-medium text-indigo-500 flex-shrink-0">Current</span>
+                  <span className="text-[10px] font-medium text-indigo-600 flex-shrink-0">Current</span>
                 )}
               </button>
             );
@@ -168,7 +168,7 @@ const FacilitySwitcher: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowCreate(true)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
               >
                 <Plus size={14} />
                 Create New Facility
@@ -179,7 +179,7 @@ const FacilitySwitcher: React.FC = () => {
                   navigate('/facilities');
                   setOpen(false);
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
               >
                 <Building2 size={14} />
                 Manage All Facilities

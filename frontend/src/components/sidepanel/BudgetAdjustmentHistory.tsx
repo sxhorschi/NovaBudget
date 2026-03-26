@@ -57,7 +57,7 @@ const NewAdjustmentForm: React.FC<NewAdjustmentFormProps> = ({ onSubmit, onCance
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 space-y-3">
+    <form onSubmit={handleSubmit} className="rounded-lg border border-gray-200 bg-indigo-50/50 p-3 space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-medium text-gray-500 block mb-1">
@@ -118,7 +118,7 @@ const NewAdjustmentForm: React.FC<NewAdjustmentFormProps> = ({ onSubmit, onCance
           className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
             isValid
               ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-              : 'bg-indigo-300 text-indigo-100 cursor-not-allowed'
+              : 'bg-indigo-200 text-gray-100 cursor-not-allowed'
           }`}
         >
           Save

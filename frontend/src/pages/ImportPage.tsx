@@ -55,14 +55,14 @@ const StepIndicator: React.FC<{ currentStep: ImportStep }> = ({ currentStep }) =
             {idx > 0 && (
               <div
                 className={`h-px w-12 ${
-                  state === 'pending' ? 'bg-gray-200' : 'bg-indigo-400'
+                  state === 'pending' ? 'bg-gray-200' : 'bg-indigo-600'
                 }`}
               />
             )}
             <div
               className={`
                 flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors
-                ${state === 'active' ? 'bg-indigo-100 text-indigo-700' : ''}
+                ${state === 'active' ? 'bg-indigo-50 text-indigo-600' : ''}
                 ${state === 'done' ? 'bg-green-100 text-green-700' : ''}
                 ${state === 'pending' ? 'bg-gray-100 text-gray-400' : ''}
               `}
@@ -487,17 +487,17 @@ const ImportPage: React.FC = () => {
         </div>
 
         {/* Facility Selector */}
-        <div className="mb-4 flex items-center gap-3 rounded-lg border border-indigo-100 bg-indigo-50/50 px-4 py-2.5">
-          <Building2 size={16} className="text-indigo-500 shrink-0" />
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-gray-200 bg-indigo-50/50 px-4 py-2.5">
+          <Building2 size={16} className="text-indigo-600 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-indigo-400 font-medium uppercase tracking-wider">
+            <p className="text-xs text-indigo-600 font-medium uppercase tracking-wider">
               Importing into facility
             </p>
             <p className="text-sm font-semibold text-indigo-900 truncate">
               {facility.name}
             </p>
           </div>
-          <span className="text-[10px] text-indigo-400 bg-indigo-100 px-2 py-0.5 rounded-full">
+          <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
             ID: {selectedFacilityId}
           </span>
         </div>
@@ -522,7 +522,7 @@ const ImportPage: React.FC = () => {
               p-16 cursor-pointer transition-all duration-200
               ${
                 dragging
-                  ? 'border-indigo-400 bg-indigo-50 scale-[1.01]'
+                  ? 'border-indigo-600 bg-indigo-50 scale-[1.01]'
                   : 'border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50'
               }
             `}
@@ -530,7 +530,7 @@ const ImportPage: React.FC = () => {
             <div
               className={`
                 rounded-full p-4 transition-colors
-                ${dragging ? 'bg-indigo-100' : 'bg-gray-100'}
+                ${dragging ? 'bg-indigo-50' : 'bg-gray-100'}
               `}
             >
               <Upload
@@ -572,7 +572,7 @@ const ImportPage: React.FC = () => {
           <div className="space-y-4">
             {/* File info */}
             <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
-              <FileSpreadsheet size={20} className="text-indigo-500 shrink-0" />
+              <FileSpreadsheet size={20} className="text-indigo-600 shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-gray-900 truncate">{fileName}</p>
                 <p className="text-xs text-gray-500">{formatFileSize(fileSize)}</p>
@@ -629,10 +629,10 @@ const ImportPage: React.FC = () => {
                   return (
                     <span
                       key={dept.id}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 text-xs text-indigo-700"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 text-xs text-indigo-600"
                     >
                       {dept.name}
-                      <span className="text-indigo-400">
+                      <span className="text-indigo-500">
                         ({deptItems.length} items, {deptWorkAreas.length} areas)
                       </span>
                     </span>

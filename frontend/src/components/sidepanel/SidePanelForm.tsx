@@ -46,7 +46,7 @@ const FormSection: React.FC<FormSectionProps> = ({ title, defaultOpen, children 
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-1.5 w-full text-left group py-2 border-l-2 border-indigo-300 pl-2 hover:bg-gray-50 rounded-r transition-colors"
+        className="flex items-center gap-1.5 w-full text-left group py-2 border-l-2 border-gray-200 pl-2 hover:bg-gray-50 rounded-r transition-colors"
       >
         {isOpen ? (
           <ChevronDown size={13} className="text-gray-400 group-hover:text-gray-600 transition-colors flex-shrink-0" />
@@ -342,7 +342,7 @@ const RequesterCombobox: React.FC<RequesterComboboxProps> = ({ value, onChange, 
                 key={u.id}
                 type="button"
                 onClick={() => handleSelect(u)}
-                className={`w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-indigo-50 transition-colors ${
+                className={`w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-gray-50 transition-colors ${
                   value === u.name ? 'bg-indigo-50/50' : ''
                 }`}
               >
@@ -409,7 +409,7 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
   function dirtyRing(field: keyof CostItem): string {
     if (!originalItem) return '';
     return item[field] !== originalItem[field]
-      ? ' ring-2 ring-indigo-200 border-indigo-300'
+      ? ' ring-2 ring-indigo-500 border-gray-200'
       : '';
   }
 
@@ -425,7 +425,7 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
     <div className="space-y-0">
       {/* ---- AMOUNTS (always open) ---- */}
       <FormSection title="Amounts" defaultOpen={true}>
-        <div className="bg-gradient-to-br from-indigo-50/50 to-white rounded-xl border border-indigo-100/80 p-4">
+        <div className="bg-gradient-to-br from-indigo-50/50 to-white rounded-xl border border-gray-200/80 p-4">
           <div className="grid grid-cols-3 gap-4">
             {/* Original (readonly) */}
             <div>

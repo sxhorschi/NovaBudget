@@ -350,7 +350,7 @@ const CashOutPage: React.FC = () => {
     const active = sortField === field;
     return (
       <ArrowUpDown
-        className={`inline w-3 h-3 ml-1 ${active ? 'text-indigo-600' : 'text-gray-400'}`}
+        className={`inline w-3 h-3 ml-1 ${active ? 'text-black' : 'text-gray-400'}`}
       />
     );
   }
@@ -583,7 +583,7 @@ const CashOutPage: React.FC = () => {
                     </p>
                     <div className="mt-2 h-2 rounded-full bg-gray-200 overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-indigo-500 transition-all duration-500"
+                        className="h-full rounded-full bg-indigo-600 transition-all duration-500"
                         style={{ width: `${q.pct}%` }}
                       />
                     </div>
@@ -627,7 +627,7 @@ const CashOutPage: React.FC = () => {
                             key={m}
                             className={`px-2 py-2 text-center font-semibold uppercase tracking-wider whitespace-nowrap ${
                               isCurrent
-                                ? 'text-indigo-700 bg-indigo-50/60'
+                                ? 'text-indigo-600 bg-indigo-50/60'
                                 : hoveredCell?.col === colIdx
                                   ? 'text-gray-500 bg-indigo-50'
                                   : 'text-gray-500'
@@ -635,7 +635,7 @@ const CashOutPage: React.FC = () => {
                           >
                             {MONTH_SHORT[m] ?? m}
                             {isCurrent && (
-                              <div className="h-0.5 bg-indigo-500 rounded-full mt-1 mx-auto w-full" />
+                              <div className="h-0.5 bg-indigo-600 rounded-full mt-1 mx-auto w-full" />
                             )}
                           </th>
                         );
@@ -677,10 +677,10 @@ const CashOutPage: React.FC = () => {
                             <td
                               key={m}
                               className={`px-2 py-2 text-center tabular-nums transition-colors duration-100 ${textCls} ${
-                                isCurrent ? 'border-x-2 border-indigo-400/50' : ''
+                                isCurrent ? 'border-x-2 border-indigo-600/50' : ''
                               } ${
-                                isHovered && val > 0 ? 'ring-1 ring-indigo-300 ring-inset' : ''
-                              } ${val > 0 ? 'cursor-pointer hover:ring-2 hover:ring-indigo-400 hover:ring-inset' : 'cursor-default'}`}
+                                isHovered && val > 0 ? 'ring-1 ring-indigo-500 ring-inset' : ''
+                              } ${val > 0 ? 'cursor-pointer hover:ring-2 hover:ring-indigo-500 hover:ring-inset' : 'cursor-default'}`}
                               style={{ backgroundColor: bg }}
                               onMouseEnter={() =>
                                 setHoveredCell({ row: rowIdx, col: colIdx })
@@ -716,7 +716,7 @@ const CashOutPage: React.FC = () => {
                           <td
                             key={m}
                             className={`px-2 py-2 text-center tabular-nums text-gray-900 ${
-                              isCurrent ? 'border-x-2 border-indigo-400/50 bg-indigo-50/40' : ''
+                              isCurrent ? 'border-x-2 border-indigo-600/50 bg-indigo-50/40' : ''
                             } ${hoveredCell?.col === colIdx && !isCurrent ? 'bg-indigo-50' : ''}`}
                           >
                             {columnTotals[m] > 0 ? formatEur(columnTotals[m]) : (
@@ -725,7 +725,7 @@ const CashOutPage: React.FC = () => {
                           </td>
                         );
                       })}
-                      <td className="px-3 py-2 text-right tabular-nums text-indigo-700 border-l border-gray-200">
+                      <td className="px-3 py-2 text-right tabular-nums text-black border-l border-gray-200">
                         {formatEur(columnTotals.__total)}
                       </td>
                     </tr>
@@ -755,7 +755,7 @@ const CashOutPage: React.FC = () => {
               {/* Peak Month Card */}
               <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-indigo-50 to-white shadow-sm p-5">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
                     <ArrowUpRight className="w-4 h-4 text-indigo-600" />
                   </div>
                   <div>
@@ -763,11 +763,11 @@ const CashOutPage: React.FC = () => {
                     <p className="text-[10px] text-gray-500">Highest monthly cash-out</p>
                   </div>
                 </div>
-                <p className="text-2xl font-bold text-indigo-700 tabular-nums mt-1">
+                <p className="text-2xl font-bold text-black tabular-nums mt-1">
                   {formatEur(peakMonth.value)}
                 </p>
                 <p className="text-xs text-gray-600 mt-1">
-                  <span className="font-semibold text-indigo-600">{peakMonth.label}</span>
+                  <span className="font-semibold text-black">{peakMonth.label}</span>
                   {' '}— {columnTotals.__total > 0
                     ? `${Math.round((peakMonth.value / columnTotals.__total) * 100)}% of total volume`
                     : ''}
@@ -826,7 +826,7 @@ const CashOutPage: React.FC = () => {
                 {/* Upcoming total */}
                 <div className="mt-4 pt-3 border-t border-gray-200 flex justify-between">
                   <span className="text-xs font-semibold text-gray-600">3-month total</span>
-                  <span className="text-sm font-bold tabular-nums text-indigo-700">
+                  <span className="text-sm font-bold tabular-nums text-black">
                     {formatEur(upcomingMonths.reduce((s, m) => s + m.total, 0))}
                   </span>
                 </div>
@@ -835,7 +835,7 @@ const CashOutPage: React.FC = () => {
               {/* Mini Burndown */}
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <TrendingUp className="w-4 h-4 text-indigo-500" />
+                  <TrendingUp className="w-4 h-4 text-indigo-600" />
                   <h4 className="text-sm font-semibold text-gray-900">Budget Burndown</h4>
                 </div>
                 {burndownData.length > 0 ? (
@@ -1013,7 +1013,7 @@ const CashOutPage: React.FC = () => {
                         <td colSpan={4} className="px-4 py-2.5 text-gray-900">
                           Total ({detailItems.length} items)
                         </td>
-                        <td className="px-4 py-2.5 text-right tabular-nums text-indigo-700">
+                        <td className="px-4 py-2.5 text-right tabular-nums text-black">
                           {formatEur(
                             detailItems.reduce((s, i) => s + i.current_amount, 0),
                           )}
