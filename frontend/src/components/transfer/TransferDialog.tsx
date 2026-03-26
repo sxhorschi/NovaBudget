@@ -3,7 +3,7 @@ import { X, ArrowRightLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useBudgetData } from '../../context/BudgetDataContext';
 import { useFacility } from '../../context/FacilityContext';
 import { useToast } from '../common/ToastProvider';
-import { transferCostItems, transferWorkAreas, transferDepartments } from '../../api/transfers';
+import { transferCostItems, transferWorkAreas, transferFunctionalAreas } from '../../api/transfers';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -12,7 +12,7 @@ import { transferCostItems, transferWorkAreas, transferDepartments } from '../..
 export interface TransferDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  entityType: 'cost_item' | 'work_area' | 'department';
+  entityType: 'cost_item' | 'work_area' | 'functional_area';
   entityIds: string[];
   sourceFacilityId: string;
 }
@@ -24,7 +24,7 @@ export interface TransferDialogProps {
 const ENTITY_TYPE_LABELS: Record<string, string> = {
   cost_item: 'Item',
   work_area: 'Work Area',
-  department: 'Department',
+  functional_area: 'Functional Area',
 };
 
 // ---------------------------------------------------------------------------
@@ -38,7 +38,7 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
   entityIds,
   sourceFacilityId,
 }) => {
-  const { departments, workAreas } = useBudgetData();
+  const { functionalAreas, workAreas } = useBudgetData();
   const { facilities: allFacilities } = useFacility();
   const toast = useToast();
 
@@ -52,7 +52,7 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
   const [targetFacilityId, setTargetFacilityId] = useState<string>('');
 
   // Step 2: target location
-  const [targetDepartmentId, setTargetDepartmentId] = useState<string>('');
+  const [targetFunctionalAreaId, setTargetFunctionalAreaId] = useState<string>('');
   const [targetWorkAreaId, setTargetWorkAreaId] = useState<string>('');
 
   // Step 3: options
@@ -72,23 +72,23 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
     return allFacilities.find((f) => f.id === targetFacilityId) ?? null;
   }, [allFacilities, targetFacilityId]);
 
-  // Departments in target facility
-  const targetDepartments = useMemo(() => {
+  // Functional areas in target facility
+  const targetFunctionalAreas = useMemo(() => {
     if (!targetFacilityId) return [];
-    return departments.filter((d) => d.facility_id === targetFacilityId);
-  }, [targetFacilityId, departments]);
+    return functionalAreas.filter((d) => d.facility_id === targetFacilityId);
+  }, [targetFacilityId, functionalAreas]);
 
-  // Work areas in selected target department
+  // Work areas in selected target functional area
   const targetWorkAreas = useMemo(() => {
-    if (!targetDepartmentId) return [];
-    return workAreas.filter((wa) => wa.department_id === targetDepartmentId);
-  }, [targetDepartmentId, workAreas]);
+    if (!targetFunctionalAreaId) return [];
+    return workAreas.filter((wa) => wa.functional_area_id === targetFunctionalAreaId);
+  }, [targetFunctionalAreaId, workAreas]);
 
   // Whether step 2 is needed
   const needsLocationStep = entityType === 'cost_item' || entityType === 'work_area';
 
-  // Max step: departments only need facility selection, others need location too
-  const maxStep = entityType === 'department' ? 3 : 4;
+  // Max step: functional areas only need facility selection, others need location too
+  const maxStep = entityType === 'functional_area' ? 3 : 4;
 
   const handleNext = useCallback(() => {
     setStep((s) => Math.min(s + 1, maxStep));
@@ -117,16 +117,16 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
           source_facility_id: sourceFacilityId,
           target_facility_id: targetFacilityId,
           work_area_ids: entityIds,
-          target_department_id: targetDepartmentId,
+          target_functional_area_id: targetFunctionalAreaId,
           mode: transferMode,
           reset_status: resetStatus,
           reset_amounts: resetAmounts,
         });
       } else {
-        result = await transferDepartments({
+        result = await transferFunctionalAreas({
           source_facility_id: sourceFacilityId,
           target_facility_id: targetFacilityId,
-          department_ids: entityIds,
+          functional_area_ids: entityIds,
           mode: transferMode,
           reset_status: resetStatus,
           reset_amounts: resetAmounts,
@@ -148,7 +148,7 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
     entityIds,
     sourceFacilityId,
     targetFacilityId,
-    targetDepartmentId,
+    targetFunctionalAreaId,
     targetWorkAreaId,
     transferMode,
     resetStatus,
@@ -161,7 +161,7 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
   const handleClose = useCallback(() => {
     setStep(1);
     setTargetFacilityId('');
-    setTargetDepartmentId('');
+    setTargetFunctionalAreaId('');
     setTargetWorkAreaId('');
     setTransferMode('copy');
     setResetStatus(false);
@@ -173,11 +173,11 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
   const canProceed = useMemo(() => {
     if (step === 1) return !!targetFacilityId;
     if (step === 2 && needsLocationStep) {
-      if (entityType === 'cost_item') return !!targetDepartmentId && !!targetWorkAreaId;
-      if (entityType === 'work_area') return !!targetDepartmentId;
+      if (entityType === 'cost_item') return !!targetFunctionalAreaId && !!targetWorkAreaId;
+      if (entityType === 'work_area') return !!targetFunctionalAreaId;
     }
     return true;
-  }, [step, targetFacilityId, needsLocationStep, entityType, targetDepartmentId, targetWorkAreaId]);
+  }, [step, targetFacilityId, needsLocationStep, entityType, targetFunctionalAreaId, targetWorkAreaId]);
 
   // Determine the "options" step and "confirm" step number
   const optionsStep = needsLocationStep ? 3 : 2;
@@ -267,7 +267,7 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
                         checked={targetFacilityId === f.id}
                         onChange={() => {
                           setTargetFacilityId(f.id);
-                          setTargetDepartmentId('');
+                          setTargetFunctionalAreaId('');
                           setTargetWorkAreaId('');
                         }}
                         className="accent-indigo-600"
@@ -290,24 +290,24 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Target Department
+                  Target Functional Area
                 </label>
-                {targetDepartments.length === 0 ? (
+                {targetFunctionalAreas.length === 0 ? (
                   <p className="text-sm text-gray-500">
-                    No departments found in {targetFacility?.name ?? 'the target facility'}.
-                    The target facility needs at least one department.
+                    No functional areas found in {targetFacility?.name ?? 'the target facility'}.
+                    The target facility needs at least one functional area.
                   </p>
                 ) : (
                   <select
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                    value={targetDepartmentId}
+                    value={targetFunctionalAreaId}
                     onChange={(e) => {
-                      setTargetDepartmentId(e.target.value);
+                      setTargetFunctionalAreaId(e.target.value);
                       setTargetWorkAreaId('');
                     }}
                   >
-                    <option value="">Select a department...</option>
-                    {targetDepartments.map((d) => (
+                    <option value="">Select a functional area...</option>
+                    {targetFunctionalAreas.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.name}
                       </option>
@@ -316,14 +316,14 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
                 )}
               </div>
 
-              {entityType === 'cost_item' && targetDepartmentId && (
+              {entityType === 'cost_item' && targetFunctionalAreaId && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Target Work Area
                   </label>
                   {targetWorkAreas.length === 0 ? (
                     <p className="text-sm text-gray-500">
-                      No work areas in this department. Create one first.
+                      No work areas in this functional area. Create one first.
                     </p>
                   ) : (
                     <select
@@ -450,11 +450,11 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
                     {targetFacility?.name ?? '-'}
                   </span>
                 </div>
-                {targetDepartmentId && (
+                {targetFunctionalAreaId && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Target Department</span>
+                    <span className="text-gray-500">Target Functional Area</span>
                     <span className="font-medium text-gray-900">
-                      {departments.find((d) => d.id === targetDepartmentId)?.name ?? '-'}
+                      {functionalAreas.find((d) => d.id === targetFunctionalAreaId)?.name ?? '-'}
                     </span>
                   </div>
                 )}

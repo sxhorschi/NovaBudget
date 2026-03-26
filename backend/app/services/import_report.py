@@ -37,9 +37,6 @@ class FunctionalAreaReport:
         return result
 
 
-# Backward-compatible alias
-DepartmentReport = FunctionalAreaReport
-
 
 @dataclass
 class ImportReport:

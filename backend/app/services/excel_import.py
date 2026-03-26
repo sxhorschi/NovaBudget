@@ -29,7 +29,7 @@ from app.services.import_report import FunctionalAreaReport, ImportReport
 logger = logging.getLogger(__name__)
 
 # ── Known sheet names → display names (fallback if auto-detection fails) ──────
-KNOWN_DEPARTMENT_SHEETS: dict[str, str] = {
+KNOWN_FUNCTIONAL_AREA_SHEETS: dict[str, str] = {
     "Assembly_Equipment": "Assembly Equipment",
     "Testing": "Testing",
     "Logistics": "Logistics",
@@ -38,7 +38,7 @@ KNOWN_DEPARTMENT_SHEETS: dict[str, str] = {
 }
 
 # ── Expected header keywords (case-insensitive) for auto-detection ────────────
-# If Row 5 contains at least 3 of these in any order, we treat it as a dept sheet.
+# If Row 5 contains at least 3 of these in any order, we treat it as a functional area sheet.
 HEADER_KEYWORDS = {"work area", "description", "amount", "cost basis", "approval", "phase"}
 
 HEADER_ROW = 5
@@ -338,14 +338,14 @@ def _detect_functional_area_sheets(wb) -> dict[str, str]:
 
         if matched_keywords >= 3:
             # Determine display name: use known mapping or derive from sheet name
-            display_name = KNOWN_DEPARTMENT_SHEETS.get(
+            display_name = KNOWN_FUNCTIONAL_AREA_SHEETS.get(
                 sheet_name,
                 sheet_name.replace("_", " "),
             )
             detected[sheet_name] = display_name
 
     # Also include known sheets that exist but were not detected (safety net)
-    for sheet_name, display_name in KNOWN_DEPARTMENT_SHEETS.items():
+    for sheet_name, display_name in KNOWN_FUNCTIONAL_AREA_SHEETS.items():
         if sheet_name in wb.sheetnames and sheet_name not in detected:
             # Verify it has at least some data rows
             ws = wb[sheet_name]
@@ -499,33 +499,33 @@ async def import_excel_file(
         budgets = _extract_functional_area_budgets(wb_data, functional_area_sheets, report)
 
         # ── Step 3: Process each functional_area sheet ─────────────────────────
-        for sheet_name, dept_display_name in functional_area_sheets.items():
+        for sheet_name, fa_display_name in functional_area_sheets.items():
             ws = wb_data[sheet_name]
             ws_form = wb_formulas[sheet_name] if wb_formulas and sheet_name in wb_formulas.sheetnames else None
 
-            dept_report = FunctionalAreaReport(name=dept_display_name)
+            fa_report = FunctionalAreaReport(name=fa_display_name)
             col_map, detected_fields = _detect_column_map(ws)
 
             missing_required = {"description", "amount"} - detected_fields
             if missing_required:
                 report.add_warning(
-                    f"{dept_display_name}: Header not found for {', '.join(sorted(missing_required))}. "
+                    f"{fa_display_name}: Header not found for {', '.join(sorted(missing_required))}. "
                     "Fallback to default columns will be used."
                 )
 
             # Find or create functional_area
-            dept_stmt = select(FunctionalArea).where(
+            fa_stmt = select(FunctionalArea).where(
                 FunctionalArea.facility_id == facility_id,
-                FunctionalArea.name == dept_display_name,
+                FunctionalArea.name == fa_display_name,
             )
-            dept_result = await session.execute(dept_stmt)
-            functional_area = dept_result.scalar_one_or_none()
+            fa_result = await session.execute(fa_stmt)
+            functional_area = fa_result.scalar_one_or_none()
 
             if functional_area:
                 report.functional_areas_updated += 1
             else:
                 functional_area = FunctionalArea(
-                    name=dept_display_name,
+                    name=fa_display_name,
                     facility_id=facility_id,
                     budget_total=Decimal(0),
                 )
@@ -534,9 +534,9 @@ async def import_excel_file(
                 report.functional_areas_created += 1
 
             # Set budget if available from BudgetTemplate
-            if dept_display_name in budgets:
-                functional_area.budget_total = budgets[dept_display_name]
-                dept_report.budget_total = budgets[dept_display_name]
+            if fa_display_name in budgets:
+                functional_area.budget_total = budgets[fa_display_name]
+                fa_report.budget_total = budgets[fa_display_name]
 
             # ── Parse rows ────────────────────────────────────────────────
             current_work_area: WorkArea | None = None
@@ -552,7 +552,7 @@ async def import_excel_file(
                     wa_name = _safe_str(_cell_value(ws, row, col_map, "work_area"))
                     if wa_name:
                         current_work_area = await _get_or_create_work_area(
-                            session, functional_area, wa_name, dept_report,
+                            session, functional_area, wa_name, fa_report,
                         )
                     continue
 
@@ -569,17 +569,17 @@ async def import_excel_file(
                 wa_cell = _safe_str(_cell_value(ws, row, col_map, "work_area"))
                 if wa_cell and current_work_area is None:
                     current_work_area = await _get_or_create_work_area(
-                        session, functional_area, wa_cell, dept_report,
+                        session, functional_area, wa_cell, fa_report,
                     )
                 elif wa_cell and current_work_area and wa_cell != current_work_area.name:
                     # Work area changed mid-block
                     current_work_area = await _get_or_create_work_area(
-                        session, functional_area, wa_cell, dept_report,
+                        session, functional_area, wa_cell, fa_report,
                     )
 
                 if current_work_area is None:
                     current_work_area = await _get_or_create_work_area(
-                        session, functional_area, "General", dept_report,
+                        session, functional_area, "General", fa_report,
                     )
 
                 # Amount (computed value from data_only workbook)
@@ -587,9 +587,9 @@ async def import_excel_file(
 
                 # Skip items with zero amount (optional: could be a warning)
                 if amount == 0:
-                    dept_report.items_skipped += 1
+                    fa_report.items_skipped += 1
                     report.add_warning(
-                        f"{dept_display_name}, Row {row}: '{description}' skipped (amount = 0)"
+                        f"{fa_display_name}, Row {row}: '{description}' skipped (amount = 0)"
                     )
                     continue
 
@@ -603,7 +603,7 @@ async def import_excel_file(
                     ApprovalStatus.OPEN,
                 )
                 if approval_err:
-                    report.add_warning(f"{dept_display_name}, Row {row}: {approval_err}")
+                    report.add_warning(f"{fa_display_name}, Row {row}: {approval_err}")
 
                 cost_basis, cb_err = _parse_config_field(
                     _COST_BASIS_ALIASES, "CostBasis",
@@ -611,7 +611,7 @@ async def import_excel_file(
                     "cost_estimation",
                 )
                 if cb_err:
-                    report.add_warning(f"{dept_display_name}, Row {row}: {cb_err}")
+                    report.add_warning(f"{fa_display_name}, Row {row}: {cb_err}")
 
                 cost_driver, cd_err = _parse_config_field(
                     _COST_DRIVER_ALIASES, "CostDriver",
@@ -619,7 +619,7 @@ async def import_excel_file(
                     "initial_setup",
                 )
                 if cd_err:
-                    report.add_warning(f"{dept_display_name}, Row {row}: {cd_err}")
+                    report.add_warning(f"{fa_display_name}, Row {row}: {cd_err}")
 
                 phase, ph_err = _parse_config_field(
                     _PHASE_ALIASES, "ProjectPhase",
@@ -627,7 +627,7 @@ async def import_excel_file(
                     "phase_1",
                 )
                 if ph_err:
-                    report.add_warning(f"{dept_display_name}, Row {row}: {ph_err}")
+                    report.add_warning(f"{fa_display_name}, Row {row}: {ph_err}")
 
                 product, pr_err = _parse_config_field(
                     _PRODUCT_ALIASES, "Product",
@@ -635,7 +635,7 @@ async def import_excel_file(
                     "overall",
                 )
                 if pr_err:
-                    report.add_warning(f"{dept_display_name}, Row {row}: {pr_err}")
+                    report.add_warning(f"{fa_display_name}, Row {row}: {pr_err}")
 
                 ziel_val = _safe_decimal(_cell_value(ws, row, col_map, "zielanpassung"))
 
@@ -681,7 +681,7 @@ async def import_excel_file(
                     existing.zielanpassung = ziel_val if ziel_val != Decimal(0) else None
                     existing.comments = final_comments
                     existing.requester = requester_val
-                    dept_report.items_updated += 1
+                    fa_report.items_updated += 1
                 else:
                     # Create new item
                     cost_item = CostItem(
@@ -712,11 +712,11 @@ async def import_excel_file(
                         requester=requester_val,
                     )
                     session.add(cost_item)
-                    dept_report.items_imported += 1
+                    fa_report.items_imported += 1
 
-                dept_report.total_amount += amount
+                fa_report.total_amount += amount
 
-            report.functional_area_reports.append(dept_report)
+            report.functional_area_reports.append(fa_report)
 
         # ── Finalize ──────────────────────────────────────────────────────
         report.finalize()
@@ -744,7 +744,7 @@ async def _get_or_create_work_area(
     session: AsyncSession,
     functional_area: FunctionalArea,
     name: str,
-    dept_report: FunctionalAreaReport,
+    fa_report: FunctionalAreaReport,
 ) -> WorkArea:
     """Find an existing WorkArea or create a new one."""
     stmt = select(WorkArea).where(
@@ -755,7 +755,7 @@ async def _get_or_create_work_area(
     work_area = result.scalar_one_or_none()
 
     if work_area:
-        dept_report.work_areas_found += 1
+        fa_report.work_areas_found += 1
         return work_area
 
     work_area = WorkArea(
@@ -764,5 +764,5 @@ async def _get_or_create_work_area(
     )
     session.add(work_area)
     await session.flush()
-    dept_report.work_areas_created += 1
+    fa_report.work_areas_created += 1
     return work_area

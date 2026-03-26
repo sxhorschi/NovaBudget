@@ -4,7 +4,7 @@ import HelpTooltip from '../components/help/HelpTooltip';
 import type {
   CostItem,
   ApprovalStatus,
-  Department,
+  FunctionalArea,
   WorkArea,
   WorkAreaWithItems,
 } from '../types/budget';
@@ -21,7 +21,7 @@ import SavedViews from '../components/filter/SavedViews';
 import BudgetDashboard from '../components/summary/BudgetDashboard';
 import SummaryStrip from '../components/summary/SummaryStrip';
 import CostbookTable from '../components/costbook/CostbookTable';
-import DepartmentContextPanel from '../components/costbook/DepartmentContextPanel';
+import FunctionalAreaContextPanel from '../components/costbook/FunctionalAreaContextPanel';
 import WorkAreaContextPanel from '../components/costbook/WorkAreaContextPanel';
 import SidePanel from '../components/sidepanel/SidePanel';
 import DeleteConfirmDialog from '../components/costbook/DeleteConfirmDialog';
@@ -101,7 +101,7 @@ const CostbookPage: React.FC = () => {
   const { user, canEdit } = useAuth();
   const {
     facility,
-    departments,
+    functionalAreas,
     workAreas,
     costItems,
     updateCostItem,
@@ -110,25 +110,25 @@ const CostbookPage: React.FC = () => {
     createWorkArea,
     updateWorkArea,
     deleteWorkArea,
-    createDepartment,
-    updateDepartment,
-    deleteDepartment,
+    createFunctionalArea,
+    updateFunctionalArea,
+    deleteFunctionalArea,
     addBudgetAdjustment,
   } = useBudgetData();
   const { filters, setFilter, setAllFilters, resetFilters, hasActiveFilters } = useFilterState();
-  const { filteredDepartments, filteredWorkAreas, filteredItems, summary } =
+  const { filteredFunctionalAreas, filteredWorkAreas, filteredItems, summary } =
     useFilteredData(filters);
   const toast = useToast();
 
-  // -- Department filter options (derived from context) --
-  const departmentOptions = useMemo(
-    () => departments.map((d) => ({ value: String(d.id), label: d.name })),
-    [departments],
+  // -- Functional Area filter options (derived from context) --
+  const faOptions = useMemo(
+    () => functionalAreas.map((d) => ({ value: String(d.id), label: d.name })),
+    [functionalAreas],
   );
 
   // -- SidePanel state --
   const [selectedItem, setSelectedItem] = useState<CostItem | null>(null);
-  const [selectedDepartmentContextId, setSelectedDepartmentContextId] = useState<string | null>(null);
+  const [selectedFAContextId, setSelectedFAContextId] = useState<string | null>(null);
   const [selectedWorkAreaContextId, setSelectedWorkAreaContextId] = useState<string | null>(null);
 
   // -- Delete dialog state --
@@ -139,45 +139,45 @@ const CostbookPage: React.FC = () => {
 
   // -- Quick create modal state --
   const [createOpen, setCreateOpen] = useState(false);
-  const [createMode, setCreateMode] = useState<'item' | 'work-area' | 'department'>('item');
+  const [createMode, setCreateMode] = useState<'item' | 'work-area' | 'functional-area'>('item');
 
-  const [newItemDeptId, setNewItemDeptId] = useState<string | null>(null);
+  const [newItemFAId, setNewItemFAId] = useState<string | null>(null);
   const [newItemWorkAreaId, setNewItemWorkAreaId] = useState<string | null>(null);
   const [newItemDescription, setNewItemDescription] = useState('');
   const [newItemAmount, setNewItemAmount] = useState('0');
 
-  const [newWADeptId, setNewWADeptId] = useState<string | null>(null);
+  const [newWAFAId, setNewWAFAId] = useState<string | null>(null);
   const [newWAName, setNewWAName] = useState('');
 
-  const [newDeptName, setNewDeptName] = useState('');
-  const [newDeptBudget, setNewDeptBudget] = useState('0');
+  const [newFAName, setNewFAName] = useState('');
+  const [newFABudget, setNewFABudget] = useState('0');
 
-  const workAreasForSelectedDept = useMemo(() => {
-    if (newItemDeptId == null) return [];
-    return workAreas.filter((wa) => wa.department_id === newItemDeptId);
-  }, [newItemDeptId, workAreas]);
-
-  useEffect(() => {
-    if (departments.length === 0) return;
-    if (newItemDeptId == null) {
-      setNewItemDeptId(departments[0].id);
-    }
-    if (newWADeptId == null) {
-      setNewWADeptId(departments[0].id);
-    }
-  }, [departments, newItemDeptId, newWADeptId]);
+  const workAreasForSelectedFA = useMemo(() => {
+    if (newItemFAId == null) return [];
+    return workAreas.filter((wa) => wa.functional_area_id === newItemFAId);
+  }, [newItemFAId, workAreas]);
 
   useEffect(() => {
-    if (workAreasForSelectedDept.length === 0) {
+    if (functionalAreas.length === 0) return;
+    if (newItemFAId == null) {
+      setNewItemFAId(functionalAreas[0].id);
+    }
+    if (newWAFAId == null) {
+      setNewWAFAId(functionalAreas[0].id);
+    }
+  }, [functionalAreas, newItemFAId, newWAFAId]);
+
+  useEffect(() => {
+    if (workAreasForSelectedFA.length === 0) {
       setNewItemWorkAreaId(null);
       return;
     }
     const stillValid = newItemWorkAreaId != null
-      && workAreasForSelectedDept.some((wa) => wa.id === newItemWorkAreaId);
+      && workAreasForSelectedFA.some((wa) => wa.id === newItemWorkAreaId);
     if (!stillValid) {
-      setNewItemWorkAreaId(workAreasForSelectedDept[0].id);
+      setNewItemWorkAreaId(workAreasForSelectedFA[0].id);
     }
-  }, [workAreasForSelectedDept, newItemWorkAreaId]);
+  }, [workAreasForSelectedFA, newItemWorkAreaId]);
 
   // Build work areas with items attached (respects context edits)
   const workAreasWithItems: WorkAreaWithItems[] = useMemo(() => {
@@ -191,14 +191,14 @@ const CostbookPage: React.FC = () => {
     }));
   }, [filteredWorkAreas, costItems, filteredItems]);
 
-  // Resolve department/workArea names for SidePanel
-  const selectedDeptName = useMemo(() => {
+  // Resolve functional area/workArea names for SidePanel
+  const selectedFAName = useMemo(() => {
     if (!selectedItem) return '';
     const wa = workAreas.find((w) => w.id === selectedItem.work_area_id);
     if (!wa) return '';
-    const dept = departments.find((d) => d.id === wa.department_id);
-    return dept?.name ?? '';
-  }, [selectedItem, workAreas, departments]);
+    const fa = functionalAreas.find((d) => d.id === wa.functional_area_id);
+    return fa?.name ?? '';
+  }, [selectedItem, workAreas, functionalAreas]);
 
   const selectedWaName = useMemo(() => {
     if (!selectedItem) return '';
@@ -206,63 +206,63 @@ const CostbookPage: React.FC = () => {
     return wa?.name ?? '';
   }, [selectedItem, workAreas]);
 
-  const selectedDeptId = useMemo(() => {
+  const selectedFAId = useMemo(() => {
     if (!selectedItem) return undefined;
     const wa = workAreas.find((w) => w.id === selectedItem.work_area_id);
     if (!wa) return undefined;
-    const dept = departments.find((d) => d.id === wa.department_id);
-    return dept?.id;
-  }, [selectedItem, workAreas, departments]);
+    const fa = functionalAreas.find((d) => d.id === wa.functional_area_id);
+    return fa?.id;
+  }, [selectedItem, workAreas, functionalAreas]);
 
-  const selectedDeptBudget = useMemo(() => {
+  const selectedFABudget = useMemo(() => {
     if (!selectedItem) return undefined;
     const wa = workAreas.find((w) => w.id === selectedItem.work_area_id);
     if (!wa) return undefined;
-    const dept = departments.find((d) => d.id === wa.department_id);
-    return dept?.budget_total;
-  }, [selectedItem, workAreas, departments]);
+    const fa = functionalAreas.find((d) => d.id === wa.functional_area_id);
+    return fa?.budget_total;
+  }, [selectedItem, workAreas, functionalAreas]);
 
-  const selectedDepartmentContext = useMemo<Department | null>(() => {
-    if (selectedDepartmentContextId == null) return null;
-    return departments.find((d) => d.id === selectedDepartmentContextId) ?? null;
-  }, [selectedDepartmentContextId, departments]);
+  const selectedFAContext = useMemo<FunctionalArea | null>(() => {
+    if (selectedFAContextId == null) return null;
+    return functionalAreas.find((d) => d.id === selectedFAContextId) ?? null;
+  }, [selectedFAContextId, functionalAreas]);
 
   const selectedWorkAreaContext = useMemo<WorkArea | null>(() => {
     if (selectedWorkAreaContextId == null) return null;
     return workAreas.find((wa) => wa.id === selectedWorkAreaContextId) ?? null;
   }, [selectedWorkAreaContextId, workAreas]);
 
-  const selectedWorkAreaDepartmentName = useMemo(() => {
+  const selectedWorkAreaFAName = useMemo(() => {
     if (!selectedWorkAreaContext) return undefined;
-    return departments.find((d) => d.id === selectedWorkAreaContext.department_id)?.name;
-  }, [selectedWorkAreaContext, departments]);
+    return functionalAreas.find((d) => d.id === selectedWorkAreaContext.functional_area_id)?.name;
+  }, [selectedWorkAreaContext, functionalAreas]);
 
-  const departmentCommittedTotals = useMemo(() => {
-    const workAreaToDepartment = new Map<string, string>();
+  const faCommittedTotals = useMemo(() => {
+    const workAreaToFA = new Map<string, string>();
     for (const wa of workAreas) {
-      workAreaToDepartment.set(wa.id, wa.department_id);
+      workAreaToFA.set(wa.id, wa.functional_area_id);
     }
 
     const totals: Record<string, number> = {};
-    for (const dept of departments) {
-      totals[dept.id] = 0;
+    for (const fa of functionalAreas) {
+      totals[fa.id] = 0;
     }
 
     // Committed = only approved items (consistent with useFilteredData source of truth)
     for (const item of filteredItems) {
       if (item.approval_status !== 'approved') continue;
-      const departmentId = workAreaToDepartment.get(item.work_area_id);
-      if (departmentId == null) continue;
-      totals[departmentId] = (totals[departmentId] ?? 0) + item.total_amount;
+      const faId = workAreaToFA.get(item.work_area_id);
+      if (faId == null) continue;
+      totals[faId] = (totals[faId] ?? 0) + item.total_amount;
     }
 
     return totals;
-  }, [workAreas, departments, filteredItems]);
+  }, [workAreas, functionalAreas, filteredItems]);
 
   // -- Handlers --
 
   const handleSelectItem = useCallback((item: CostItem) => {
-    setSelectedDepartmentContextId(null);
+    setSelectedFAContextId(null);
     setSelectedWorkAreaContextId(null);
     setSelectedItem(item);
   }, []);
@@ -278,10 +278,10 @@ const CostbookPage: React.FC = () => {
         if (originalItem && data.total_amount !== originalItem.total_amount) {
           const delta = data.total_amount - originalItem.total_amount;
           const reason = data.zielanpassung_reason || `Amount change on "${originalItem.description}"`;
-          // Find department via work area
+          // Find functional area via work area
           const wa = workAreas.find((w) => w.id === originalItem.work_area_id);
           if (wa) {
-            addBudgetAdjustment(wa.department_id, delta, reason, 'scope_change');
+            addBudgetAdjustment(wa.functional_area_id, delta, reason, 'scope_change');
           }
         }
       }
@@ -320,47 +320,47 @@ const CostbookPage: React.FC = () => {
     }
   }, [selectedItem]);
 
-  const handleOpenDepartmentContext = useCallback((departmentId: string) => {
+  const handleOpenFAContext = useCallback((faId: string) => {
     setSelectedItem(null);
     setSelectedWorkAreaContextId(null);
-    setSelectedDepartmentContextId(departmentId);
+    setSelectedFAContextId(faId);
   }, []);
 
   const handleOpenWorkAreaContext = useCallback((workAreaId: string) => {
     setSelectedItem(null);
-    setSelectedDepartmentContextId(null);
+    setSelectedFAContextId(null);
     setSelectedWorkAreaContextId(workAreaId);
   }, []);
 
-  const handleDepartmentContextSave = useCallback(
-    (departmentId: string, data: { name: string; budget_total: number }) => {
+  const handleFAContextSave = useCallback(
+    (faId: string, data: { name: string; budget_total: number }) => {
       if (!data.name.trim()) {
-        toast.error('Department name must not be empty.');
+        toast.error('Functional Area name must not be empty.');
         return;
       }
-      updateDepartment(departmentId, {
+      updateFunctionalArea(faId, {
         name: data.name,
         budget_total: data.budget_total,
       });
-      toast.success('Department saved');
+      toast.success('Functional Area saved');
     },
-    [updateDepartment, toast],
+    [updateFunctionalArea, toast],
   );
 
-  const handleDepartmentContextDelete = useCallback(
-    (departmentId: string) => {
+  const handleFAContextDelete = useCallback(
+    (faId: string) => {
       if (selectedItem) {
         const wa = workAreas.find((w) => w.id === selectedItem.work_area_id);
-        if (wa?.department_id === departmentId) {
+        if (wa?.functional_area_id === faId) {
           setSelectedItem(null);
         }
       }
-      deleteDepartment(departmentId);
-      setSelectedDepartmentContextId(null);
+      deleteFunctionalArea(faId);
+      setSelectedFAContextId(null);
       setSelectedWorkAreaContextId(null);
-      toast.success('Department deleted');
+      toast.success('Functional Area deleted');
     },
-    [selectedItem, workAreas, deleteDepartment, toast],
+    [selectedItem, workAreas, deleteFunctionalArea, toast],
   );
 
   const handleWorkAreaContextSave = useCallback(
@@ -415,14 +415,14 @@ const CostbookPage: React.FC = () => {
     [createCostItem, toast, user],
   );
 
-  const handleFilterDepartment = useCallback(
-    (deptName: string) => {
-      const dept = departments.find((d) => d.name === deptName);
-      if (dept) {
-        setFilter('departments', [dept.id]);
+  const handleFilterFunctionalArea = useCallback(
+    (faName: string) => {
+      const fa = functionalAreas.find((d) => d.name === faName);
+      if (fa) {
+        setFilter('functionalAreas', [fa.id]);
       }
     },
-    [departments, setFilter],
+    [functionalAreas, setFilter],
   );
 
   const handleScrollToWorkArea = useCallback((_workAreaName: string) => {
@@ -437,12 +437,12 @@ const CostbookPage: React.FC = () => {
     setNewItemDescription('');
     setNewItemAmount('0');
     setNewWAName('');
-    setNewDeptName('');
-    setNewDeptBudget('0');
+    setNewFAName('');
+    setNewFABudget('0');
   }, []);
 
   const openCreate = useCallback(
-    (mode: 'item' | 'work-area' | 'department') => {
+    (mode: 'item' | 'work-area' | 'functional-area') => {
       setCreateMode(mode);
       setCreateOpen(true);
       resetCreateForm();
@@ -494,8 +494,8 @@ const CostbookPage: React.FC = () => {
 
     if (!newItem) return;
     setSelectedItem(newItem);
-    if (newItemDeptId != null) {
-      setAllFilters({ ...EMPTY_FILTER, departments: [newItemDeptId] });
+    if (newItemFAId != null) {
+      setAllFilters({ ...EMPTY_FILTER, functionalAreas: [newItemFAId] });
     }
     closeCreate();
     toast.success('New item created.');
@@ -506,7 +506,7 @@ const CostbookPage: React.FC = () => {
     createCostItem,
     filters.phases,
     filters.products,
-    newItemDeptId,
+    newItemFAId,
     setAllFilters,
     closeCreate,
     toast,
@@ -514,37 +514,37 @@ const CostbookPage: React.FC = () => {
   ]);
 
   const handleCreateWorkArea = useCallback(async () => {
-    if (newWADeptId == null) {
-      toast.error('Please select a department.');
+    if (newWAFAId == null) {
+      toast.error('Please select a functional area.');
       return;
     }
-    const created = await createWorkArea(newWADeptId, newWAName);
+    const created = await createWorkArea(newWAFAId, newWAName);
     if (!created) {
       toast.error('Category could not be created (name empty or already exists).');
       return;
     }
 
-    setNewItemDeptId(newWADeptId);
+    setNewItemFAId(newWAFAId);
     setNewItemWorkAreaId(created.id);
-    setAllFilters({ ...EMPTY_FILTER, departments: [newWADeptId] });
+    setAllFilters({ ...EMPTY_FILTER, functionalAreas: [newWAFAId] });
     closeCreate();
     toast.success('New category created.');
-  }, [newWADeptId, newWAName, createWorkArea, setAllFilters, closeCreate, toast]);
+  }, [newWAFAId, newWAName, createWorkArea, setAllFilters, closeCreate, toast]);
 
-  const handleCreateDepartment = useCallback(async () => {
-    const budget = Math.max(0, Number(newDeptBudget) || 0);
-    const created = await createDepartment(newDeptName, budget);
+  const handleCreateFunctionalArea = useCallback(async () => {
+    const budget = Math.max(0, Number(newFABudget) || 0);
+    const created = await createFunctionalArea(newFAName, budget);
     if (!created) {
-      toast.error('Department could not be created (name empty or already exists).');
+      toast.error('Functional Area could not be created (name empty or already exists).');
       return;
     }
 
-    setAllFilters({ ...EMPTY_FILTER, departments: [created.id] });
-    setNewItemDeptId(created.id);
-    setNewWADeptId(created.id);
+    setAllFilters({ ...EMPTY_FILTER, functionalAreas: [created.id] });
+    setNewItemFAId(created.id);
+    setNewWAFAId(created.id);
     closeCreate();
-    toast.success('New department created.');
-  }, [newDeptBudget, createDepartment, newDeptName, setAllFilters, closeCreate, toast]);
+    toast.success('New Functional Area created.');
+  }, [newFABudget, createFunctionalArea, newFAName, setAllFilters, closeCreate, toast]);
 
   return (
     <>
@@ -557,11 +557,11 @@ const CostbookPage: React.FC = () => {
         <div className="px-6 py-2">
           <div className="flex flex-wrap items-center gap-2">
             <FilterChip
-              label="Department"
-              options={departmentOptions}
-              selected={filters.departments}
+              label="Functional Area"
+              options={faOptions}
+              selected={filters.functionalAreas}
               onChange={(vals) =>
-                setFilter('departments', vals)
+                setFilter('functionalAreas', vals)
               }
             />
             <FilterChip
@@ -606,9 +606,9 @@ const CostbookPage: React.FC = () => {
                   <FolderPlus size={12} />
                 </button>
                 <button
-                  onClick={() => openCreate('department')}
+                  onClick={() => openCreate('functional-area')}
                   className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-black hover:bg-gray-100 transition-colors"
-                  title="New Department"
+                  title="New Functional Area"
                 >
                   <Building2 size={12} />
                 </button>
@@ -716,12 +716,12 @@ const CostbookPage: React.FC = () => {
                   Category
                 </button>
                 <button
-                  onClick={() => setCreateMode('department')}
+                  onClick={() => setCreateMode('functional-area')}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    createMode === 'department' ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    createMode === 'functional-area' ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Department
+                  Functional Area
                 </button>
               </div>
             </div>
@@ -730,13 +730,13 @@ const CostbookPage: React.FC = () => {
               {createMode === 'item' && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Department</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Functional Area</label>
                     <select
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                      value={newItemDeptId ?? ''}
-                      onChange={(e) => setNewItemDeptId(e.target.value)}
+                      value={newItemFAId ?? ''}
+                      onChange={(e) => setNewItemFAId(e.target.value)}
                     >
-                      {departments.map((d) => (
+                      {functionalAreas.map((d) => (
                         <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
                     </select>
@@ -748,10 +748,10 @@ const CostbookPage: React.FC = () => {
                       value={newItemWorkAreaId ?? ''}
                       onChange={(e) => setNewItemWorkAreaId(e.target.value)}
                     >
-                      {workAreasForSelectedDept.length === 0 ? (
+                      {workAreasForSelectedFA.length === 0 ? (
                         <option value="">No category available</option>
                       ) : (
-                        workAreasForSelectedDept.map((wa) => (
+                        workAreasForSelectedFA.map((wa) => (
                           <option key={wa.id} value={wa.id}>{wa.name}</option>
                         ))
                       )}
@@ -781,13 +781,13 @@ const CostbookPage: React.FC = () => {
               {createMode === 'work-area' && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Department</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Functional Area</label>
                     <select
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                      value={newWADeptId ?? ''}
-                      onChange={(e) => setNewWADeptId(e.target.value)}
+                      value={newWAFAId ?? ''}
+                      onChange={(e) => setNewWAFAId(e.target.value)}
                     >
-                      {departments.map((d) => (
+                      {functionalAreas.map((d) => (
                         <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
                     </select>
@@ -804,22 +804,22 @@ const CostbookPage: React.FC = () => {
                 </>
               )}
 
-              {createMode === 'department' && (
+              {createMode === 'functional-area' && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Department Name</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Functional Area Name</label>
                     <input
-                      value={newDeptName}
-                      onChange={(e) => setNewDeptName(e.target.value)}
+                      value={newFAName}
+                      onChange={(e) => setNewFAName(e.target.value)}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                      placeholder="Department name"
+                      placeholder="Functional Area name"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">Initial Budget (EUR)</label>
                     <ModalAmountInput
-                      value={newDeptBudget}
-                      onChange={setNewDeptBudget}
+                      value={newFABudget}
+                      onChange={setNewFABudget}
                       placeholder="0"
                       className="w-full rounded-md border border-gray-300 py-2 text-sm tabular-nums"
                     />
@@ -856,13 +856,13 @@ const CostbookPage: React.FC = () => {
                 </button>
               )}
 
-              {createMode === 'department' && (
+              {createMode === 'functional-area' && (
                 <button
-                  onClick={handleCreateDepartment}
+                  onClick={handleCreateFunctionalArea}
                   className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
                 >
                   <Building2 size={14} />
-                  Create Department
+                  Create Functional Area
                 </button>
               )}
             </div>
@@ -875,14 +875,14 @@ const CostbookPage: React.FC = () => {
         <div className="min-w-0">
           <div className="p-6">
             <CostbookTable
-              departments={filteredDepartments}
+              functionalAreas={filteredFunctionalAreas}
               workAreas={workAreasWithItems}
-              departmentCommittedTotals={departmentCommittedTotals}
+              functionalAreaCommittedTotals={faCommittedTotals}
               onSelectItem={handleSelectItem}
               selectedItemId={selectedItem?.id ?? null}
               onStatusChange={handleStatusChange}
               onDeleteItem={canEdit ? handleDeleteRequest : undefined}
-              onOpenDepartmentContext={handleOpenDepartmentContext}
+              onOpenFunctionalAreaContext={handleOpenFAContext}
               onOpenWorkAreaContext={handleOpenWorkAreaContext}
             />
           </div>
@@ -891,30 +891,30 @@ const CostbookPage: React.FC = () => {
         {/* ---- SidePanel ---- */}
         <SidePanel
           item={selectedItem}
-          departmentName={selectedDeptName}
-          departmentId={selectedDeptId}
-          departmentBudget={selectedDeptBudget}
+          functionalAreaName={selectedFAName}
+          functionalAreaId={selectedFAId}
+          functionalAreaBudget={selectedFABudget}
           workAreaName={selectedWaName}
           onSave={canEdit ? handleSave : undefined}
           onClose={() => setSelectedItem(null)}
           onDelete={canEdit ? handleDeleteFromPanel : undefined}
           onDuplicate={canEdit ? handleDuplicate : undefined}
-          onFilterDepartment={handleFilterDepartment}
+          onFilterFunctionalArea={handleFilterFunctionalArea}
           onScrollToWorkArea={handleScrollToWorkArea}
         />
 
-        <DepartmentContextPanel
-          department={selectedDepartmentContext}
+        <FunctionalAreaContextPanel
+          functionalArea={selectedFAContext}
           workAreas={workAreas}
           costItems={costItems}
-          onClose={() => setSelectedDepartmentContextId(null)}
-          onSave={canEdit ? handleDepartmentContextSave : undefined}
-          onDelete={canEdit ? handleDepartmentContextDelete : undefined}
+          onClose={() => setSelectedFAContextId(null)}
+          onSave={canEdit ? handleFAContextSave : undefined}
+          onDelete={canEdit ? handleFAContextDelete : undefined}
         />
 
         <WorkAreaContextPanel
           workArea={selectedWorkAreaContext}
-          departmentName={selectedWorkAreaDepartmentName}
+          functionalAreaName={selectedWorkAreaFAName}
           costItems={costItems}
           onClose={() => setSelectedWorkAreaContextId(null)}
           onSave={canEdit ? handleWorkAreaContextSave : undefined}

@@ -32,7 +32,7 @@ React 19 SPA mit TypeScript, Vite 8, TailwindCSS 4. Drei Seiten: Costbook (`/`),
 ### State Management
 
 - **Globaler Daten-State** via `BudgetDataContext` (`src/context/BudgetDataContext.tsx`).
-  - Stellt `departments`, `workAreas`, `costItems` bereit + CRUD-Mutations.
+  - Stellt `functionalAreas`, `workAreas`, `costItems` bereit + CRUD-Mutations.
   - **Backend-API ist Source of Truth** — alle CRUD-Operationen gehen ueber die REST API.
   - Optimistische Updates fuer schnelle UI, Rollback bei API-Fehler.
 - **Facility-State** via `FacilityContext` (`src/context/FacilityContext.tsx`).
@@ -50,7 +50,7 @@ React 19 SPA mit TypeScript, Vite 8, TailwindCSS 4. Drei Seiten: Costbook (`/`),
 
 - Axios-basiert, Konfiguration in `src/api/client.ts`.
 - Endpunkt-spezifische Module in `src/api/`:
-  - `facilities.ts`, `departments.ts`, `workAreas.ts`, `costItems.ts` — CRUD
+  - `facilities.ts`, `functionalAreas.ts`, `workAreas.ts`, `costItems.ts` — CRUD
   - `budgetAdjustments.ts`, `transfers.ts`, `attachments.ts` — Spezial-APIs
   - `mappers.ts` — Enum-Case-Mapping (Backend UPPER_CASE ↔ Frontend lowercase)
 - Base URL: `http://localhost:8000/api/v1`
@@ -60,7 +60,7 @@ React 19 SPA mit TypeScript, Vite 8, TailwindCSS 4. Drei Seiten: Costbook (`/`),
 
 Alle zentralen TypeScript-Typen in **`src/types/budget.ts`**:
 - Enums als String Union Types: `ApprovalStatus`, `ProjectPhase`, `Product`, `CostBasis`, `CostDriver`
-- Interfaces: `Facility`, `Department`, `WorkArea`, `CostItem`, `Attachment`, `BudgetSummary`, `DepartmentSummary`, `CashOutEntry`, `BudgetAdjustment`
+- Interfaces: `Facility`, `FunctionalArea`, `WorkArea`, `CostItem`, `Attachment`, `BudgetSummary`, `FunctionalAreaSummary`, `CashOutEntry`, `BudgetAdjustment`
 - Label Maps: `STATUS_LABELS`, `PHASE_LABELS`, `PRODUCT_LABELS`, `COST_BASIS_LABELS`, `COST_DRIVER_LABELS`
 - Farb Maps: `STATUS_COLORS`, `ADJUSTMENT_CATEGORY_COLORS`
 

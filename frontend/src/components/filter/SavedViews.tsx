@@ -21,8 +21,8 @@ interface SavedViewsProps {
 }
 
 // ---------------------------------------------------------------------------
-// Predefined views  (no hardcoded department IDs — department filters use
-// the Department chip instead)
+// Predefined views  (no hardcoded functional area IDs — functional area filters use
+// the Functional Area chip instead)
 // ---------------------------------------------------------------------------
 
 const PREDEFINED_VIEWS: SavedView[] = [
@@ -94,7 +94,7 @@ function persistHiddenViewIds(ids: Set<string>): void {
 
 function filtersMatch(a: FilterState, b: FilterState): boolean {
   return (
-    arraysEqual(a.departments, b.departments) &&
+    arraysEqual(a.functionalAreas, b.functionalAreas) &&
     arraysEqual(a.phases, b.phases) &&
     arraysEqual(a.products, b.products) &&
     arraysEqual(a.statuses, b.statuses) &&

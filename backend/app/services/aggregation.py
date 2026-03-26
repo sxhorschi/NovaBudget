@@ -1,12 +1,13 @@
-"""Aggregation service — correct business logic per Otto v4.
+"""Aggregation service — correct business logic per Otto v4 + Phase 4.
 
 Definitions:
-- Committed   = SUM(total_amount) WHERE status = APPROVED
-- Forecast    = SUM(total_amount) WHERE status NOT IN (REJECTED, OBSOLETE)
-- Budget      = functional_area.budget_total + SUM(budget_adjustments.amount)
+- Committed   = SUM(total_amount) WHERE status IN (APPROVED, PURCHASE_ORDER_SENT, PURCHASE_ORDER_CONFIRMED, DELIVERED)
+- Spent       = SUM(total_amount) WHERE status = DELIVERED
+- Forecast    = SUM(total_amount) WHERE status NOT IN (REJECTED, OBSOLETE, DELIVERED)
+- Budget      = functional_area.budget_total + SUM(change_costs.amount WHERE budget_relevant=true)
 - Remaining   = Budget - Forecast
 - Cost of Completion (CoC) = Forecast  (same metric, different label)
-- Variance    = 0 for now (will use PriceHistory delta in Phase 4)
+- Variance    = 0 for now (will use PriceHistory delta later)
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from decimal import Decimal
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import BudgetAdjustment, CostItem, FunctionalArea, WorkArea
+from app.models import ChangeCost, CostItem, FunctionalArea, WorkArea
 from app.models.enums import ApprovalStatus
 from app.schemas.summary import (
     ApprovalPipelineEntry,
@@ -36,11 +37,22 @@ from app.schemas.summary import (
 
 ZERO = Decimal("0.00")
 
-# Statuses excluded from forecast / cost-of-completion
+# Statuses excluded from forecast / cost-of-completion (rejected, obsolete, AND delivered)
 EXCLUDED_STATUSES = {ApprovalStatus.REJECTED, ApprovalStatus.OBSOLETE}
 
-# Status that counts as committed (approved = binding)
-COMMITTED_STATUSES = {ApprovalStatus.APPROVED}
+# Additional exclusion for forecast: delivered items are spent, not forecast
+FORECAST_EXCLUDED_STATUSES = {ApprovalStatus.REJECTED, ApprovalStatus.OBSOLETE, ApprovalStatus.DELIVERED}
+
+# Statuses that count as committed (approved or later in procurement lifecycle)
+COMMITTED_STATUSES = {
+    ApprovalStatus.APPROVED,
+    ApprovalStatus.PURCHASE_ORDER_SENT,
+    ApprovalStatus.PURCHASE_ORDER_CONFIRMED,
+    ApprovalStatus.DELIVERED,
+}
+
+# Only delivered items count as spent
+SPENT_STATUSES = {ApprovalStatus.DELIVERED}
 
 
 def _pct(numerator: Decimal, denominator: Decimal) -> Decimal:
@@ -63,21 +75,24 @@ async def get_functional_area_kpis(
     All monetary values use Decimal. Single query with conditional aggregation.
     """
 
-    # Subquery: adjustment totals per functional area
+    # Subquery: change cost totals per functional area (only budget_relevant ones)
     adj_sub = (
         select(
-            BudgetAdjustment.functional_area_id,
-            func.coalesce(func.sum(BudgetAdjustment.amount), ZERO).label(
+            ChangeCost.functional_area_id,
+            func.coalesce(func.sum(ChangeCost.amount), ZERO).label(
                 "adj_total"
             ),
         )
-        .group_by(BudgetAdjustment.functional_area_id)
+        .where(ChangeCost.budget_relevant.is_(True))
+        .group_by(ChangeCost.functional_area_id)
         .subquery("adj_sub")
     )
 
     # Main query: aggregate cost items per functional area
     is_active = CostItem.approval_status.notin_(EXCLUDED_STATUSES)
+    is_forecast = CostItem.approval_status.notin_(FORECAST_EXCLUDED_STATUSES)
     is_committed = CostItem.approval_status.in_(COMMITTED_STATUSES)
+    is_spent = CostItem.approval_status.in_(SPENT_STATUSES)
 
     stmt = (
         select(
@@ -85,21 +100,28 @@ async def get_functional_area_kpis(
             FunctionalArea.name.label("functional_area_name"),
             func.coalesce(FunctionalArea.budget_total, ZERO).label("budget_base"),
             func.coalesce(adj_sub.c.adj_total, ZERO).label("adjustment_total"),
-            # committed = approved items only
+            # committed = approved + po_sent + po_confirmed + delivered
             func.coalesce(
                 func.sum(
                     case((is_committed, CostItem.total_amount), else_=ZERO)
                 ),
                 ZERO,
             ).label("committed"),
-            # forecast = all except rejected/obsolete
+            # forecast = all except rejected/obsolete/delivered
             func.coalesce(
                 func.sum(
-                    case((is_active, CostItem.total_amount), else_=ZERO)
+                    case((is_forecast, CostItem.total_amount), else_=ZERO)
                 ),
                 ZERO,
             ).label("forecast"),
-            # variance = 0 for now (will use PriceHistory delta in Phase 4)
+            # spent = delivered only
+            func.coalesce(
+                func.sum(
+                    case((is_spent, CostItem.total_amount), else_=ZERO)
+                ),
+                ZERO,
+            ).label("spent"),
+            # variance = 0 for now (will use PriceHistory delta later)
             func.coalesce(
                 func.sum(
                     case(
@@ -112,7 +134,7 @@ async def get_functional_area_kpis(
                 ),
                 ZERO,
             ).label("variance"),
-            # item count (active only)
+            # item count (active only, excl. rejected/obsolete)
             func.count(case((is_active, CostItem.id))).label("item_count"),
         )
         .select_from(FunctionalArea)
@@ -139,6 +161,7 @@ async def get_functional_area_kpis(
         budget = budget_base + adj_total
         committed = Decimal(str(row.committed))
         forecast = Decimal(str(row.forecast))
+        spent = Decimal(str(row.spent))
         remaining = budget - forecast
         cost_of_completion = forecast  # CoC = Forecast (same metric, different label)
         variance = Decimal(str(row.variance))
@@ -152,6 +175,7 @@ async def get_functional_area_kpis(
                 budget_base=budget_base,
                 adjustment_total=adj_total,
                 committed=committed,
+                spent=spent,
                 forecast=forecast,
                 remaining=remaining,
                 cost_of_completion=cost_of_completion,
@@ -360,7 +384,9 @@ async def get_budget_summary(session: AsyncSession) -> BudgetSummary:
     base_budget = Decimal(str(budget_result.scalar_one()))
 
     adj_result = await session.execute(
-        select(func.coalesce(func.sum(BudgetAdjustment.amount), ZERO))
+        select(func.coalesce(func.sum(ChangeCost.amount), ZERO)).where(
+            ChangeCost.budget_relevant.is_(True)
+        )
     )
     adj_total = Decimal(str(adj_result.scalar_one()))
     total_budget = base_budget + adj_total
@@ -404,12 +430,13 @@ async def get_functional_area_summaries(
 
     adj_sub = (
         select(
-            BudgetAdjustment.functional_area_id,
-            func.coalesce(func.sum(BudgetAdjustment.amount), ZERO).label(
+            ChangeCost.functional_area_id,
+            func.coalesce(func.sum(ChangeCost.amount), ZERO).label(
                 "adj_total"
             ),
         )
-        .group_by(BudgetAdjustment.functional_area_id)
+        .where(ChangeCost.budget_relevant.is_(True))
+        .group_by(ChangeCost.functional_area_id)
         .subquery("adj_sub")
     )
 
@@ -501,11 +528,3 @@ async def get_cash_out_timeline(session: AsyncSession) -> list[CashOutEntry]:
         )
         for row in rows
     ]
-
-
-# ── Backward-compatible aliases ──────────────────────────────────────────
-# These aliases allow old code that imported the old names to keep working
-# during the transition period.
-
-get_department_kpis = get_functional_area_kpis
-get_department_summaries = get_functional_area_summaries

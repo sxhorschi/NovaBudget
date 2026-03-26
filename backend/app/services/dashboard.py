@@ -17,7 +17,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models import (
     AuditLog,
-    BudgetAdjustment,
+    ChangeCost,
     CostItem,
     FunctionalArea,
     Facility,
@@ -63,7 +63,7 @@ async def get_dashboard(
             selectinload(Facility.functional_areas)
             .selectinload(FunctionalArea.work_areas),
             selectinload(Facility.functional_areas)
-            .selectinload(FunctionalArea.budget_adjustments),
+            .selectinload(FunctionalArea.change_costs),
         )
     )
     facility_result = await session.execute(facility_stmt)
@@ -168,7 +168,7 @@ async def get_dashboard(
 
     for fa in sorted(facility.functional_areas, key=lambda d: d.name):
         fa_budget = fa.budget_total or ZERO
-        fa_adj = sum((a.amount or ZERO) for a in fa.budget_adjustments)
+        fa_adj = sum((a.amount or ZERO) for a in fa.change_costs if a.budget_relevant)
         agg = fa_agg.get(fa.id)
 
         committed = agg.committed if agg else ZERO

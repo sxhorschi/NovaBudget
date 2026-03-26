@@ -553,7 +553,7 @@ const ImportPage: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-gray-400 mt-1">
-              Expected format: header in row 5, data from row 6. One sheet per department.
+              Expected format: header in row 5, data from row 6. One sheet per functional area.
             </p>
             <input
               ref={fileInputRef}
@@ -589,9 +589,9 @@ const ImportPage: React.FC = () => {
             <div className="grid grid-cols-4 gap-3">
               <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-center">
                 <p className="text-2xl font-bold text-gray-900 tabular-nums">
-                  {parseResult.departments.length}
+                  {parseResult.functionalAreas.length}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">Departments</p>
+                <p className="text-xs text-gray-500 mt-0.5">Functional Areas</p>
               </div>
               <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-center">
                 <p className="text-2xl font-bold text-gray-900 tabular-nums">
@@ -615,25 +615,25 @@ const ImportPage: React.FC = () => {
 
             {/* Detected sheets */}
             <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-              <p className="text-sm font-medium text-gray-700 mb-2">Detected departments (sheets)</p>
+              <p className="text-sm font-medium text-gray-700 mb-2">Detected functional areas (sheets)</p>
               <div className="flex flex-wrap gap-2">
-                {parseResult.departments.map(dept => {
-                  const deptItems = parseResult.costItems.filter(ci =>
+                {parseResult.functionalAreas.map(fa => {
+                  const faItems = parseResult.costItems.filter(ci =>
                     parseResult.workAreas
-                      .filter(wa => wa.department_id === dept.id)
+                      .filter(wa => wa.functional_area_id === fa.id)
                       .some(wa => wa.id === ci.work_area_id),
                   );
-                  const deptWorkAreas = parseResult.workAreas.filter(
-                    wa => wa.department_id === dept.id,
+                  const faWorkAreas = parseResult.workAreas.filter(
+                    wa => wa.functional_area_id === fa.id,
                   );
                   return (
                     <span
-                      key={dept.id}
+                      key={fa.id}
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 text-xs text-indigo-600"
                     >
-                      {dept.name}
+                      {fa.name}
                       <span className="text-indigo-500">
-                        ({deptItems.length} items, {deptWorkAreas.length} areas)
+                        ({faItems.length} items, {faWorkAreas.length} areas)
                       </span>
                     </span>
                   );
@@ -829,7 +829,7 @@ const ImportPage: React.FC = () => {
                   Importing data into {facility.name}...
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {parseResult?.costItems.length ?? 0} items in {parseResult?.departments.length ?? 0} departments
+                  {parseResult?.costItems.length ?? 0} items in {parseResult?.functionalAreas.length ?? 0} functional areas
                 </p>
               </div>
               <span className="text-sm font-mono text-indigo-600 tabular-nums">
@@ -859,16 +859,16 @@ const ImportPage: React.FC = () => {
               Import successful
             </h3>
             <p className="text-sm text-green-700 mt-1">
-              {parseResult.costItems.length} items from {parseResult.departments.length} departments
+              {parseResult.costItems.length} items from {parseResult.functionalAreas.length} functional areas
               were imported into <span className="font-semibold">{facility.name}</span>.
             </p>
 
             {/* Summary */}
             <div className="mt-4 inline-flex flex-col items-start gap-1 text-left text-xs text-green-700 bg-green-100/50 rounded-lg px-4 py-2">
-              {parseResult.departments.map(dept => (
-                <div key={dept.id}>
-                  <span className="font-medium">{dept.name}:</span>{' '}
-                  {formatAmount(dept.budget_total)}
+              {parseResult.functionalAreas.map(fa => (
+                <div key={fa.id}>
+                  <span className="font-medium">{fa.name}:</span>{' '}
+                  {formatAmount(fa.budget_total)}
                 </div>
               ))}
             </div>

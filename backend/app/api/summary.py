@@ -1,15 +1,15 @@
 """Summary / KPI API endpoints.
 
 New endpoints (Otto v4):
-- GET /api/v1/summary/facilities/{id}/kpis        → FacilityKPI
-- GET /api/v1/summary/facilities/{id}/departments  → list[DepartmentKPI]
-- GET /api/v1/summary/facilities/{id}/cash-out     → list[CashOutMonth]
-- GET /api/v1/summary/facilities/{id}/phases       → list[PhaseBreakdown]
-- GET /api/v1/summary/facilities/{id}/pipeline     → list[ApprovalPipelineEntry]
+- GET /api/v1/summary/facilities/{id}/kpis              → FacilityKPI
+- GET /api/v1/summary/facilities/{id}/functional-areas   → list[FunctionalAreaKPI]
+- GET /api/v1/summary/facilities/{id}/cash-out           → list[CashOutMonth]
+- GET /api/v1/summary/facilities/{id}/phases             → list[PhaseBreakdown]
+- GET /api/v1/summary/facilities/{id}/pipeline           → list[ApprovalPipelineEntry]
 
 Legacy endpoints (deprecated, kept for backward compat):
 - GET /api/v1/summary/budget
-- GET /api/v1/summary/departments
+- GET /api/v1/summary/functional-areas
 - GET /api/v1/summary/cash-out
 """
 
@@ -26,8 +26,8 @@ from app.schemas.summary import (
     BudgetSummary,
     CashOutEntry,
     CashOutMonth,
-    DepartmentKPI,
-    DepartmentSummary,
+    FunctionalAreaKPI,
+    FunctionalAreaSummary,
     FacilityKPI,
     PhaseBreakdown,
 )
@@ -36,8 +36,8 @@ from app.services.aggregation import (
     get_budget_summary,
     get_cash_out_forecast,
     get_cash_out_timeline,
-    get_department_kpis,
-    get_department_summaries,
+    get_functional_area_kpis,
+    get_functional_area_summaries,
     get_facility_kpis,
     get_phase_breakdown,
 )
@@ -68,17 +68,17 @@ async def facility_kpis(
 
 
 @router.get(
-    "/facilities/{facility_id}/departments",
-    response_model=list[DepartmentKPI],
-    summary="Department KPIs — per-department breakdown for a facility",
+    "/facilities/{facility_id}/functional-areas",
+    response_model=list[FunctionalAreaKPI],
+    summary="Functional Area KPIs — per-functional-area breakdown for a facility",
 )
-async def department_kpis(
+async def functional_area_kpis(
     facility_id: UUID,
     user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     try:
-        return await get_department_kpis(facility_id, session)
+        return await get_functional_area_kpis(facility_id, session)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -86,7 +86,7 @@ async def department_kpis(
 @router.get(
     "/facilities/{facility_id}/cash-out",
     response_model=list[CashOutMonth],
-    summary="Monthly cash-out forecast, split by department",
+    summary="Monthly cash-out forecast, split by functional area",
 )
 async def cash_out_forecast(
     facility_id: UUID,
@@ -147,13 +147,13 @@ async def budget_summary(user: UserDep, session: AsyncSession = Depends(get_sess
 
 
 @router.get(
-    "/departments",
-    response_model=list[DepartmentSummary],
-    summary="[DEPRECATED] Global department summaries",
+    "/functional-areas",
+    response_model=list[FunctionalAreaSummary],
+    summary="[DEPRECATED] Global functional area summaries",
     deprecated=True,
 )
-async def department_summaries(user: UserDep, session: AsyncSession = Depends(get_session)):
-    return await get_department_summaries(session)
+async def functional_area_summaries(user: UserDep, session: AsyncSession = Depends(get_session)):
+    return await get_functional_area_summaries(session)
 
 
 @router.get(

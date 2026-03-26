@@ -3,7 +3,7 @@
 from app.models.attachment import Attachment, AttachmentType
 from app.models.audit_log import AuditLog
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
-from app.models.budget_adjustment import BudgetAdjustment
+from app.models.change_cost import ChangeCost
 from app.models.cost_item import CostItem
 from app.models.functional_area import FunctionalArea
 from app.models.enums import (
@@ -23,7 +23,7 @@ __all__ = [
     "AttachmentType",
     "AuditLog",
     "Base",
-    "BudgetAdjustment",
+    "ChangeCost",
     "TimestampMixin",
     "UUIDPrimaryKeyMixin",
     "ApprovalStatus",

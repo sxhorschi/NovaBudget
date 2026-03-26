@@ -118,7 +118,7 @@ async def clone_facility_endpoint(
     user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
-    """Deep-clone a facility with all departments, work areas, and cost items."""
+    """Deep-clone a facility with all functional areas, work areas, and cost items."""
     try:
         new_facility = await clone_facility(
             session=session,

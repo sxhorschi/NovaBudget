@@ -19,7 +19,7 @@ async def dashboard(
     user: UserDep,
     session: AsyncSession = Depends(get_session),
 ) -> DashboardResponse:
-    """Return all KPIs, department breakdowns, cash-out timeline, phase/status
+    """Return all KPIs, functional-area breakdowns, cash-out timeline, phase/status
     breakdowns, and recent changes for a facility — in a single call."""
     try:
         return await get_dashboard(session, facility_id)

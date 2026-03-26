@@ -24,9 +24,9 @@ import {
 } from 'lucide-react';
 import HelpTooltip from '../components/help/HelpTooltip';
 import EmptyState from '../components/common/EmptyState';
-import type { CostItem, Department } from '../types/budget';
+import type { CostItem, FunctionalArea } from '../types/budget';
 import { STATUS_LABELS, STATUS_COLORS } from '../types/budget';
-import { getDeptColor as getDeptColorById } from '../styles/design-tokens';
+import { getFAColor } from '../styles/design-tokens';
 import { formatEUR } from '../components/costbook/AmountCell';
 import { useBudgetData } from '../context/BudgetDataContext';
 import { useFilterState } from '../hooks/useFilterState';
@@ -84,7 +84,7 @@ function fmtCompact(n: number): string {
 // Sort types for detail table
 // ---------------------------------------------------------------------------
 
-type SortField = 'cashout' | 'department' | 'amount';
+type SortField = 'cashout' | 'functionalArea' | 'amount';
 type SortDir = 'asc' | 'desc';
 
 // ---------------------------------------------------------------------------
@@ -111,9 +111,9 @@ function heatmapTextColor(t: number): string {
 // ---------------------------------------------------------------------------
 
 const CashOutPage: React.FC = () => {
-  const { departments, workAreas } = useBudgetData();
+  const { functionalAreas, workAreas } = useBudgetData();
   const { filters, setFilter, resetFilters, hasActiveFilters } = useFilterState();
-  const { filteredDepartments, filteredItems, summary } = useFilteredData(filters);
+  const { filteredFunctionalAreas, filteredItems, summary } = useFilteredData(filters);
   const navigate = useNavigate();
   const { facilityId } = useParams<{ facilityId: string }>();
 
@@ -123,19 +123,19 @@ const CashOutPage: React.FC = () => {
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [legendFilter, setLegendFilter] = useState<string | null>(null);
 
-  // ---- Helper: work area IDs for a department ----
-  const deptWaIds = useCallback(
-    (deptId: string): Set<string> => {
+  // ---- Helper: work area IDs for a functional area ----
+  const faWaIds = useCallback(
+    (faId: string): Set<string> => {
       return new Set(
         workAreas
-          .filter((wa) => wa.department_id === deptId)
+          .filter((wa) => wa.functional_area_id === faId)
           .map((wa) => wa.id),
       );
     },
     [workAreas],
   );
 
-  // ---- Chart data: stacked area per department ----
+  // ---- Chart data: stacked area per functional area ----
   const chartData = useMemo(() => {
     return MONTHS.map((month) => {
       const entry: Record<string, number | string> = {
@@ -144,25 +144,25 @@ const CashOutPage: React.FC = () => {
       };
       let total = 0;
 
-      filteredDepartments.forEach((dept) => {
-        const waIds = deptWaIds(dept.id);
+      filteredFunctionalAreas.forEach((fa) => {
+        const waIds = faWaIds(fa.id);
         const amount = filteredItems
           .filter((ci) => waIds.has(ci.work_area_id) && ci.expected_cash_out === month)
           .reduce((sum, ci) => sum + ci.total_amount, 0);
 
-        entry[`dept_${dept.id}`] = amount;
+        entry[`fa_${fa.id}`] = amount;
         total += amount;
       });
 
       entry.total = total;
       return entry;
     });
-  }, [filteredDepartments, filteredItems, deptWaIds]);
+  }, [filteredFunctionalAreas, filteredItems, faWaIds]);
 
   // ---- Heatmap table data ----
   const tableData = useMemo(() => {
-    return filteredDepartments.map((dept) => {
-      const waIds = deptWaIds(dept.id);
+    return filteredFunctionalAreas.map((fa) => {
+      const waIds = faWaIds(fa.id);
 
       const row: Record<string, number> = {};
       let rowTotal = 0;
@@ -176,9 +176,9 @@ const CashOutPage: React.FC = () => {
       });
 
       row.__total = rowTotal;
-      return { department: dept, months: row };
+      return { functionalArea: fa, months: row };
     });
-  }, [filteredDepartments, filteredItems, deptWaIds]);
+  }, [filteredFunctionalAreas, filteredItems, faWaIds]);
 
   // ---- Column totals ----
   const columnTotals = useMemo(() => {
@@ -226,7 +226,7 @@ const CashOutPage: React.FC = () => {
     return { month: maxMonth, label: MONTH_LABELS[maxMonth], value: maxVal };
   }, [columnTotals]);
 
-  // ---- Next 3 months with department breakdown ----
+  // ---- Next 3 months with functional area breakdown ----
   const upcomingMonths = useMemo(() => {
     const currentMonthIndex = MONTHS.indexOf(CURRENT_MONTH);
     const upcoming = MONTHS.slice(
@@ -237,28 +237,28 @@ const CashOutPage: React.FC = () => {
       const total = columnTotals[m] || 0;
       const items = filteredItems.filter((ci) => ci.expected_cash_out === m);
 
-      // Department breakdown
-      const deptBreakdown: { dept: Department; amount: number }[] = [];
-      filteredDepartments.forEach((dept) => {
-        const waIds = deptWaIds(dept.id);
+      // Functional area breakdown
+      const faBreakdown: { fa: FunctionalArea; amount: number }[] = [];
+      filteredFunctionalAreas.forEach((fa) => {
+        const waIds = faWaIds(fa.id);
         const amount = items
           .filter((ci) => waIds.has(ci.work_area_id))
           .reduce((s, ci) => s + ci.total_amount, 0);
         if (amount > 0) {
-          deptBreakdown.push({ dept, amount });
+          faBreakdown.push({ fa, amount });
         }
       });
-      deptBreakdown.sort((a, b) => b.amount - a.amount);
+      faBreakdown.sort((a, b) => b.amount - a.amount);
 
       return {
         month: m,
         label: MONTH_LABELS[m],
         total,
         itemCount: items.length,
-        deptBreakdown,
+        faBreakdown,
       };
     });
-  }, [columnTotals, filteredItems, filteredDepartments, deptWaIds]);
+  }, [columnTotals, filteredItems, filteredFunctionalAreas, faWaIds]);
 
   // ---- Burndown data ----
   const burndownData = useMemo(() => {
@@ -294,11 +294,11 @@ const CashOutPage: React.FC = () => {
   const detailItems = useMemo(() => {
     const items = [...filteredItems];
 
-    const getDeptNameForItem = (item: CostItem): string => {
+    const getFANameForItem = (item: CostItem): string => {
       const wa = workAreas.find((w) => w.id === item.work_area_id);
       if (!wa) return '';
-      const dept = departments.find((d) => d.id === wa.department_id);
-      return dept?.name ?? '';
+      const fa = functionalAreas.find((d) => d.id === wa.functional_area_id);
+      return fa?.name ?? '';
     };
 
     items.sort((a, b) => {
@@ -307,8 +307,8 @@ const CashOutPage: React.FC = () => {
         case 'cashout':
           cmp = a.expected_cash_out.localeCompare(b.expected_cash_out);
           break;
-        case 'department':
-          cmp = getDeptNameForItem(a).localeCompare(getDeptNameForItem(b));
+        case 'functionalArea':
+          cmp = getFANameForItem(a).localeCompare(getFANameForItem(b));
           break;
         case 'amount':
           cmp = a.total_amount - b.total_amount;
@@ -318,22 +318,22 @@ const CashOutPage: React.FC = () => {
     });
 
     return items;
-  }, [filteredItems, sortField, sortDir, workAreas, departments]);
+  }, [filteredItems, sortField, sortDir, workAreas, functionalAreas]);
 
-  // ---- Department lookup helpers ----
-  function getDeptForItem(item: CostItem): Department | undefined {
+  // ---- Functional area lookup helpers ----
+  function getFAForItem(item: CostItem): FunctionalArea | undefined {
     const wa = workAreas.find((w) => w.id === item.work_area_id);
     if (!wa) return undefined;
-    return departments.find((d) => d.id === wa.department_id);
+    return functionalAreas.find((d) => d.id === wa.functional_area_id);
   }
 
-  function getDeptName(item: CostItem): string {
-    return getDeptForItem(item)?.name ?? '-';
+  function getFAName(item: CostItem): string {
+    return getFAForItem(item)?.name ?? '-';
   }
 
-  function getDeptColor(item: CostItem): string {
-    const dept = getDeptForItem(item);
-    return dept ? getDeptColorById(dept.id) : '#64748b';
+  function getItemFAColor(item: CostItem): string {
+    const fa = getFAForItem(item);
+    return fa ? getFAColor(fa.id) : '#64748b';
   }
 
   // ---- Sort toggle ----
@@ -356,15 +356,15 @@ const CashOutPage: React.FC = () => {
   }
 
   // ---- Navigate to costbook with filters ----
-  function navigateToCostbook(deptId: string, _month: string): void {
+  function navigateToCostbook(faId: string, _month: string): void {
     const params = new URLSearchParams();
-    params.set('dept', String(deptId));
+    params.set('fa', String(faId));
     navigate(`/f/${facilityId}/costbook?${params.toString()}`);
   }
 
   // ---- Legend click handler ----
-  function handleLegendClick(deptId: string): void {
-    setLegendFilter((prev) => (prev === deptId ? null : deptId));
+  function handleLegendClick(faId: string): void {
+    setLegendFilter((prev) => (prev === faId ? null : faId));
   }
 
   return (
@@ -416,18 +416,18 @@ const CashOutPage: React.FC = () => {
                 <div>
                   <h2 className="text-base font-semibold text-gray-900">Cash-Out Timeline</h2>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Monthly cash-out by department — Feb 2026 to Jan 2027
+                    Monthly cash-out by functional area — Feb 2026 to Jan 2027
                   </p>
                 </div>
                 {/* Clickable legend */}
                 <div className="flex flex-wrap items-center gap-3">
-                  {filteredDepartments.map((dept) => {
-                    const isActive = legendFilter === null || legendFilter === dept.id;
+                  {filteredFunctionalAreas.map((fa) => {
+                    const isActive = legendFilter === null || legendFilter === fa.id;
                     return (
                       <button
-                        key={dept.id}
+                        key={fa.id}
                         type="button"
-                        onClick={() => handleLegendClick(dept.id)}
+                        onClick={() => handleLegendClick(fa.id)}
                         className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-all duration-200 ${
                           isActive
                             ? 'opacity-100 bg-gray-50 hover:bg-gray-100'
@@ -436,9 +436,9 @@ const CashOutPage: React.FC = () => {
                       >
                         <div
                           className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: getDeptColorById(dept.id) }}
+                          style={{ backgroundColor: getFAColor(fa.id) }}
                         />
-                        <span className="text-gray-700 font-medium">{dept.name}</span>
+                        <span className="text-gray-700 font-medium">{fa.name}</span>
                       </button>
                     );
                   })}
@@ -459,10 +459,10 @@ const CashOutPage: React.FC = () => {
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={chartData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
                     <defs>
-                      {filteredDepartments.map((dept) => (
+                      {filteredFunctionalAreas.map((fa) => (
                         <linearGradient
-                          key={dept.id}
-                          id={`grad_dept_${dept.id}`}
+                          key={fa.id}
+                          id={`grad_fa_${fa.id}`}
                           x1="0"
                           y1="0"
                           x2="0"
@@ -470,12 +470,12 @@ const CashOutPage: React.FC = () => {
                         >
                           <stop
                             offset="0%"
-                            stopColor={getDeptColorById(dept.id)}
+                            stopColor={getFAColor(fa.id)}
                             stopOpacity={0.6}
                           />
                           <stop
                             offset="100%"
-                            stopColor={getDeptColorById(dept.id)}
+                            stopColor={getFAColor(fa.id)}
                             stopOpacity={0.05}
                           />
                         </linearGradient>
@@ -500,7 +500,7 @@ const CashOutPage: React.FC = () => {
                         if (!active || !payload || payload.length === 0) return null;
                         const visiblePayload = payload.filter((p) => {
                           if (legendFilter === null) return true;
-                          return p.dataKey === `dept_${legendFilter}`;
+                          return p.dataKey === `fa_${legendFilter}`;
                         });
                         const total = visiblePayload.reduce(
                           (s, p) => s + (typeof p.value === 'number' ? p.value : 0),
@@ -513,8 +513,8 @@ const CashOutPage: React.FC = () => {
                               .filter((p) => typeof p.value === 'number' && p.value > 0)
                               .sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0))
                               .map((p) => {
-                                const dept = filteredDepartments.find(
-                                  (d) => `dept_${d.id}` === p.dataKey,
+                                const fa = filteredFunctionalAreas.find(
+                                  (d) => `fa_${d.id}` === p.dataKey,
                                 );
                                 return (
                                   <div
@@ -527,7 +527,7 @@ const CashOutPage: React.FC = () => {
                                         style={{ backgroundColor: String(p.color) }}
                                       />
                                       <span className="text-gray-600">
-                                        {dept?.name ?? String(p.dataKey)}
+                                        {fa?.name ?? String(p.dataKey)}
                                       </span>
                                     </div>
                                     <span className="font-medium tabular-nums text-gray-900">
@@ -544,17 +544,17 @@ const CashOutPage: React.FC = () => {
                         );
                       }}
                     />
-                    {filteredDepartments.map((dept) => {
-                      const isVisible = legendFilter === null || legendFilter === dept.id;
+                    {filteredFunctionalAreas.map((fa) => {
+                      const isVisible = legendFilter === null || legendFilter === fa.id;
                       return (
                         <Area
-                          key={dept.id}
+                          key={fa.id}
                           type="monotone"
-                          dataKey={`dept_${dept.id}`}
+                          dataKey={`fa_${fa.id}`}
                           stackId="cashout"
-                          stroke={isVisible ? (getDeptColorById(dept.id)) : 'transparent'}
+                          stroke={isVisible ? (getFAColor(fa.id)) : 'transparent'}
                           strokeWidth={isVisible ? 1.5 : 0}
-                          fill={isVisible ? `url(#grad_dept_${dept.id})` : 'transparent'}
+                          fill={isVisible ? `url(#grad_fa_${fa.id})` : 'transparent'}
                           fillOpacity={isVisible ? 1 : 0}
                         />
                       );
@@ -610,7 +610,7 @@ const CashOutPage: React.FC = () => {
                   <HelpTooltip text="Color intensity shows the level of monthly cash outflow. Click a cell to jump to the Costbook view." />
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Departments x months — color intensity proportional to amount
+                  Functional areas x months — color intensity proportional to amount
                 </p>
               </div>
               <div className="overflow-x-auto">
@@ -618,7 +618,7 @@ const CashOutPage: React.FC = () => {
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/80">
                       <th className="px-3 py-2 text-left font-semibold text-gray-600 uppercase tracking-wider sticky left-0 bg-gray-50/80 z-10 min-w-[130px]">
-                        Department
+                        Functional Area
                       </th>
                       {MONTHS.map((m, colIdx) => {
                         const isCurrent = m === CURRENT_MONTH;
@@ -648,7 +648,7 @@ const CashOutPage: React.FC = () => {
                   <tbody>
                     {tableData.map((row, rowIdx) => (
                       <tr
-                        key={row.department.id}
+                        key={row.functionalArea.id}
                         className={`border-b border-gray-100 ${
                           hoveredCell?.row === rowIdx ? 'bg-indigo-50/40' : ''
                         }`}
@@ -659,10 +659,10 @@ const CashOutPage: React.FC = () => {
                               className="w-2 h-2 rounded-full flex-shrink-0"
                               style={{
                                 backgroundColor:
-                                  getDeptColorById(row.department.id),
+                                  getFAColor(row.functionalArea.id),
                               }}
                             />
-                            <span className="truncate">{row.department.name}</span>
+                            <span className="truncate">{row.functionalArea.name}</span>
                           </div>
                         </td>
                         {MONTHS.map((m, colIdx) => {
@@ -688,10 +688,10 @@ const CashOutPage: React.FC = () => {
                               onMouseLeave={() => setHoveredCell(null)}
                               onClick={() => {
                                 if (val > 0) {
-                                  navigateToCostbook(row.department.id, m);
+                                  navigateToCostbook(row.functionalArea.id, m);
                                 }
                               }}
-                              title={val > 0 ? `${row.department.name} / ${MONTH_LABELS[m]}: ${formatEur(val)} — Click for details` : '-'}
+                              title={val > 0 ? `${row.functionalArea.name} / ${MONTH_LABELS[m]}: ${formatEur(val)} — Click for details` : '-'}
                             >
                               {val > 0 ? fmtCompact(val) : (
                                 <span className="text-gray-300">—</span>
@@ -774,7 +774,7 @@ const CashOutPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Upcoming 3 Months with department breakdown */}
+              {/* Upcoming 3 Months with functional area breakdown */}
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -782,7 +782,7 @@ const CashOutPage: React.FC = () => {
                   </div>
                   <div>
                     <h4 className="text-sm font-semibold text-gray-900">Next 3 Months</h4>
-                    <p className="text-[10px] text-gray-500">Expected cash-out by department</p>
+                    <p className="text-[10px] text-gray-500">Expected cash-out by functional area</p>
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -799,16 +799,16 @@ const CashOutPage: React.FC = () => {
                           {formatEur(um.total)}
                         </span>
                       </div>
-                      {um.deptBreakdown.length > 0 && (
+                      {um.faBreakdown.length > 0 && (
                         <div className="space-y-1 ml-0.5">
-                          {um.deptBreakdown.map(({ dept, amount }) => (
-                            <div key={dept.id} className="flex items-center gap-2">
+                          {um.faBreakdown.map(({ fa, amount }) => (
+                            <div key={fa.id} className="flex items-center gap-2">
                               <div
                                 className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                style={{ backgroundColor: getDeptColorById(dept.id) }}
+                                style={{ backgroundColor: getFAColor(fa.id) }}
                               />
                               <span className="text-[11px] text-gray-500 flex-1 truncate">
-                                {dept.name}
+                                {fa.name}
                               </span>
                               <span className="text-[11px] font-medium tabular-nums text-gray-700">
                                 {formatEur(amount)}
@@ -949,9 +949,9 @@ const CashOutPage: React.FC = () => {
                         </th>
                         <th
                           className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:text-gray-900 select-none"
-                          onClick={() => toggleSort('department')}
+                          onClick={() => toggleSort('functionalArea')}
                         >
-                          Department {sortIcon('department')}
+                          Functional Area {sortIcon('functionalArea')}
                         </th>
                         <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[280px]">
                           Description
@@ -969,7 +969,7 @@ const CashOutPage: React.FC = () => {
                     </thead>
                     <tbody>
                       {detailItems.map((item) => {
-                        const deptColor = getDeptColor(item);
+                        const faColor = getItemFAColor(item);
                         return (
                           <tr
                             key={item.id}
@@ -982,10 +982,10 @@ const CashOutPage: React.FC = () => {
                               <div className="flex items-center gap-2">
                                 <div
                                   className="w-2 h-2 rounded-full flex-shrink-0"
-                                  style={{ backgroundColor: deptColor }}
+                                  style={{ backgroundColor: faColor }}
                                 />
                                 <span className="text-gray-800 font-medium">
-                                  {getDeptName(item)}
+                                  {getFAName(item)}
                                 </span>
                               </div>
                             </td>

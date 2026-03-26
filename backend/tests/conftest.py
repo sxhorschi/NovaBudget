@@ -61,7 +61,7 @@ PG_UUID.load_dialect_impl = _patched_load_dialect_impl
 # Now import models (after the patch)
 from app.models.base import Base
 from app.models.facility import Facility
-from app.models.department import Department
+from app.models.functional_area import FunctionalArea
 from app.models.work_area import WorkArea
 from app.models.cost_item import CostItem
 from app.models.budget_adjustment import BudgetAdjustment
@@ -150,7 +150,7 @@ async def sample_data(session: AsyncSession):
 
     Hierarchy:
         Facility
-        -> 5 Departments (Assembly Equipment, Testing, Logistics, Facility, Prototyping)
+        -> 5 FunctionalAreas (Assembly Equipment, Testing, Logistics, Facility, Prototyping)
            -> 2 Work Areas each (10 total)
               -> 3 CostItems each (30 total)
 
@@ -170,7 +170,7 @@ async def sample_data(session: AsyncSession):
     )
     session.add(facility)
 
-    dept_names = [
+    fa_names = [
         "Assembly Equipment",
         "Testing",
         "Logistics",
@@ -185,11 +185,11 @@ async def sample_data(session: AsyncSession):
         Decimal("150000"),
     ]
 
-    departments: list[Department] = []
+    functional_areas: list[FunctionalArea] = []
     work_areas: list[WorkArea] = []
     cost_items: list[CostItem] = []
 
-    # Statuses to cycle through (6 items per department = 30 total)
+    # Statuses to cycle through (6 items per functional area = 30 total)
     status_cycle = [
         ApprovalStatus.APPROVED,
         ApprovalStatus.OPEN,
@@ -212,23 +212,23 @@ async def sample_data(session: AsyncSession):
     ]
 
     item_idx = 0
-    for d_idx, (dept_name, budget) in enumerate(zip(dept_names, budgets)):
-        dept = Department(
+    for fa_idx, (fa_name, budget) in enumerate(zip(fa_names, budgets)):
+        fa = FunctionalArea(
             id=uuid.uuid4(),
             facility_id=facility.id,
-            name=dept_name,
+            name=fa_name,
             budget_total=budget,
             created_at=now,
             updated_at=now,
         )
-        session.add(dept)
-        departments.append(dept)
+        session.add(fa)
+        functional_areas.append(fa)
 
         for wa_idx in range(2):
             wa = WorkArea(
                 id=uuid.uuid4(),
-                department_id=dept.id,
-                name=f"{dept_name} WA-{wa_idx + 1}",
+                functional_area_id=fa.id,
+                name=f"{fa_name} WA-{wa_idx + 1}",
                 created_at=now,
                 updated_at=now,
             )
@@ -241,7 +241,7 @@ async def sample_data(session: AsyncSession):
                 item = CostItem(
                     id=uuid.uuid4(),
                     work_area_id=wa.id,
-                    description=f"Item {item_idx + 1}: {dept_name} equipment",
+                    description=f"Item {item_idx + 1}: {fa_name} equipment",
                     unit_price=amount,
                     quantity=Decimal("1"),
                     total_amount=amount,
@@ -265,7 +265,7 @@ async def sample_data(session: AsyncSession):
 
     return {
         "facility": facility,
-        "departments": departments,
+        "functional_areas": functional_areas,
         "work_areas": work_areas,
         "cost_items": cost_items,
     }

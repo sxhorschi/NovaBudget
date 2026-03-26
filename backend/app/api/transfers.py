@@ -11,14 +11,14 @@ from app.db import get_session
 from app.models.transfer_log import TransferLog
 from app.schemas.transfer import (
     TransferCostItemsRequest,
-    TransferDepartmentsRequest,
+    TransferFunctionalAreasRequest,
     TransferLogRead,
     TransferResult,
     TransferWorkAreasRequest,
 )
 from app.services.transfer import (
     transfer_cost_items,
-    transfer_departments,
+    transfer_functional_areas,
     transfer_work_areas,
 )
 
@@ -72,14 +72,14 @@ async def transfer_work_areas_endpoint(
     user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
-    """Copy or move work areas (with cost items) to a target department."""
+    """Copy or move work areas (with cost items) to a target functional area."""
     try:
         work_areas = await transfer_work_areas(
             session=session,
             source_facility_id=data.source_facility_id,
             target_facility_id=data.target_facility_id,
             work_area_ids=data.work_area_ids,
-            target_department_id=data.target_department_id,
+            target_functional_area_id=data.target_functional_area_id,
             mode=data.mode,
             reset_status=data.reset_status,
             reset_amounts=data.reset_amounts,
@@ -100,22 +100,22 @@ async def transfer_work_areas_endpoint(
     )
 
 
-# ── Transfer departments ────────────────────────────────────────────────
+# ── Transfer functional areas ──────────────────────────────────────────
 
 
-@router.post("/departments", response_model=TransferResult, status_code=201, dependencies=[Depends(require_role("admin", "editor"))])
-async def transfer_departments_endpoint(
-    data: TransferDepartmentsRequest,
+@router.post("/functional-areas", response_model=TransferResult, status_code=201, dependencies=[Depends(require_role("admin", "editor"))])
+async def transfer_functional_areas_endpoint(
+    data: TransferFunctionalAreasRequest,
     user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
-    """Copy or move departments (with full hierarchy) to a target facility."""
+    """Copy or move functional areas (with full hierarchy) to a target facility."""
     try:
-        departments = await transfer_departments(
+        functional_areas = await transfer_functional_areas(
             session=session,
             source_facility_id=data.source_facility_id,
             target_facility_id=data.target_facility_id,
-            department_ids=data.department_ids,
+            functional_area_ids=data.functional_area_ids,
             mode=data.mode,
             reset_status=data.reset_status,
             reset_amounts=data.reset_amounts,
@@ -126,12 +126,12 @@ async def transfer_departments_endpoint(
 
     await session.commit()
 
-    logs = await _fetch_recent_logs(session, data.source_facility_id, data.target_facility_id, "department", len(departments))
+    logs = await _fetch_recent_logs(session, data.source_facility_id, data.target_facility_id, "functional_area", len(functional_areas))
 
     return TransferResult(
-        transferred_count=len(departments),
+        transferred_count=len(functional_areas),
         transfer_mode=data.mode,
-        entity_type="department",
+        entity_type="functional_area",
         logs=logs,
     )
 

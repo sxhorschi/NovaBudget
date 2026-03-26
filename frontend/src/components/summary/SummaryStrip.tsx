@@ -89,7 +89,7 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
           barValue={budget}
           barMax={budget}
           barColor="indigo"
-          tooltip="Total approved budget of all visible departments, incl. target adjustments"
+          tooltip="Total approved budget of all visible functional areas, incl. target adjustments"
         />
 
         {/* Committed */}

@@ -33,19 +33,19 @@ async def upload_attachment(
     file: UploadFile = File(...),
     cost_item_id: UUID | None = Form(None),
     work_area_id: UUID | None = Form(None),
-    department_id: UUID | None = Form(None),
+    functional_area_id: UUID | None = Form(None),
     description: str | None = Form(None),
     attachment_type: AttachmentType = Form(AttachmentType.OTHER),
     session: AsyncSession = Depends(get_session),
 ) -> Attachment:
     """Upload a file and create an attachment record."""
     # Validate that exactly one parent is set
-    parents = [cost_item_id, work_area_id, department_id]
+    parents = [cost_item_id, work_area_id, functional_area_id]
     set_parents = [p for p in parents if p is not None]
     if len(set_parents) != 1:
         raise HTTPException(
             status_code=400,
-            detail="Exactly one of cost_item_id, work_area_id, or department_id must be provided.",
+            detail="Exactly one of cost_item_id, work_area_id, or functional_area_id must be provided.",
         )
 
     # Read file content
@@ -70,7 +70,7 @@ async def upload_attachment(
     attachment = Attachment(
         cost_item_id=cost_item_id,
         work_area_id=work_area_id,
-        department_id=department_id,
+        functional_area_id=functional_area_id,
         filename=stored_name,
         original_filename=filename,
         content_type=content_type,
@@ -91,7 +91,7 @@ async def upload_attachment(
 async def list_attachments(
     cost_item_id: UUID | None = None,
     work_area_id: UUID | None = None,
-    department_id: UUID | None = None,
+    functional_area_id: UUID | None = None,
     session: AsyncSession = Depends(get_session),
 ) -> AttachmentList:
     """List attachments filtered by parent entity."""
@@ -101,8 +101,8 @@ async def list_attachments(
         stmt = stmt.where(Attachment.cost_item_id == cost_item_id)
     if work_area_id is not None:
         stmt = stmt.where(Attachment.work_area_id == work_area_id)
-    if department_id is not None:
-        stmt = stmt.where(Attachment.department_id == department_id)
+    if functional_area_id is not None:
+        stmt = stmt.where(Attachment.functional_area_id == functional_area_id)
 
     stmt = stmt.order_by(Attachment.created_at.desc())
 

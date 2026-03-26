@@ -1,4 +1,4 @@
-"""Comparison API — side-by-side KPIs for multiple facilities and departments."""
+"""Comparison API — side-by-side KPIs for multiple facilities and functional areas."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import UserDep
 from app.db import get_session
 from app.models import Facility
-from app.services.aggregation import get_department_kpis, get_facility_kpis
+from app.services.aggregation import get_functional_area_kpis, get_facility_kpis
 
 router = APIRouter(prefix="/api/v1/compare", tags=["comparison"])
 
@@ -32,7 +32,7 @@ class FacilityComparisonEntry(BaseModel):
     committed: Decimal
     forecast: Decimal
     remaining: Decimal
-    department_count: int
+    functional_area_count: int
     item_count: int
 
 
@@ -40,14 +40,14 @@ class FacilityComparisonResponse(BaseModel):
     facilities: list[FacilityComparisonEntry]
 
 
-class DepartmentComparisonEntry(BaseModel):
-    """KPIs for one department within a specific facility."""
+class FunctionalAreaComparisonEntry(BaseModel):
+    """KPIs for one functional area within a specific facility."""
 
     model_config = ConfigDict(from_attributes=True)
 
     facility_id: UUID
     facility_name: str
-    department_name: str
+    functional_area_name: str
     budget: Decimal
     committed: Decimal
     forecast: Decimal
@@ -55,8 +55,8 @@ class DepartmentComparisonEntry(BaseModel):
     item_count: int
 
 
-class DepartmentComparisonResponse(BaseModel):
-    departments: list[DepartmentComparisonEntry]
+class FunctionalAreaComparisonResponse(BaseModel):
+    functional_areas: list[FunctionalAreaComparisonEntry]
 
 
 # ── Endpoints ───────────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ async def compare_facilities(
                 committed=kpi.committed,
                 forecast=kpi.forecast,
                 remaining=kpi.remaining,
-                department_count=kpi.department_count,
+                functional_area_count=kpi.functional_area_count,
                 item_count=kpi.item_count,
             )
         )
@@ -123,8 +123,8 @@ async def compare_facilities(
     return FacilityComparisonResponse(facilities=entries)
 
 
-@router.get("/departments", response_model=DepartmentComparisonResponse)
-async def compare_departments(
+@router.get("/functional-areas", response_model=FunctionalAreaComparisonResponse)
+async def compare_functional_areas(
     facility_ids: str = Query(
         ...,
         description="Comma-separated facility UUIDs",
@@ -132,14 +132,14 @@ async def compare_departments(
     ),
     names: str = Query(
         ...,
-        description="Comma-separated department names to match across facilities",
+        description="Comma-separated functional area names to match across facilities",
         examples=["Assembly,Testing"],
     ),
     session: AsyncSession = Depends(get_session),
     *,
     user: UserDep,
-) -> DepartmentComparisonResponse:
-    """Match departments by name across facilities and return per-department KPIs."""
+) -> FunctionalAreaComparisonResponse:
+    """Match functional areas by name across facilities and return per-functional-area KPIs."""
 
     raw_ids = [s.strip() for s in facility_ids.split(",") if s.strip()]
     if len(raw_ids) < 1:
@@ -148,11 +148,11 @@ async def compare_departments(
             detail="At least one facility ID is required.",
         )
 
-    dept_names = [n.strip() for n in names.split(",") if n.strip()]
-    if not dept_names:
+    fa_names = [n.strip() for n in names.split(",") if n.strip()]
+    if not fa_names:
         raise HTTPException(
             status_code=400,
-            detail="At least one department name is required.",
+            detail="At least one functional area name is required.",
         )
 
     # Validate UUIDs
@@ -175,26 +175,26 @@ async def compare_departments(
         )
 
     # Normalize requested names for case-insensitive matching
-    names_lower = {n.lower() for n in dept_names}
+    names_lower = {n.lower() for n in fa_names}
 
-    entries: list[DepartmentComparisonEntry] = []
+    entries: list[FunctionalAreaComparisonEntry] = []
     for fid in parsed_ids:
         facility = facilities_by_id[fid]
-        dept_kpis = await get_department_kpis(fid, session)
+        fa_kpis = await get_functional_area_kpis(fid, session)
 
-        for dk in dept_kpis:
-            if dk.department_name.lower() in names_lower:
+        for fk in fa_kpis:
+            if fk.functional_area_name.lower() in names_lower:
                 entries.append(
-                    DepartmentComparisonEntry(
+                    FunctionalAreaComparisonEntry(
                         facility_id=fid,
                         facility_name=facility.name,
-                        department_name=dk.department_name,
-                        budget=dk.budget,
-                        committed=dk.committed,
-                        forecast=dk.forecast,
-                        remaining=dk.remaining,
-                        item_count=dk.item_count,
+                        functional_area_name=fk.functional_area_name,
+                        budget=fk.budget,
+                        committed=fk.committed,
+                        forecast=fk.forecast,
+                        remaining=fk.remaining,
+                        item_count=fk.item_count,
                     )
                 )
 
-    return DepartmentComparisonResponse(departments=entries)
+    return FunctionalAreaComparisonResponse(functional_areas=entries)

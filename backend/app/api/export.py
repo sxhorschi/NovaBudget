@@ -38,18 +38,18 @@ async def export_standard(
     request: Request,
     facility_id: UUID,
     user: UserDep,
-    dept: str | None = Query(None, description="Comma-separated department UUIDs"),
+    fa: str | None = Query(None, description="Comma-separated functional area UUIDs"),
     phase: str | None = Query(None, description="Project phase filter, e.g. PHASE_1"),
     session: AsyncSession = Depends(get_session),
 ):
-    """Export filtered cost items as Excel with one sheet per department."""
+    """Export filtered cost items as Excel with one sheet per functional area."""
 
-    dept_ids: list[UUID] | None = None
-    if dept:
+    fa_ids: list[UUID] | None = None
+    if fa:
         try:
-            dept_ids = [UUID(d.strip()) for d in dept.split(",") if d.strip()]
+            fa_ids = [UUID(d.strip()) for d in fa.split(",") if d.strip()]
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid department UUID(s)")
+            raise HTTPException(status_code=400, detail="Invalid functional area UUID(s)")
 
     phase_filter: str | None = None
     if phase:
@@ -57,7 +57,7 @@ async def export_standard(
 
     try:
         content, filename = await generate_standard_export(
-            session, facility_id, department_ids=dept_ids, phase=phase_filter,
+            session, facility_id, functional_area_ids=fa_ids, phase=phase_filter,
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

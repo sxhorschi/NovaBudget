@@ -87,22 +87,22 @@ async def test_get_facility_not_found(client: AsyncClient):
 
 
 async def _create_facility_and_work_area(client: AsyncClient) -> tuple[str, str]:
-    """Helper: create a facility + department + work area, return (facility_id, work_area_id)."""
+    """Helper: create a facility + functional area + work area, return (facility_id, work_area_id)."""
     # Create facility
     fac_resp = await client.post("/api/v1/facilities/", json={"name": "Test Facility"})
     fac_id = fac_resp.json()["id"]
 
-    # Create department
-    dept_resp = await client.post(
-        "/api/v1/departments/",
-        json={"facility_id": fac_id, "name": "Test Dept", "budget_total": "100000.00"},
+    # Create functional area
+    fa_resp = await client.post(
+        "/api/v1/functional-areas/",
+        json={"facility_id": fac_id, "name": "Test FA", "budget_total": "100000.00"},
     )
-    dept_id = dept_resp.json()["id"]
+    fa_id = fa_resp.json()["id"]
 
     # Create work area
     wa_resp = await client.post(
         "/api/v1/work-areas/",
-        json={"department_id": dept_id, "name": "Test WA"},
+        json={"functional_area_id": fa_id, "name": "Test WA"},
     )
     wa_id = wa_resp.json()["id"]
 

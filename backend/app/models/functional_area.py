@@ -13,7 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
-    from app.models.budget_adjustment import BudgetAdjustment
+    from app.models.change_cost import ChangeCost
     from app.models.facility import Facility
     from app.models.work_area import WorkArea
 
@@ -41,7 +41,7 @@ class FunctionalArea(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
-    budget_adjustments: Mapped[list[BudgetAdjustment]] = relationship(
+    change_costs: Mapped[list[ChangeCost]] = relationship(
         back_populates="functional_area",
         cascade="all, delete-orphan",
         lazy="selectin",

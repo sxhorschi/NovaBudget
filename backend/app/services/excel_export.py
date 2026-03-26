@@ -167,7 +167,7 @@ async def generate_standard_export(
         ws["A1"] = fa.name
         ws["A1"].font = _TITLE_FONT
 
-        budget = _fa_effective_budget(dept)
+        budget = _fa_effective_budget(fa)
         forecast = sum(
             item.total_amount
             for wa in fa.work_areas
@@ -756,7 +756,7 @@ async def generate_steering_committee_export(
     total_forecast = Decimal(0)
 
     for fa in functional_areas:
-        budget = _fa_effective_budget(dept)
+        budget = _fa_effective_budget(fa)
         committed = sum(
             item.total_amount
             for wa in fa.work_areas

@@ -358,7 +358,3 @@ async def transfer_functional_areas(
     session.add_all(logs)
     await session.flush()
     return transferred
-
-
-# ── Backward-compatible aliases ──────────────────────────────────────────
-transfer_departments = transfer_functional_areas

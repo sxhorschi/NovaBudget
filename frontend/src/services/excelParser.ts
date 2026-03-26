@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import type {
-  Department,
+  FunctionalArea,
   WorkArea,
   CostItem,
   ApprovalStatus,
@@ -23,7 +23,7 @@ export interface ColumnMapping {
 }
 
 export interface ExcelParseResult {
-  departments: Department[];
+  functionalAreas: FunctionalArea[];
   workAreas: WorkArea[];
   costItems: CostItem[];
   warnings: ParseWarning[];
@@ -264,17 +264,17 @@ function colLetter(idx: number): string {
 export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): ExcelParseResult {
   const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
-  const departments: Department[] = [];
+  const functionalAreas: FunctionalArea[] = [];
   const workAreas: WorkArea[] = [];
   const costItems: CostItem[] = [];
   const warnings: ParseWarning[] = [];
   const previewRows: Record<string, unknown>[] = [];
 
-  let nextDeptId = 1000; // Start high to avoid collision with existing data
+  let nextFaId = 1000; // Start high to avoid collision with existing data
   let nextWaId = 1000;
   let nextCiId = 1000;
 
-  function deptIdStr(): string { return `d-imp-${nextDeptId++}`; }
+  function faIdStr(): string { return `fa-imp-${nextFaId++}`; }
   function waIdStr(): string { return `wa-imp-${nextWaId++}`; }
   function ciIdStr(): string { return `ci-imp-${nextCiId++}`; }
 
@@ -283,7 +283,7 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
   // Build column mappings from first detected data sheet
   const columnMappings: ColumnMapping[] = [];
 
-  // Process each sheet as a department
+  // Process each sheet as a functional area
   for (const sheetName of workbook.SheetNames) {
     const ws = workbook.Sheets[sheetName];
     if (!ws) continue;
@@ -344,13 +344,13 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
       }
     }
 
-    // Create department for this sheet
-    const deptId = deptIdStr();
-    const deptName = sheetName.replace(/_/g, ' ');
-    departments.push({
-      id: deptId,
+    // Create functional area for this sheet
+    const faId = faIdStr();
+    const faName = sheetName.replace(/_/g, ' ');
+    functionalAreas.push({
+      id: faId,
       facility_id: facilityId,
-      name: deptName,
+      name: faName,
       budget_total: 0,
     });
 
@@ -370,7 +370,7 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
         if (waName) {
           // Check if we already have this work area
           const existing = workAreas.find(
-            wa => wa.department_id === deptId && wa.name === waName,
+            wa => wa.functional_area_id === faId && wa.name === waName,
           );
           if (existing) {
             currentWorkArea = existing;
@@ -378,7 +378,7 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
             const waId = waIdStr();
             const newWa: WorkArea = {
               id: waId,
-              department_id: deptId,
+              functional_area_id: faId,
               name: waName,
             };
             workAreas.push(newWa);
@@ -394,7 +394,7 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
         const waCellValue = cellStr(row, colMap.WORK_AREA);
         if (waCellValue && !currentWorkArea) {
           const existing = workAreas.find(
-            wa => wa.department_id === deptId && wa.name === waCellValue,
+            wa => wa.functional_area_id === faId && wa.name === waCellValue,
           );
           if (existing) {
             currentWorkArea = existing;
@@ -402,7 +402,7 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
             const waId = waIdStr();
             const newWa: WorkArea = {
               id: waId,
-              department_id: deptId,
+              functional_area_id: faId,
               name: waCellValue,
             };
             workAreas.push(newWa);
@@ -415,7 +415,7 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
           const waId = waIdStr();
           currentWorkArea = {
             id: waId,
-            department_id: deptId,
+            functional_area_id: faId,
             name: 'Allgemein',
           };
           workAreas.push(currentWorkArea);
@@ -478,10 +478,10 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
       }
     }
 
-    // Update department budget total
-    const dept = departments.find(d => d.id === deptId);
-    if (dept) {
-      dept.budget_total = sheetTotal;
+    // Update functional area budget total
+    const fa = functionalAreas.find(d => d.id === faId);
+    if (fa) {
+      fa.budget_total = sheetTotal;
     }
   }
 
@@ -496,7 +496,7 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
   }
 
   return {
-    departments,
+    functionalAreas,
     workAreas,
     costItems,
     warnings,

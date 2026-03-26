@@ -50,11 +50,11 @@ const FilterBar: React.FC<FilterBarProps> = ({
   filteredCount,
   totalCount,
 }) => {
-  const { departments } = useBudgetData();
+  const { functionalAreas } = useBudgetData();
   const { config } = useConfig();
-  const deptOptions = useMemo(
-    () => departments.map((d) => ({ value: String(d.id), label: d.name })),
-    [departments],
+  const faOptions = useMemo(
+    () => functionalAreas.map((d) => ({ value: String(d.id), label: d.name })),
+    [functionalAreas],
   );
   const phaseOptions = useMemo(() => config.phases.map((p) => ({ value: p.id, label: p.label })), [config.phases]);
   const productOptions = useMemo(() => config.products.map((p) => ({ value: p.id, label: p.label })), [config.products]);
@@ -63,13 +63,13 @@ const FilterBar: React.FC<FilterBarProps> = ({
   return (
     <div className="px-6 py-2">
       <div className="flex flex-wrap items-center gap-2">
-        {/* Department */}
+        {/* Functional Area */}
         <FilterChip
-          label="Department"
-          options={deptOptions}
-          selected={filters.departments}
+          label="Functional Area"
+          options={faOptions}
+          selected={filters.functionalAreas}
           onChange={(vals) =>
-            onFilterChange('departments', vals)
+            onFilterChange('functionalAreas', vals)
           }
         />
 

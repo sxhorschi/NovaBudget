@@ -33,12 +33,16 @@ ALLOWED_TRANSITIONS: dict[ApprovalStatus, set[ApprovalStatus]] = {
 
 _STATUS_LABELS: dict[ApprovalStatus, str] = {
     ApprovalStatus.OPEN: "Offen",
+    ApprovalStatus.REVIEWED: "Geprüft",
     ApprovalStatus.SUBMITTED_FOR_APPROVAL: "Zur Freigabe eingereicht",
     ApprovalStatus.APPROVED: "Freigegeben",
     ApprovalStatus.REJECTED: "Abgelehnt",
     ApprovalStatus.ON_HOLD: "Zurückgestellt",
     ApprovalStatus.PENDING_SUPPLIER_NEGOTIATION: "Lieferantenverhandlung ausstehend",
     ApprovalStatus.PENDING_TECHNICAL_CLARIFICATION: "Technische Klärung ausstehend",
+    ApprovalStatus.PURCHASE_ORDER_SENT: "Bestellung versendet",
+    ApprovalStatus.PURCHASE_ORDER_CONFIRMED: "Bestellung bestätigt",
+    ApprovalStatus.DELIVERED: "Geliefert",
     ApprovalStatus.OBSOLETE: "Obsolet",
 }
 
