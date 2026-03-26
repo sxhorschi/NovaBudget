@@ -99,13 +99,13 @@ async def _load_functional_areas(
     facility_id: UUID,
     functional_area_ids: list[UUID] | None = None,
 ) -> list[FunctionalArea]:
-    """Load functional_areas with nested work_areas -> cost_items and budget_adjustments."""
+    """Load functional_areas with nested work_areas -> cost_items and change_costs."""
     stmt = (
         select(FunctionalArea)
         .where(FunctionalArea.facility_id == facility_id)
         .options(
             selectinload(FunctionalArea.work_areas).selectinload(WorkArea.cost_items),
-            selectinload(FunctionalArea.budget_adjustments),
+            selectinload(FunctionalArea.change_costs),
         )
         .order_by(FunctionalArea.name)
     )
@@ -121,7 +121,7 @@ def _fa_effective_budget(fa: FunctionalArea) -> Decimal:
     Matches the canonical definition from aggregation.py.
     """
     base = fa.budget_total or Decimal(0)
-    adj = sum((a.amount or Decimal(0)) for a in fa.budget_adjustments)
+    adj = sum((a.amount or Decimal(0)) for a in fa.change_costs if a.budget_relevant)
     return base + adj
 
 
@@ -196,7 +196,7 @@ async def generate_standard_export(
             "Work Area", "Phase", "Product", "Description", "Amount",
             "Cash Out", "Cost Basis", "Cost Driver", "Basis Description",
             "Assumptions", "Approval Status", "Approval Date",
-            "Zielanpassung", "Comments", "Requester",
+            "Comments", "Requester",
         ]
         for col_idx, header in enumerate(headers, 1):
             cell = ws.cell(row=4, column=col_idx, value=header)
@@ -216,7 +216,7 @@ async def generate_standard_export(
                 if i.approval_status not in EXCLUDED_STATUSES
             )
             ws.cell(row=row, column=1, value=wa.name).font = _SUBTOTAL_FONT
-            for c in range(1, 16):
+            for c in range(1, 15):
                 ws.cell(row=row, column=c).fill = _SUBTOTAL_FILL
                 ws.cell(row=row, column=c).border = _BORDER_MEDIUM
             amt_cell = ws.cell(row=row, column=5, value=float(wa_total))
@@ -239,21 +239,20 @@ async def generate_standard_export(
                 ws.cell(row=row, column=10, value=item.assumptions or "")
                 ws.cell(row=row, column=11, value=_enum_display(item.approval_status))
                 ws.cell(row=row, column=12, value=_date_str(item.approval_date))
-                ws.cell(row=row, column=13, value=float(item.zielanpassung) if item.zielanpassung else "")
-                ws.cell(row=row, column=14, value=item.comments or "")
-                ws.cell(row=row, column=15, value=item.requester or "")
-                for c in range(1, 16):
+                ws.cell(row=row, column=13, value=item.comments or "")
+                ws.cell(row=row, column=14, value=item.requester or "")
+                for c in range(1, 15):
                     ws.cell(row=row, column=c).border = _BORDER_THIN
                 row += 1
 
             row += 1  # blank row between work areas
 
         # Auto-width columns
-        for col_idx in range(1, 16):
+        for col_idx in range(1, 15):
             ws.column_dimensions[get_column_letter(col_idx)].width = 16
         ws.column_dimensions["D"].width = 35  # Description wider
         ws.column_dimensions["J"].width = 25  # Assumptions
-        ws.column_dimensions["O"].width = 20  # Requester
+        ws.column_dimensions["N"].width = 20  # Requester
 
     buf = io.BytesIO()
     wb.save(buf)

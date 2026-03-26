@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import type { Facility, FunctionalArea, FunctionalAreaBudget, WorkArea, CostItem, BudgetAdjustment } from '../types/budget';
+import type { Facility, FunctionalArea, FunctionalAreaBudget, WorkArea, CostItem, ChangeCost } from '../types/budget';
 import { useFacility } from './FacilityContext';
 import * as faApi from '../api/functionalAreas';
 import * as faBudgetApi from '../api/functionalAreaBudgets';
 import * as waApi from '../api/workAreas';
 import * as ciApi from '../api/costItems';
 import { changeStatus as ciChangeStatus } from '../api/costItems';
-import * as adjApi from '../api/budgetAdjustments';
+import * as ccApi from '../api/budgetAdjustments';
 import { dispatchToastEvent } from '../components/common/ToastProvider';
 
 // ---------------------------------------------------------------------------
@@ -18,7 +18,9 @@ export interface BudgetDataContextValue {
   functionalAreas: FunctionalArea[];
   workAreas: WorkArea[];
   costItems: CostItem[];
-  budgetAdjustments: BudgetAdjustment[];
+  changeCosts: ChangeCost[];
+  /** @deprecated Use changeCosts */
+  budgetAdjustments: ChangeCost[];
 
   // CRUD Mutations — all async, backend-first
   updateCostItem: (id: string, data: Partial<CostItem>) => void;
@@ -31,6 +33,8 @@ export interface BudgetDataContextValue {
   updateFunctionalArea: (functionalAreaId: string, data: Partial<Pick<FunctionalArea, 'name' | 'budget_total'>>) => void;
   deleteFunctionalArea: (functionalAreaId: string) => void;
   updateFunctionalAreaBudget: (faId: string, newBudget: number) => void;
+  addChangeCost: (functionalAreaId: string, amount: number, reason: string, category?: string, costDriver?: string, budgetRelevant?: boolean, year?: number) => void;
+  /** @deprecated Use addChangeCost */
   addBudgetAdjustment: (functionalAreaId: string, amount: number, reason: string, category?: string) => void;
 
   // Yearly budget CRUD
@@ -81,7 +85,7 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [functionalAreas, setFunctionalAreas] = useState<FunctionalArea[]>([]);
   const [workAreas, setWorkAreas] = useState<WorkArea[]>([]);
   const [costItems, setCostItems] = useState<CostItem[]>([]);
-  const [budgetAdjustments, setBudgetAdjustments] = useState<BudgetAdjustment[]>([]);
+  const [changeCosts, setChangeCosts] = useState<ChangeCost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // AbortController to cancel stale requests on facility switch
@@ -93,7 +97,7 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setFunctionalAreas([]);
       setWorkAreas([]);
       setCostItems([]);
-      setBudgetAdjustments([]);
+      setChangeCosts([]);
       setIsLoading(false);
       return;
     }
@@ -117,18 +121,18 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setWorkAreas(was);
       setCostItems(cis);
 
-      // Load budget adjustments per functional area
-      const allAdj: BudgetAdjustment[] = [];
+      // Load change costs per functional area
+      const allCC: ChangeCost[] = [];
       for (const fa of fas) {
         try {
-          const adj = await adjApi.listBudgetAdjustments(fa.id);
-          allAdj.push(...adj);
+          const cc = await ccApi.listChangeCosts(fa.id);
+          allCC.push(...cc);
         } catch {
           // Individual functional area fetch failure is non-critical
         }
       }
       if (!controller.signal.aborted) {
-        setBudgetAdjustments(allAdj);
+        setChangeCosts(allCC);
       }
     } catch {
       if (!controller.signal.aborted) {
@@ -205,8 +209,6 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           approval_date: data.approval_date ?? null,
           project_phase: data.project_phase ?? '',
           product: data.product ?? '',
-          zielanpassung: data.zielanpassung ?? null,
-          zielanpassung_reason: data.zielanpassung_reason ?? '',
           comments: data.comments ?? '',
           requester: data.requester ?? null,
         });
@@ -317,29 +319,40 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   }, []);
 
-  // --- Budget Adjustments ---
+  // --- Change Costs ---
 
-  const addBudgetAdjustment = useCallback(
-    (functionalAreaId: string, amount: number, reason: string, category?: string) => {
-      const resolvedCategory = (category as BudgetAdjustment['category']) ?? 'other';
-      adjApi.createBudgetAdjustment({
+  const addChangeCost = useCallback(
+    (functionalAreaId: string, amount: number, reason: string, category?: string, costDriver?: string, budgetRelevant?: boolean, year?: number) => {
+      const resolvedCategory = (category as ChangeCost['category']) ?? 'other';
+      ccApi.createChangeCost({
         functional_area_id: functionalAreaId,
         amount,
         reason,
         category: resolvedCategory,
+        cost_driver: costDriver ?? 'product',
+        budget_relevant: budgetRelevant ?? false,
+        year: year ?? new Date().getFullYear(),
       }).then(() => {
-        // Reload adjustments for this functional area
-        adjApi.listBudgetAdjustments(functionalAreaId).then((adj) => {
-          setBudgetAdjustments((prev) => {
+        // Reload change costs for this functional area
+        ccApi.listChangeCosts(functionalAreaId).then((cc) => {
+          setChangeCosts((prev) => {
             const other = prev.filter((a) => a.functional_area_id !== functionalAreaId);
-            return [...other, ...adj];
+            return [...other, ...cc];
           });
         }).catch(() => {});
       }).catch(() => {
-        dispatchToastEvent('error', 'Failed to create budget adjustment.');
+        dispatchToastEvent('error', 'Failed to create change cost.');
       });
     },
     [],
+  );
+
+  /** @deprecated Use addChangeCost */
+  const addBudgetAdjustment = useCallback(
+    (functionalAreaId: string, amount: number, reason: string, category?: string) => {
+      addChangeCost(functionalAreaId, amount, reason, category);
+    },
+    [addChangeCost],
   );
 
   // --- Yearly Budget CRUD ---
@@ -418,7 +431,8 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       functionalAreas,
       workAreas,
       costItems,
-      budgetAdjustments,
+      changeCosts,
+      budgetAdjustments: changeCosts,
       updateCostItem,
       deleteCostItem,
       createCostItem,
@@ -429,6 +443,7 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       updateFunctionalArea,
       deleteFunctionalArea,
       updateFunctionalAreaBudget,
+      addChangeCost,
       addBudgetAdjustment,
       createYearlyBudget,
       updateYearlyBudget,
@@ -438,11 +453,11 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       isLoading,
     }),
     [
-      facility, functionalAreas, workAreas, costItems, budgetAdjustments,
+      facility, functionalAreas, workAreas, costItems, changeCosts,
       updateCostItem, deleteCostItem, createCostItem,
       createWorkArea, updateWorkArea, deleteWorkArea,
       createFunctionalArea, updateFunctionalArea, deleteFunctionalArea,
-      updateFunctionalAreaBudget, addBudgetAdjustment,
+      updateFunctionalAreaBudget, addChangeCost, addBudgetAdjustment,
       createYearlyBudget, updateYearlyBudget, deleteYearlyBudget,
       bulkImport,
       loadFacilityData, facilityId, isLoading,

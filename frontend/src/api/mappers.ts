@@ -5,7 +5,7 @@ import type {
   WorkArea,
   CostItem,
   ApprovalStatus,
-  BudgetAdjustment,
+  ChangeCost,
   AdjustmentCategory,
 } from '../types/budget';
 
@@ -81,8 +81,6 @@ export function mapCostItemFromApi(data: any): CostItem {
     approval_date: data.approval_date ?? null,
     project_phase: data.project_phase ?? '',
     product: data.product ?? '',
-    zielanpassung: data.zielanpassung != null ? Number(data.zielanpassung) : null,
-    zielanpassung_reason: data.zielanpassung_reason ?? '',
     comments: data.comments ?? '',
     requester: data.requester ?? null,
     created_at: data.created_at,
@@ -90,17 +88,23 @@ export function mapCostItemFromApi(data: any): CostItem {
   };
 }
 
-export function mapBudgetAdjustmentFromApi(data: any): BudgetAdjustment {
+export function mapChangeCostFromApi(data: any): ChangeCost {
   return {
     id: data.id,
     functional_area_id: data.functional_area_id ?? data.department_id,
     amount: Number(data.amount ?? 0),
     reason: data.reason ?? '',
     category: toLower(data.category) as AdjustmentCategory,
+    cost_driver: data.cost_driver ?? '',
+    budget_relevant: data.budget_relevant ?? false,
+    year: Number(data.year ?? 0),
     created_at: data.created_at,
     created_by: data.created_by ?? undefined,
   };
 }
+
+/** @deprecated Use mapChangeCostFromApi */
+export const mapBudgetAdjustmentFromApi = mapChangeCostFromApi;
 
 // ---------------------------------------------------------------------------
 // To API
@@ -129,10 +133,6 @@ export function mapCostItemToApi(item: Partial<CostItem>): Record<string, unknow
   if (item.approval_date !== undefined) payload.approval_date = item.approval_date || null;
   if (item.project_phase !== undefined) payload.project_phase = item.project_phase || null;
   if (item.product !== undefined) payload.product = item.product || null;
-  if (item.zielanpassung !== undefined)
-    payload.zielanpassung = item.zielanpassung;
-  if (item.zielanpassung_reason !== undefined)
-    payload.zielanpassung_reason = item.zielanpassung_reason || null;
   if (item.comments !== undefined) payload.comments = item.comments || null;
   if (item.requester !== undefined) payload.requester = item.requester || null;
 

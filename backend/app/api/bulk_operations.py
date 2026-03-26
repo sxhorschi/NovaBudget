@@ -80,8 +80,6 @@ UPDATABLE_FIELDS: set[str] = {
     "approval_date",
     "project_phase",
     "product",
-    "zielanpassung",
-    "zielanpassung_reason",
     "comments",
 }
 
@@ -447,8 +445,6 @@ async def duplicate_cost_item(
             approval_date=None,
             project_phase=source.project_phase,
             product=source.product,
-            zielanpassung=None,
-            zielanpassung_reason=None,
             comments=source.comments,
         )
         session.add(new_item)

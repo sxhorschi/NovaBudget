@@ -58,9 +58,8 @@ COL_BASIS_DESC = 10      # J
 COL_ASSUMPTIONS = 11     # K
 COL_APPROVAL = 12        # L
 COL_APPROVAL_DATE = 13   # M
-COL_ZIELANPASSUNG = 14   # N
-COL_COMMENTS = 15        # O
-COL_REQUESTER = 16       # P
+COL_COMMENTS = 14        # N
+COL_REQUESTER = 15       # O
 
 DEFAULT_COLUMN_MAP: dict[str, int] = {
     "work_area": COL_WORK_AREA,
@@ -75,7 +74,6 @@ DEFAULT_COLUMN_MAP: dict[str, int] = {
     "assumptions": COL_ASSUMPTIONS,
     "approval": COL_APPROVAL,
     "approval_date": COL_APPROVAL_DATE,
-    "zielanpassung": COL_ZIELANPASSUNG,
     "comments": COL_COMMENTS,
     "requester": COL_REQUESTER,
 }
@@ -93,7 +91,6 @@ HEADER_ALIASES: dict[str, set[str]] = {
     "assumptions": {"assumptions", "annahmen"},
     "approval": {"approval", "approval status", "genehmigung", "approval_status"},
     "approval_date": {"approval date", "freigabedatum", "genehmigungsdatum"},
-    "zielanpassung": {"zielanpassung", "target adjustment"},
     "comments": {"comments", "kommentare", "comment"},
     "requester": {"requester", "anforderer", "requested by"},
 }
@@ -637,8 +634,6 @@ async def import_excel_file(
                 if pr_err:
                     report.add_warning(f"{fa_display_name}, Row {row}: {pr_err}")
 
-                ziel_val = _safe_decimal(_cell_value(ws, row, col_map, "zielanpassung"))
-
                 # Build comments: merge cell comment + formula comment
                 cell_comment = _safe_str(_cell_value(ws, row, col_map, "comments"))
                 comments_parts: list[str] = []
@@ -678,7 +673,6 @@ async def import_excel_file(
                     )
                     existing.project_phase = phase
                     existing.product = product
-                    existing.zielanpassung = ziel_val if ziel_val != Decimal(0) else None
                     existing.comments = final_comments
                     existing.requester = requester_val
                     fa_report.items_updated += 1
@@ -707,7 +701,6 @@ async def import_excel_file(
                         ),
                         project_phase=phase,
                         product=product,
-                        zielanpassung=ziel_val if ziel_val != Decimal(0) else None,
                         comments=final_comments,
                         requester=requester_val,
                     )

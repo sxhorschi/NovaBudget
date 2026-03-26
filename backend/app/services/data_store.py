@@ -1,8 +1,8 @@
 """
 CSV-based persistent data store.
 
-All business data (facilities, functional_areas, work areas, cost items, budget
-adjustments) lives in CSV files under ``backend/data/``.  This module provides
+All business data (facilities, functional_areas, work areas, cost items, change
+costs) lives in CSV files under ``backend/data/``.  This module provides
 typed loaders and savers so the rest of the app never touches raw CSV I/O.
 """
 
@@ -51,12 +51,12 @@ COST_ITEM_FIELDS = [
     "id", "work_area_id", "description", "unit_price", "quantity", "total_amount",
     "approval_status", "approval_date", "project_phase", "product",
     "cost_basis", "cost_driver", "expected_cash_out", "requester",
-    "zielanpassung", "zielanpassung_reason", "basis_description",
-    "assumptions", "comments", "created_at", "updated_at",
+    "basis_description", "assumptions", "comments", "created_at", "updated_at",
 ]
 
-BUDGET_ADJUSTMENT_FIELDS = [
+CHANGE_COST_FIELDS = [
     "id", "functional_area_id", "amount", "reason", "category",
+    "cost_driver", "budget_relevant", "year",
     "created_at", "created_by",
 ]
 
@@ -134,8 +134,6 @@ def load_cost_items() -> list[dict[str, Any]]:
             "cost_driver": r.get("cost_driver", "product"),
             "expected_cash_out": r.get("expected_cash_out", ""),
             "requester": r.get("requester") or None,
-            "zielanpassung": _parse_bool(r.get("zielanpassung", "false")),
-            "zielanpassung_reason": r.get("zielanpassung_reason", ""),
             "basis_description": r.get("basis_description", ""),
             "assumptions": r.get("assumptions", ""),
             "comments": r.get("comments", ""),
@@ -145,8 +143,8 @@ def load_cost_items() -> list[dict[str, Any]]:
     return result
 
 
-def load_budget_adjustments() -> list[dict[str, Any]]:
-    rows = read_csv("budget_adjustments.csv")
+def load_change_costs() -> list[dict[str, Any]]:
+    rows = read_csv("change_costs.csv")
     return [
         {
             "id": r["id"],
@@ -154,6 +152,9 @@ def load_budget_adjustments() -> list[dict[str, Any]]:
             "amount": _parse_number(r.get("amount", "0")),
             "reason": r.get("reason", ""),
             "category": r.get("category", "other"),
+            "cost_driver": r.get("cost_driver", ""),
+            "budget_relevant": _parse_bool(r.get("budget_relevant", "false")),
+            "year": int(r.get("year", "0")),
             "created_at": r.get("created_at", ""),
             "created_by": r.get("created_by") or None,
         }
@@ -172,7 +173,7 @@ def load_all_data() -> dict[str, Any]:
         "functional_areas": load_functional_areas(),
         "workAreas": load_work_areas(),
         "costItems": load_cost_items(),
-        "budgetAdjustments": load_budget_adjustments(),
+        "changeCosts": load_change_costs(),
     }
 
 
@@ -196,8 +197,8 @@ def save_cost_items(rows: list[dict[str, Any]]) -> None:
     write_csv("cost_items.csv", rows, COST_ITEM_FIELDS)
 
 
-def save_budget_adjustments(rows: list[dict[str, Any]]) -> None:
-    write_csv("budget_adjustments.csv", rows, BUDGET_ADJUSTMENT_FIELDS)
+def save_change_costs(rows: list[dict[str, Any]]) -> None:
+    write_csv("change_costs.csv", rows, CHANGE_COST_FIELDS)
 
 
 def save_all_data(data: dict[str, Any]) -> None:
@@ -210,8 +211,8 @@ def save_all_data(data: dict[str, Any]) -> None:
         save_work_areas(data["workAreas"])
     if "costItems" in data:
         save_cost_items(data["costItems"])
-    if "budgetAdjustments" in data:
-        save_budget_adjustments(data["budgetAdjustments"])
+    if "changeCosts" in data:
+        save_change_costs(data["changeCosts"])
 
 
 # ---------------------------------------------------------------------------
@@ -223,7 +224,7 @@ CSV_FILES = [
     "functional_areas.csv",
     "work_areas.csv",
     "cost_items.csv",
-    "budget_adjustments.csv",
+    "change_costs.csv",
     "products.csv",
     "phases.csv",
     "cost_bases.csv",

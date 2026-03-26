@@ -392,8 +392,8 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
 
   return (
     <div className="space-y-0">
-      {/* ---- AMOUNTS (always open) ---- */}
-      <FormSection title="Amounts" defaultOpen={true}>
+      {/* ---- BASISDATEN (always open) ---- */}
+      <FormSection title="Basisdaten" defaultOpen={true}>
         <div className="bg-gradient-to-br from-indigo-50/50 to-white rounded-xl border border-gray-200/80 p-4">
           <div className="grid grid-cols-3 gap-4">
             {/* Unit Price (editable) */}
@@ -423,6 +423,19 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
                 {formatEur(item.total_amount)}
               </div>
             </div>
+          </div>
+
+          {/* Expected Cash-Out */}
+          <div className="mt-3 pt-3 border-t border-gray-200/60">
+            <label className={labelClass}>Expected Cash-Out</label>
+            <input
+              type="month"
+              className={`${inputClass}${dirtyRing('expected_cash_out')}`}
+              value={item.expected_cash_out}
+              onChange={(e) =>
+                onChange('expected_cash_out', e.target.value)
+              }
+            />
           </div>
 
           {/* Price Change Basis — shown when unit_price or quantity changed */}
@@ -518,11 +531,11 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
         </div>
       </FormSection>
 
-      {/* ---- APPROVAL (default open) ---- */}
-      <FormSection title="Approval" defaultOpen={true}>
+      {/* ---- STATUS (default open) ---- */}
+      <FormSection title="Status" defaultOpen={true}>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className={labelClass}>Status</label>
+            <label className={labelClass}>Approval Status</label>
             <div className="mt-1">
               <StatusBadge
                 status={item.approval_status}
@@ -554,42 +567,6 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
         </div>
       </FormSection>
 
-      {/* ---- BUDGET ADJUSTMENT (show when total_amount changed) ---- */}
-      {originalItem && item.total_amount !== originalItem.total_amount && (
-        <FormSection title="Budget Adjustment" defaultOpen={true}>
-          <div className="space-y-3">
-            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
-              <p className="text-sm text-amber-800 font-medium">
-                Amount changed by {item.total_amount - originalItem.total_amount > 0 ? '+' : ''}{formatEur(item.total_amount - originalItem.total_amount)}
-              </p>
-              <p className="text-xs text-amber-600 mt-1">
-                Check &quot;Create Budget Adjustment&quot; to record this change on the functional area budget.
-              </p>
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={!!item.zielanpassung}
-                onChange={(e) => onChange('zielanpassung', e.target.checked ? 1 : null)}
-                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-              />
-              <span className="text-sm text-gray-700">Create Budget Adjustment</span>
-            </label>
-            {!!item.zielanpassung && (
-              <div>
-                <label className={labelClass}>Reason <span className="text-red-400">*</span></label>
-                <textarea
-                  className={`${inputClass} resize-none`}
-                  rows={2}
-                  placeholder="e.g. Product Change CR-2026-042..."
-                  value={item.zielanpassung_reason}
-                  onChange={(e) => onChange('zielanpassung_reason', e.target.value)}
-                />
-              </div>
-            )}
-          </div>
-        </FormSection>
-      )}
 
       {/* ---- DETAILS (default closed) ---- */}
       <FormSection title="Details" defaultOpen={false}>
@@ -623,18 +600,6 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
               rows={3}
               value={item.comments}
               onChange={(e) => onChange('comments', e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className={labelClass}>Expected Cash-Out</label>
-            <input
-              type="month"
-              className={`${inputClass}${dirtyRing('expected_cash_out')}`}
-              value={item.expected_cash_out}
-              onChange={(e) =>
-                onChange('expected_cash_out', e.target.value)
-              }
             />
           </div>
         </div>

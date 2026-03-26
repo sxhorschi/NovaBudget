@@ -57,7 +57,7 @@ export default function CostItemRow({
     >
       {/* Description + last edited */}
       <td className="pl-14 pr-4 py-2.5 max-w-0 overflow-hidden">
-        <span className="truncate block font-medium text-gray-800 text-sm">{item.description}</span>
+        <span className="truncate block font-medium text-gray-800 text-sm" title={item.description}>{item.description}</span>
         {item.updated_at && (
           <span className="text-[10px] text-gray-400 block mt-0.5" title={item.updated_at}>
             {relativeTime(item.updated_at)}
@@ -83,7 +83,7 @@ export default function CostItemRow({
       </td>
 
       {/* Requester */}
-      <td className="px-4 py-2.5 text-sm text-slate-600 whitespace-nowrap truncate max-w-[130px]">
+      <td className="px-4 py-2.5 text-sm text-slate-600 whitespace-nowrap truncate max-w-[130px]" title={item.requester ?? ''}>
         {item.requester ?? ''}
       </td>
 

@@ -78,8 +78,6 @@ export interface CostItem {
   approval_date: string | null;
   project_phase: ProjectPhase;
   product: Product;
-  zielanpassung: number | null;
-  zielanpassung_reason: string;
   comments: string;
   requester?: string | null;
   created_at: string;
@@ -100,7 +98,7 @@ export interface PriceHistory {
   created_at: string;
 }
 
-// --- Budget Adjustment (Zielanpassung) ---
+// --- Change Cost (formerly BudgetAdjustment / Zielanpassung) ---
 
 export type AdjustmentCategory =
   | 'product_change'
@@ -109,15 +107,21 @@ export type AdjustmentCategory =
   | 'optimization'
   | 'other';
 
-export interface BudgetAdjustment {
+export interface ChangeCost {
   id: string;
   functional_area_id: string;
   amount: number; // +80000 oder -20000
   reason: string; // "Produktaenderung CR-2026-042"
   category: AdjustmentCategory;
+  cost_driver: string;
+  budget_relevant: boolean;
+  year: number;
   created_at: string;
   created_by?: string;
 }
+
+/** @deprecated Use ChangeCost instead */
+export type BudgetAdjustment = ChangeCost;
 
 export const ADJUSTMENT_CATEGORY_LABELS: Record<AdjustmentCategory, string> = {
   product_change: 'Product Change',

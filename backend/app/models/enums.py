@@ -28,7 +28,7 @@ class ApprovalStatus(str, enum.Enum):
 
 
 class AdjustmentCategory(str, enum.Enum):
-    """Category of a budget adjustment (Zielanpassung)."""
+    """Category of a change cost (formerly Zielanpassung)."""
 
     PRODUCT_CHANGE = "PRODUCT_CHANGE"
     SUPPLIER_CHANGE = "SUPPLIER_CHANGE"

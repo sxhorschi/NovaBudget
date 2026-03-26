@@ -49,8 +49,6 @@ def _clone_cost_item(
     unit_price = Decimal("0") if reset_amounts else item.unit_price
     quantity = Decimal("1") if reset_amounts else item.quantity
     total_amount = Decimal("0") if reset_amounts else item.total_amount
-    zielanpassung = None if reset_amounts else item.zielanpassung
-    zielanpassung_reason = None if reset_amounts else item.zielanpassung_reason
 
     approval_status = ApprovalStatus.OPEN if reset_status else item.approval_status
     approval_date = None if reset_status else item.approval_date
@@ -71,8 +69,6 @@ def _clone_cost_item(
         approval_date=approval_date,
         project_phase=item.project_phase,
         product=item.product,
-        zielanpassung=zielanpassung,
-        zielanpassung_reason=zielanpassung_reason,
         requester=item.requester,
         comments=item.comments,
     )
@@ -143,8 +139,6 @@ async def transfer_cost_items(
                 item.unit_price = Decimal("0")
                 item.quantity = Decimal("1")
                 item.total_amount = Decimal("0")
-                item.zielanpassung = None
-                item.zielanpassung_reason = None
             item.expected_cash_out = None
             transferred.append(item)
             logs.append(_log_entry(
@@ -236,8 +230,6 @@ async def transfer_work_areas(
                         item.unit_price = Decimal("0")
                         item.quantity = Decimal("1")
                         item.total_amount = Decimal("0")
-                        item.zielanpassung = None
-                        item.zielanpassung_reason = None
                     item.expected_cash_out = None
             transferred.append(wa)
             logs.append(_log_entry(
@@ -346,8 +338,6 @@ async def transfer_functional_areas(
                             item.unit_price = Decimal("0")
                             item.quantity = Decimal("1")
                             item.total_amount = Decimal("0")
-                            item.zielanpassung = None
-                            item.zielanpassung_reason = None
                         item.expected_cash_out = None
             transferred.append(fa)
             logs.append(_log_entry(

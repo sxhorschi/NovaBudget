@@ -934,7 +934,8 @@ const ConfigSection: React.FC<{
   title: string;
   items: ConfigItem[];
   onUpdate: (items: ConfigItem[]) => void;
-}> = ({ title, items, onUpdate }) => {
+  onImmediateSave?: (items: ConfigItem[]) => void;
+}> = ({ title, items, onUpdate, onImmediateSave }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [addLabel, setAddLabel] = useState('');
@@ -972,7 +973,9 @@ const ConfigSection: React.FC<{
     const id = generateId(label);
     if (!id) return;
     if (items.some((it) => it.id === id)) return;
-    onUpdate([...items, { id, label }]);
+    const updated = [...items, { id, label }];
+    onUpdate(updated);
+    if (onImmediateSave) onImmediateSave(updated);
     setAddLabel('');
   };
 
@@ -1178,6 +1181,13 @@ const ConfigurationTab: React.FC = () => {
     setDirty(true);
   };
 
+  const handleSectionImmediateSave = (section: keyof AppConfig) => (items: ConfigItem[]) => {
+    const newConfig = { ...localConfig, [section]: items };
+    setLocalConfig(newConfig);
+    setDirty(false);
+    updateConfig(newConfig);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     await updateConfig(localConfig);
@@ -1271,10 +1281,10 @@ const ConfigurationTab: React.FC = () => {
 
       {/* Config sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ConfigSection title="Products" items={localConfig.products} onUpdate={handleSectionUpdate('products')} />
-        <ConfigSection title="Phases" items={localConfig.phases} onUpdate={handleSectionUpdate('phases')} />
-        <ConfigSection title="Cost Bases" items={localConfig.cost_bases} onUpdate={handleSectionUpdate('cost_bases')} />
-        <ConfigSection title="Cost Drivers" items={localConfig.cost_drivers} onUpdate={handleSectionUpdate('cost_drivers')} />
+        <ConfigSection title="Products" items={localConfig.products} onUpdate={handleSectionUpdate('products')} onImmediateSave={handleSectionImmediateSave('products')} />
+        <ConfigSection title="Phases" items={localConfig.phases} onUpdate={handleSectionUpdate('phases')} onImmediateSave={handleSectionImmediateSave('phases')} />
+        <ConfigSection title="Cost Bases" items={localConfig.cost_bases} onUpdate={handleSectionUpdate('cost_bases')} onImmediateSave={handleSectionImmediateSave('cost_bases')} />
+        <ConfigSection title="Cost Drivers" items={localConfig.cost_drivers} onUpdate={handleSectionUpdate('cost_drivers')} onImmediateSave={handleSectionImmediateSave('cost_drivers')} />
       </div>
     </div>
   );

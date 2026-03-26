@@ -95,8 +95,6 @@ async def clone_facility(
                 unit_price = item.unit_price if include_amounts else Decimal("0")
                 quantity = item.quantity if include_amounts else Decimal("1")
                 total_amount = item.total_amount if include_amounts else Decimal("0")
-                zielanpassung = item.zielanpassung if include_amounts else None
-
                 approval_status = ApprovalStatus.OPEN if reset_statuses else item.approval_status
                 approval_date = None if reset_statuses else item.approval_date
 
@@ -116,8 +114,6 @@ async def clone_facility(
                     approval_date=approval_date,
                     project_phase=item.project_phase,
                     product=item.product,
-                    zielanpassung=zielanpassung,
-                    zielanpassung_reason=item.zielanpassung_reason if include_amounts else None,
                     requester=item.requester,
                     comments=item.comments,
                 )

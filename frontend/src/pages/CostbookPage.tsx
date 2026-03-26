@@ -113,7 +113,6 @@ const CostbookPage: React.FC = () => {
     createFunctionalArea,
     updateFunctionalArea,
     deleteFunctionalArea,
-    addBudgetAdjustment,
   } = useBudgetData();
   const { filters, setFilter, setAllFilters, resetFilters, hasActiveFilters } = useFilterState();
   const { filteredFunctionalAreas, filteredWorkAreas, filteredItems, summary } =
@@ -158,6 +157,9 @@ const CostbookPage: React.FC = () => {
   const [newItemWorkAreaId, setNewItemWorkAreaId] = useState<string | null>(null);
   const [newItemDescription, setNewItemDescription] = useState('');
   const [newItemAmount, setNewItemAmount] = useState('0');
+  const [newItemPhase, setNewItemPhase] = useState('');
+  const [newItemProduct, setNewItemProduct] = useState('');
+  const [newItemCostBasis, setNewItemCostBasis] = useState('');
 
   const [newWAFAId, setNewWAFAId] = useState<string | null>(null);
   const [newWAName, setNewWAName] = useState('');
@@ -285,25 +287,11 @@ const CostbookPage: React.FC = () => {
       if (!data.id) return;
       const itemId = data.id;
 
-      // If amount changed and user checked "Create Budget Adjustment", create one
-      if (data.zielanpassung && data.total_amount !== undefined) {
-        const originalItem = costItems.find((ci) => ci.id === itemId);
-        if (originalItem && data.total_amount !== originalItem.total_amount) {
-          const delta = data.total_amount - originalItem.total_amount;
-          const reason = data.zielanpassung_reason || `Amount change on "${originalItem.description}"`;
-          // Find functional area via work area
-          const wa = workAreas.find((w) => w.id === originalItem.work_area_id);
-          if (wa) {
-            addBudgetAdjustment(wa.functional_area_id, delta, reason, 'scope_change');
-          }
-        }
-      }
-
       updateCostItem(itemId, data);
       setSelectedItem(null);
       toast.success('Item saved');
     },
-    [updateCostItem, costItems, workAreas, addBudgetAdjustment, toast],
+    [updateCostItem, toast],
   );
 
   const handleStatusChange = useCallback(
@@ -416,8 +404,6 @@ const CostbookPage: React.FC = () => {
         assumptions: itemToDuplicate.assumptions,
         project_phase: itemToDuplicate.project_phase,
         product: itemToDuplicate.product,
-        zielanpassung: itemToDuplicate.zielanpassung,
-        zielanpassung_reason: itemToDuplicate.zielanpassung_reason,
         comments: itemToDuplicate.comments,
         requester: user?.name ?? 'Unknown',
         approval_status: 'open',
@@ -449,10 +435,13 @@ const CostbookPage: React.FC = () => {
   const resetCreateForm = useCallback(() => {
     setNewItemDescription('');
     setNewItemAmount('0');
+    setNewItemPhase(config.phases[0]?.id ?? '');
+    setNewItemProduct(config.products[0]?.id ?? '');
+    setNewItemCostBasis(config.cost_bases[0]?.id ?? '');
     setNewWAName('');
     setNewFAName('');
     setNewFABudget('0');
-  }, []);
+  }, [config.phases, config.products, config.cost_bases]);
 
   const openCreate = useCallback(
     (mode: 'item' | 'work-area' | 'functional-area') => {
@@ -476,6 +465,18 @@ const CostbookPage: React.FC = () => {
       toast.error('Please select or create a category (work area) first.');
       return;
     }
+    if (!newItemPhase) {
+      toast.error('Please select a phase.');
+      return;
+    }
+    if (!newItemProduct) {
+      toast.error('Please select a product.');
+      return;
+    }
+    if (!newItemCostBasis) {
+      toast.error('Please select a cost basis.');
+      return;
+    }
 
     const amount = Math.max(0, Number(newItemAmount) || 0);
     if (amount <= 0) {
@@ -492,15 +493,13 @@ const CostbookPage: React.FC = () => {
       total_amount: amount,
       expected_cash_out: now,
       approval_status: 'open',
-      project_phase: filters.phases[0] ?? '',
-      product: filters.products[0] ?? '',
-      cost_basis: '',
+      project_phase: newItemPhase,
+      product: newItemProduct,
+      cost_basis: newItemCostBasis,
       cost_driver: '',
       basis_description: '',
       assumptions: '',
       comments: '',
-      zielanpassung: null,
-      zielanpassung_reason: '',
       approval_date: null,
       requester: user?.name ?? 'Unknown',
     });
@@ -516,9 +515,10 @@ const CostbookPage: React.FC = () => {
     newItemDescription,
     newItemWorkAreaId,
     newItemAmount,
+    newItemPhase,
+    newItemProduct,
+    newItemCostBasis,
     createCostItem,
-    filters.phases,
-    filters.products,
     newItemFAId,
     setAllFilters,
     closeCreate,
@@ -790,6 +790,42 @@ const CostbookPage: React.FC = () => {
                       placeholder="0"
                       className="w-full rounded-md border border-gray-300 py-2 text-sm tabular-nums"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Phase <span className="text-red-400">*</span></label>
+                    <select
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      value={newItemPhase}
+                      onChange={(e) => setNewItemPhase(e.target.value)}
+                    >
+                      {config.phases.map((p) => (
+                        <option key={p.id} value={p.id}>{p.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Product <span className="text-red-400">*</span></label>
+                    <select
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      value={newItemProduct}
+                      onChange={(e) => setNewItemProduct(e.target.value)}
+                    >
+                      {config.products.map((p) => (
+                        <option key={p.id} value={p.id}>{p.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Cost Basis <span className="text-red-400">*</span></label>
+                    <select
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      value={newItemCostBasis}
+                      onChange={(e) => setNewItemCostBasis(e.target.value)}
+                    >
+                      {config.cost_bases.map((cb) => (
+                        <option key={cb.id} value={cb.id}>{cb.label}</option>
+                      ))}
+                    </select>
                   </div>
                 </>
               )}

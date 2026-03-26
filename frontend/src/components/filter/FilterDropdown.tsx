@@ -159,7 +159,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
                 onChange={() => toggleOption(option.value)}
                 className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer"
               />
-              <span className="text-sm text-gray-700 select-none truncate">
+              <span className="text-sm text-gray-700 select-none truncate" title={option.label}>
                 {option.label}
               </span>
             </label>

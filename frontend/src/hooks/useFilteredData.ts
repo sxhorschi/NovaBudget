@@ -44,7 +44,7 @@ export function useFilteredData(filters: FilterState): FilteredData {
     functionalAreas: allFunctionalAreas,
     workAreas: allWorkAreas,
     costItems: allCostItems,
-    budgetAdjustments,
+    changeCosts,
   } = useBudgetData();
 
   const searchIndex = useMemo(() => {
@@ -134,9 +134,9 @@ export function useFilteredData(filters: FilterState): FilteredData {
             ci.approval_status !== 'obsolete',
           )
           .reduce((s, ci) => s + ci.total_amount, 0);
-        const faAdjustments = budgetAdjustments
-          .filter((adj) => adj.functional_area_id === fa.id)
-          .reduce((sum, adj) => sum + adj.amount, 0);
+        const faAdjustments = changeCosts
+          .filter((cc) => cc.functional_area_id === fa.id && cc.budget_relevant)
+          .reduce((sum, cc) => sum + cc.amount, 0);
         const faYearlyTotal = (fa.budgets ?? []).reduce((s, b) => s + b.amount, 0);
         const faBudget = (faYearlyTotal > 0 ? faYearlyTotal : fa.budget_total) + faAdjustments;
         if (faTotal > faBudget) {
@@ -167,7 +167,7 @@ export function useFilteredData(filters: FilterState): FilteredData {
       )
       .reduce((sum, ci) => sum + ci.total_amount, 0);
 
-    // Budget = Yearly budgets sum (if available) or budget_total + Zielanpassungen
+    // Budget = Yearly budgets sum (if available) or budget_total + change costs
     const filteredFaIds = new Set(filteredFunctionalAreas.map((d) => d.id));
     const baseBudget = filteredFunctionalAreas.reduce(
       (sum, d) => {
@@ -177,9 +177,9 @@ export function useFilteredData(filters: FilterState): FilteredData {
       },
       0,
     );
-    const adjustmentTotal = budgetAdjustments
-      .filter((adj) => filteredFaIds.has(adj.functional_area_id))
-      .reduce((sum, adj) => sum + adj.amount, 0);
+    const adjustmentTotal = changeCosts
+      .filter((cc) => filteredFaIds.has(cc.functional_area_id) && cc.budget_relevant)
+      .reduce((sum, cc) => sum + cc.amount, 0);
     const budget = baseBudget + adjustmentTotal;
 
     // Remaining = Budget - Forecast
@@ -207,7 +207,7 @@ export function useFilteredData(filters: FilterState): FilteredData {
     allFunctionalAreas,
     allWorkAreas,
     allCostItems,
-    budgetAdjustments,
+    changeCosts,
     searchIndex,
   ]);
 }

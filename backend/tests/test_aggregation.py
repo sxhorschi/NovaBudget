@@ -3,7 +3,7 @@
 Business logic per Otto v4:
 - Committed   = SUM(total_amount) WHERE status = APPROVED
 - Forecast    = SUM(total_amount) WHERE status NOT IN (REJECTED, OBSOLETE)
-- Budget      = functional_area.budget_total + SUM(budget_adjustments.amount)
+- Budget      = functional_area.budget_total + SUM(change_costs.amount WHERE budget_relevant=true)
 - Remaining   = Budget - Forecast
 - Cost of Completion = Forecast - Committed
 """

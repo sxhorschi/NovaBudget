@@ -64,7 +64,7 @@ from app.models.facility import Facility
 from app.models.functional_area import FunctionalArea
 from app.models.work_area import WorkArea
 from app.models.cost_item import CostItem
-from app.models.budget_adjustment import BudgetAdjustment
+from app.models.change_cost import ChangeCost
 from app.models.enums import (
     AdjustmentCategory,
     ApprovalStatus,
@@ -252,7 +252,6 @@ async def sample_data(session: AsyncSession):
                     approval_date=date(2026, 3, 1) if status == ApprovalStatus.APPROVED else None,
                     project_phase=phases[item_idx % len(phases)],
                     product=products[item_idx % len(products)],
-                    zielanpassung=None,
                     comments=None,
                     created_at=now,
                     updated_at=now,

@@ -6,7 +6,7 @@ import { formatEUR } from '../costbook/AmountCell';
 import SidePanelForm from './SidePanelForm';
 import AttachmentList from './AttachmentList';
 import DecisionLog from './DecisionLog';
-import BudgetAdjustmentHistory from './BudgetAdjustmentHistory';
+import ChangeCostHistory from './BudgetAdjustmentHistory';
 import PriceTimeline from './PriceTimeline';
 
 function isDraftDirty(draft: CostItem | null, item: CostItem | null): boolean {
@@ -312,13 +312,13 @@ const SidePanel: React.FC<SidePanelProps> = ({
           <SidePanelForm item={draft} originalItem={item} onChange={handleFieldChange} />
         )}
 
-        {/* ---- Budget Adjustments (collapsible, default closed unless active) ---- */}
+        {/* ---- Change Costs (collapsible, default closed) ---- */}
         {functionalAreaId != null && functionalAreaBudget != null && (
           <CollapsibleSection
-            title="Budget Adjustments"
-            defaultOpen={!!item.zielanpassung}
+            title="Change Costs"
+            defaultOpen={false}
           >
-            <BudgetAdjustmentHistory
+            <ChangeCostHistory
               functionalAreaId={functionalAreaId}
               originalBudget={functionalAreaBudget}
             />

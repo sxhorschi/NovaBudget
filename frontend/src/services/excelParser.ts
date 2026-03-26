@@ -53,8 +53,7 @@ const COL = {
   ASSUMPTIONS: 10,    // K
   APPROVAL: 11,       // L
   APPROVAL_DATE: 12,  // M
-  ZIELANPASSUNG: 13,  // N
-  COMMENTS: 14,       // O
+  COMMENTS: 13,       // N
 } as const;
 
 type ColumnKey = keyof typeof COL;
@@ -73,7 +72,6 @@ const HEADER_ALIASES: Record<ColumnKey, string[]> = {
   ASSUMPTIONS: ['assumptions', 'annahmen'],
   APPROVAL: ['approval', 'approval status', 'genehmigung', 'status'],
   APPROVAL_DATE: ['approval date', 'freigabedatum', 'genehmigungsdatum'],
-  ZIELANPASSUNG: ['zielanpassung', 'target adjustment'],
   COMMENTS: ['comments', 'comment', 'kommentare'],
 };
 
@@ -90,7 +88,6 @@ const COLUMN_NAMES: Record<number, string> = {
   [COL.ASSUMPTIONS]: 'Annahmen',
   [COL.APPROVAL]: 'Genehmigungsstatus',
   [COL.APPROVAL_DATE]: 'Genehmigungsdatum',
-  [COL.ZIELANPASSUNG]: 'Zielanpassung',
   [COL.COMMENTS]: 'Kommentare',
 };
 
@@ -352,6 +349,7 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
       facility_id: facilityId,
       name: faName,
       budget_total: 0,
+      budgets: [],
     });
 
     let currentWorkArea: WorkArea | null = null;
@@ -433,8 +431,6 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
         }
 
         const description = cellStr(row, colMap.DESCRIPTION) ?? '';
-        const zielVal = cellNum(row, colMap.ZIELANPASSUNG);
-
         const costItem: CostItem = {
           id: ciIdStr(),
           work_area_id: currentWorkArea.id,
@@ -451,8 +447,6 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
           approval_date: cellDateOrNull(row, colMap.APPROVAL_DATE),
           project_phase: normalizeEnumValue(row[colMap.PHASE]) || 'phase_1',
           product: normalizeEnumValue(row[colMap.PRODUCT]) || 'overall',
-          zielanpassung: zielVal !== 0 ? zielVal : null,
-          zielanpassung_reason: zielVal !== 0 ? String(zielVal) : '',
           comments: cellStr(row, colMap.COMMENTS) ?? '',
           created_at: now,
           updated_at: now,

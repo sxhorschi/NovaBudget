@@ -44,9 +44,6 @@ class CostItemSearchParams:
     cash_out_from: date | None = None
     cash_out_to: date | None = None
 
-    # boolean flags
-    zielanpassung: bool | None = None
-
     # sorting
     sort_by: str = "created_at"
     sort_dir: str = "asc"
@@ -123,18 +120,6 @@ def _build_base_query(params: CostItemSearchParams) -> Select:
 
     if params.cash_out_to is not None:
         stmt = stmt.where(CostItem.expected_cash_out <= params.cash_out_to)
-
-    # -- boolean: only items with Zielanpassung --
-    if params.zielanpassung is True:
-        stmt = stmt.where(CostItem.zielanpassung.isnot(None))
-        stmt = stmt.where(CostItem.zielanpassung != Decimal("0"))
-    elif params.zielanpassung is False:
-        stmt = stmt.where(
-            or_(
-                CostItem.zielanpassung.is_(None),
-                CostItem.zielanpassung == Decimal("0"),
-            )
-        )
 
     return stmt
 
