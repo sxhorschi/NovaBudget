@@ -118,6 +118,9 @@ async def main() -> None:
 
     await seed_users()
     await seed_structure()
+    # Config data (products, phases, cost_bases, cost_drivers) is seeded by
+    # Alembic migration 003_config_to_db using INSERT ... ON CONFLICT DO NOTHING.
+    # No additional seeding is needed here.
     await engine.dispose()
 
     print("Seeding complete.")

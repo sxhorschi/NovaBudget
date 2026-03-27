@@ -1,51 +1,59 @@
 """Centralized configuration service.
 
 Reads and writes the application config (products, phases, cost bases, cost drivers)
-from CSV files in backend/data/ so they are consistent with the rest of the data store.
+from the config_items table in PostgreSQL.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from app.services.data_store import read_csv, write_csv
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-# Module-level cache
-_config_cache: dict[str, Any] | None = None
+from app.models.config_item import ConfigItem
 
-# Mapping from config key to CSV filename
-_CONFIG_FILES: dict[str, str] = {
-    "products": "products.csv",
-    "phases": "phases.csv",
-    "cost_bases": "cost_bases.csv",
-    "cost_drivers": "cost_drivers.csv",
+# Mapping from DB category value → config dict key
+_CATEGORY_TO_KEY: dict[str, str] = {
+    "product": "products",
+    "phase": "phases",
+    "cost_basis": "cost_bases",
+    "cost_driver": "cost_drivers",
 }
 
-_CONFIG_FIELDS = ["id", "label"]
+# Mapping from config dict key → DB category value
+_KEY_TO_CATEGORY: dict[str, str] = {v: k for k, v in _CATEGORY_TO_KEY.items()}
 
 
-def load_config() -> dict[str, Any]:
-    """Read all config CSV files and return a unified dict. Caches in a module-level variable."""
-    global _config_cache
-    if _config_cache is not None:
-        return _config_cache
+async def load_config(session: AsyncSession) -> dict[str, Any]:
+    """Read all config items from the DB and return a unified dict."""
+    result = await session.execute(
+        select(ConfigItem).order_by(ConfigItem.category, ConfigItem.sort_order)
+    )
+    items = result.scalars().all()
 
-    config: dict[str, Any] = {}
-    for key, filename in _CONFIG_FILES.items():
-        rows = read_csv(filename)
-        config[key] = [{"id": r["id"], "label": r["label"]} for r in rows]
+    config: dict[str, Any] = {"products": [], "phases": [], "cost_bases": [], "cost_drivers": []}
+    for item in items:
+        key = _CATEGORY_TO_KEY.get(item.category)
+        if key:
+            config[key].append({"id": item.id, "label": item.label})
+    return config
 
-    _config_cache = config
-    return _config_cache
 
-
-def save_config(data: dict[str, Any]) -> None:
-    """Write config data to CSV files and clear the cache."""
-    global _config_cache
-
-    for key, filename in _CONFIG_FILES.items():
-        if key in data:
-            items = data[key]
-            write_csv(filename, items, _CONFIG_FIELDS)
-
-    _config_cache = None
+async def save_config(session: AsyncSession, data: dict[str, Any]) -> None:
+    """Write config data to the DB (delete-then-reinsert per category)."""
+    for key, category in _KEY_TO_CATEGORY.items():
+        if key not in data:
+            continue
+        # Delete existing rows for this category, then re-insert in given order
+        await session.execute(delete(ConfigItem).where(ConfigItem.category == category))
+        for sort_order, item in enumerate(data[key]):
+            session.add(
+                ConfigItem(
+                    id=item["id"],
+                    category=category,
+                    label=item["label"],
+                    sort_order=sort_order,
+                )
+            )
+    await session.commit()

@@ -5,6 +5,7 @@ from app.models.audit_log import AuditLog
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.change_cost import ChangeCost
 from app.models.comment import Comment
+from app.models.config_item import ConfigItem
 from app.models.cost_item import CostItem
 from app.models.functional_area import FunctionalArea
 from app.models.functional_area_budget import FunctionalAreaBudget
@@ -28,6 +29,7 @@ __all__ = [
     "Base",
     "ChangeCost",
     "Comment",
+    "ConfigItem",
     "TimestampMixin",
     "UUIDPrimaryKeyMixin",
     "ApprovalStatus",

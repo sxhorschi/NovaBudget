@@ -7,8 +7,10 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import UserDep, require_role
+from app.db import get_session
 from app.services.config_service import load_config, save_config
 
 router = APIRouter(prefix="/api/v1/config", tags=["config"])
@@ -34,16 +36,16 @@ def _find_logo() -> Path | None:
 
 
 @router.get("/")
-async def get_config():
+async def get_config(session: AsyncSession = Depends(get_session)):
     """Return the full application config. No auth required — everyone needs it."""
-    return load_config()
+    return await load_config(session)
 
 
 @router.put("/", dependencies=[Depends(require_role("admin"))])
-async def update_config(data: dict, user: UserDep):
+async def update_config(data: dict, user: UserDep, session: AsyncSession = Depends(get_session)):
     """Update the application config. Admin only."""
-    save_config(data)
-    return load_config()
+    await save_config(session, data)
+    return await load_config(session)
 
 
 @router.get("/logo")
