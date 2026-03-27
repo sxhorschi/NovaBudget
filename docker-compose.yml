@@ -44,6 +44,30 @@ services:
       db:
         condition: service_healthy
 
+  backup:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      PGPASSWORD: postgres
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_KEEP: ${BACKUP_KEEP:-30}
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+        echo '[backup] Service started. First backup in 1 hour, then every $${BACKUP_INTERVAL_HOURS}h.';
+        sleep 3600;
+        while true; do
+          FILE=/backups/scheduled_$$(date +%Y%m%d_%H%M%S).sql;
+          pg_dump -h db -U postgres budget > $$FILE && echo \"[backup] Done: $$FILE ($$(du -sh $$FILE | cut -f1))\" || echo '[backup] ERROR: dump failed';
+          ls -t /backups/scheduled_*.sql 2>/dev/null | tail -n +$$(( BACKUP_KEEP + 1 )) | xargs -r rm --;
+          sleep $$(( BACKUP_INTERVAL_HOURS * 3600 ));
+        done
+      "
+
   frontend:
     build:
       context: ./frontend
