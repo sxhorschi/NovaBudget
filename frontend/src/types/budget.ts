@@ -78,10 +78,19 @@ export interface CostItem {
   approval_date: string | null;
   project_phase: ProjectPhase;
   product: Product;
-  comments: string;
   requester?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// --- Comment types ---
+
+export interface Comment {
+  id: string;
+  cost_item_id: string;
+  user_name: string;
+  text: string;
+  created_at: string;
 }
 
 // --- Price History ---

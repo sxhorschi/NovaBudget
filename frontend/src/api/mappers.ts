@@ -81,7 +81,6 @@ export function mapCostItemFromApi(data: any): CostItem {
     approval_date: data.approval_date ?? null,
     project_phase: data.project_phase ?? '',
     product: data.product ?? '',
-    comments: data.comments ?? '',
     requester: data.requester ?? null,
     created_at: data.created_at,
     updated_at: data.updated_at,
@@ -133,7 +132,6 @@ export function mapCostItemToApi(item: Partial<CostItem>): Record<string, unknow
   if (item.approval_date !== undefined) payload.approval_date = item.approval_date || null;
   if (item.project_phase !== undefined) payload.project_phase = item.project_phase || null;
   if (item.product !== undefined) payload.product = item.product || null;
-  if (item.comments !== undefined) payload.comments = item.comments || null;
   if (item.requester !== undefined) payload.requester = item.requester || null;
 
   // PriceHistory: when price/quantity changes, include the cost basis reason

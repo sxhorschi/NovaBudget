@@ -48,7 +48,7 @@ function deriveDecisions(item: CostItem, costBasisLabel: string): DecisionEntry[
       icon: AlertTriangle,
       iconColor: 'text-red-500',
       text: 'Rejected',
-      detail: item.comments || undefined,
+      detail: undefined,
     });
   } else if (item.approval_status === 'on_hold') {
     entries.push({
@@ -56,7 +56,7 @@ function deriveDecisions(item: CostItem, costBasisLabel: string): DecisionEntry[
       icon: Clock,
       iconColor: 'text-amber-500',
       text: 'Set to On Hold',
-      detail: item.comments || undefined,
+      detail: undefined,
     });
   } else if (
     item.approval_status === 'pending_supplier_negotiation' ||
@@ -67,7 +67,7 @@ function deriveDecisions(item: CostItem, costBasisLabel: string): DecisionEntry[
       icon: Clock,
       iconColor: 'text-blue-500',
       text: STATUS_LABELS[item.approval_status],
-      detail: item.comments || undefined,
+      detail: undefined,
     });
   } else if (item.approval_status === 'submitted_for_approval') {
     entries.push({
@@ -75,7 +75,7 @@ function deriveDecisions(item: CostItem, costBasisLabel: string): DecisionEntry[
       icon: FileText,
       iconColor: 'text-yellow-500',
       text: 'Submitted for approval',
-      detail: item.comments || undefined,
+      detail: undefined,
     });
   }
 

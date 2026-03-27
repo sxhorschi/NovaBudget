@@ -84,7 +84,7 @@ async def list_cost_items(
     product: str | None = Query(None, description="Comma-separated: ATLAS,ORION"),
     status: str | None = Query(None, description="Comma-separated: APPROVED,OPEN"),
     cost_basis: str | None = Query(None, description="Comma-separated cost bases"),
-    q: str | None = Query(None, description="Free-text search in description, assumptions, comments"),
+    q: str | None = Query(None, description="Free-text search in description, assumptions"),
     min_amount: Decimal | None = None,
     max_amount: Decimal | None = None,
     cash_out_from: date | None = None,

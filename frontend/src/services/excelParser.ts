@@ -447,7 +447,6 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
           approval_date: cellDateOrNull(row, colMap.APPROVAL_DATE),
           project_phase: normalizeEnumValue(row[colMap.PHASE]) || 'phase_1',
           product: normalizeEnumValue(row[colMap.PRODUCT]) || 'overall',
-          comments: cellStr(row, colMap.COMMENTS) ?? '',
           created_at: now,
           updated_at: now,
         };

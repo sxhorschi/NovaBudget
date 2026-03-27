@@ -590,9 +590,6 @@ async def import_excel_file(
                     )
                     continue
 
-                # Formula comment: if the amount cell was a formula, note it
-                formula_comment = _extract_formula_comment(ws_form, row, col_map["amount"])
-
                 # Parse enum fields with error tracking
                 approval_status, approval_err = _parse_enum(
                     ApprovalStatus,
@@ -634,15 +631,6 @@ async def import_excel_file(
                 if pr_err:
                     report.add_warning(f"{fa_display_name}, Row {row}: {pr_err}")
 
-                # Build comments: merge cell comment + formula comment
-                cell_comment = _safe_str(_cell_value(ws, row, col_map, "comments"))
-                comments_parts: list[str] = []
-                if cell_comment:
-                    comments_parts.append(cell_comment)
-                if formula_comment:
-                    comments_parts.append(formula_comment)
-                final_comments = " | ".join(comments_parts) if comments_parts else None
-
                 # ── Duplicate detection ───────────────────────────────────
                 existing = await _find_existing_item(
                     session, current_work_area.id, description,
@@ -673,7 +661,6 @@ async def import_excel_file(
                     )
                     existing.project_phase = phase
                     existing.product = product
-                    existing.comments = final_comments
                     existing.requester = requester_val
                     fa_report.items_updated += 1
                 else:
@@ -701,7 +688,6 @@ async def import_excel_file(
                         ),
                         project_phase=phase,
                         product=product,
-                        comments=final_comments,
                         requester=requester_val,
                     )
                     session.add(cost_item)

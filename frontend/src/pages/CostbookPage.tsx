@@ -404,7 +404,6 @@ const CostbookPage: React.FC = () => {
         assumptions: itemToDuplicate.assumptions,
         project_phase: itemToDuplicate.project_phase,
         product: itemToDuplicate.product,
-        comments: itemToDuplicate.comments,
         requester: user?.name ?? 'Unknown',
         approval_status: 'open',
       });
@@ -499,7 +498,6 @@ const CostbookPage: React.FC = () => {
       cost_driver: '',
       basis_description: '',
       assumptions: '',
-      comments: '',
       approval_date: null,
       requester: user?.name ?? 'Unknown',
     });

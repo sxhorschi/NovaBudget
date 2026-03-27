@@ -70,7 +70,6 @@ def _clone_cost_item(
         project_phase=item.project_phase,
         product=item.product,
         requester=item.requester,
-        comments=item.comments,
     )
 
 

@@ -32,6 +32,7 @@ from app.api.users import router as users_router
 from app.api.config import router as config_router
 from app.api.auth_api import router as auth_router
 from app.api.functional_area_budgets import router as functional_area_budgets_router
+from app.api.comments import router as comments_router
 from app.api.price_history import router as price_history_router
 
 
@@ -136,6 +137,7 @@ app.include_router(config_router)
 app.include_router(auth_router)
 app.include_router(functional_area_budgets_router)
 app.include_router(price_history_router)
+app.include_router(comments_router)
 
 
 # ── Health check ─────────────────────────────────────────────────────────

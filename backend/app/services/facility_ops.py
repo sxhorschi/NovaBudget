@@ -115,7 +115,6 @@ async def clone_facility(
                     project_phase=item.project_phase,
                     product=item.product,
                     requester=item.requester,
-                    comments=item.comments,
                 )
                 session.add(new_item)
 

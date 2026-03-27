@@ -593,15 +593,6 @@ const SidePanelForm: React.FC<SidePanelFormProps> = ({ item, originalItem, onCha
             />
           </div>
 
-          <div>
-            <label className={labelClass}>Comments</label>
-            <textarea
-              className={`${inputClass} resize-none${dirtyRing('comments')}`}
-              rows={3}
-              value={item.comments}
-              onChange={(e) => onChange('comments', e.target.value)}
-            />
-          </div>
         </div>
       </FormSection>
     </div>

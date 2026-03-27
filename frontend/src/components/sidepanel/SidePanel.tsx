@@ -5,6 +5,7 @@ import { getFAColor } from '../../styles/design-tokens';
 import { formatEUR } from '../costbook/AmountCell';
 import SidePanelForm from './SidePanelForm';
 import AttachmentList from './AttachmentList';
+import CommentThread from './CommentThread';
 import DecisionLog from './DecisionLog';
 import ChangeCostHistory from './BudgetAdjustmentHistory';
 import PriceTimeline from './PriceTimeline';
@@ -310,6 +311,13 @@ const SidePanel: React.FC<SidePanelProps> = ({
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {draft && (
           <SidePanelForm item={draft} originalItem={item} onChange={handleFieldChange} />
+        )}
+
+        {/* ---- Kommentare (collapsible, default closed) ---- */}
+        {item?.id && (
+          <CollapsibleSection title="Kommentare" defaultOpen={false}>
+            <CommentThread costItemId={String(item.id)} />
+          </CollapsibleSection>
         )}
 
         {/* ---- Change Costs (collapsible, default closed) ---- */}

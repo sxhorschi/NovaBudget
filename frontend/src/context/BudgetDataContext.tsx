@@ -209,7 +209,6 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           approval_date: data.approval_date ?? null,
           project_phase: data.project_phase ?? '',
           product: data.product ?? '',
-          comments: data.comments ?? '',
           requester: data.requester ?? null,
         });
         setCostItems((prev) => [...prev, newItem]);

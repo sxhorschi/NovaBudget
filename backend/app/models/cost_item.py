@@ -18,6 +18,7 @@ from app.models.enums import (
 )
 
 if TYPE_CHECKING:
+    from app.models.comment import Comment
     from app.models.price_history import PriceHistory
     from app.models.work_area import WorkArea
 
@@ -92,15 +93,17 @@ class CostItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # requester (person who requested/created this item)
     requester: Mapped[str | None] = mapped_column(String(200), nullable=True, default=None)
 
-    # general notes
-    comments: Mapped[str | None] = mapped_column(Text, nullable=True)
-
     # relationships
     work_area: Mapped[WorkArea] = relationship(back_populates="cost_items")
     price_history: Mapped[list[PriceHistory]] = relationship(
         back_populates="cost_item",
         cascade="all, delete-orphan",
         order_by="PriceHistory.created_at",
+    )
+    comments_list: Mapped[list[Comment]] = relationship(
+        back_populates="cost_item",
+        cascade="all, delete-orphan",
+        order_by="Comment.created_at",
     )
 
     def __repr__(self) -> str:

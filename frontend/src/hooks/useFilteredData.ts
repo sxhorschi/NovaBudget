@@ -52,7 +52,7 @@ export function useFilteredData(filters: FilterState): FilteredData {
     for (const ci of allCostItems) {
       index.set(
         ci.id,
-        normalizeSearchText(`${ci.description} ${ci.assumptions ?? ''} ${ci.comments ?? ''}`),
+        normalizeSearchText(`${ci.description} ${ci.assumptions ?? ''}`),
       );
     }
     return index;

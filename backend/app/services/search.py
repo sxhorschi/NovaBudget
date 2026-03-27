@@ -103,7 +103,6 @@ def _build_base_query(params: CostItemSearchParams) -> Select:
             or_(
                 CostItem.description.ilike(term),
                 CostItem.assumptions.ilike(term),
-                CostItem.comments.ilike(term),
             )
         )
 

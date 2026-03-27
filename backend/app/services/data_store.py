@@ -51,7 +51,7 @@ COST_ITEM_FIELDS = [
     "id", "work_area_id", "description", "unit_price", "quantity", "total_amount",
     "approval_status", "approval_date", "project_phase", "product",
     "cost_basis", "cost_driver", "expected_cash_out", "requester",
-    "basis_description", "assumptions", "comments", "created_at", "updated_at",
+    "basis_description", "assumptions", "created_at", "updated_at",
 ]
 
 CHANGE_COST_FIELDS = [
@@ -136,7 +136,6 @@ def load_cost_items() -> list[dict[str, Any]]:
             "requester": r.get("requester") or None,
             "basis_description": r.get("basis_description", ""),
             "assumptions": r.get("assumptions", ""),
-            "comments": r.get("comments", ""),
             "created_at": r.get("created_at", ""),
             "updated_at": r.get("updated_at", ""),
         })

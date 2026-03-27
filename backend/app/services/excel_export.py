@@ -239,8 +239,7 @@ async def generate_standard_export(
                 ws.cell(row=row, column=10, value=item.assumptions or "")
                 ws.cell(row=row, column=11, value=_enum_display(item.approval_status))
                 ws.cell(row=row, column=12, value=_date_str(item.approval_date))
-                ws.cell(row=row, column=13, value=item.comments or "")
-                ws.cell(row=row, column=14, value=item.requester or "")
+                ws.cell(row=row, column=13, value=item.requester or "")
                 for c in range(1, 15):
                     ws.cell(row=row, column=c).border = _BORDER_THIN
                 row += 1

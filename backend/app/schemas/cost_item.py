@@ -22,7 +22,6 @@ class CostItemCreate(BaseModel):
     approval_date: date | None = None
     project_phase: str = Field(min_length=1, max_length=200)
     product: str = Field(min_length=1, max_length=200)
-    comments: str | None = Field(default=None, max_length=4000)
     requester: str | None = Field(default=None, max_length=200)
 
 
@@ -44,7 +43,6 @@ class CostItemRead(BaseModel):
     approval_date: date | None = None
     project_phase: str | None = None
     product: str | None = None
-    comments: str | None = None
     requester: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -79,7 +77,6 @@ class CostItemUpdate(BaseModel):
     approval_date: date | None = None
     project_phase: str | None = None
     product: str | None = None
-    comments: str | None = Field(default=None, max_length=4000)
     requester: str | None = Field(default=None, max_length=200)
     # When unit_price or quantity changes, frontend should provide the reason
     price_change_basis: str | None = Field(
