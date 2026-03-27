@@ -22,6 +22,7 @@ export interface FilteredSummary {
   budget: number;
   committed: number;
   forecast: number;
+  spent: number;
   remaining: number;
   delta: number;
   itemCount: number;
@@ -153,6 +154,11 @@ export function useFilteredData(filters: FilterState): FilteredData {
 
     // ---- Step 6: Compute summary ----
 
+    // Spent = items with status DELIVERED
+    const spent = items
+      .filter((ci) => ci.approval_status === 'delivered')
+      .reduce((sum, ci) => sum + ci.total_amount, 0);
+
     // Committed = nur freigegebene (approved) Items
     const committed = items
       .filter((ci) => ci.approval_status === 'approved')
@@ -196,6 +202,7 @@ export function useFilteredData(filters: FilterState): FilteredData {
         budget,
         committed,
         forecast,
+        spent,
         remaining,
         delta,
         itemCount: items.length,

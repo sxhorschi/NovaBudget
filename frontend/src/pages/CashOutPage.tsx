@@ -40,31 +40,35 @@ import SummaryStrip from '../components/summary/SummaryStrip';
 
 const CURRENT_MONTH = new Date().toISOString().slice(0, 7);
 
-const MONTHS: string[] = [];
-const MONTH_LABELS: Record<string, string> = {};
-const MONTH_SHORT: Record<string, string> = {};
-
-(() => {
-  const now = new Date();
+// Month label helpers (populated dynamically per visible date range)
+function buildMonthMeta(months: string[]): {
+  labels: Record<string, string>;
+  shorts: Record<string, string>;
+} {
   const shortFormatter = new Intl.DateTimeFormat('en', { month: 'short' });
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-    const key = d.toISOString().slice(0, 7);
+  const labels: Record<string, string> = {};
+  const shorts: Record<string, string> = {};
+  for (const key of months) {
+    const [yearStr, monthStr] = key.split('-');
+    const d = new Date(Number(yearStr), Number(monthStr) - 1, 1);
     const short = shortFormatter.format(d);
     const yr = String(d.getFullYear()).slice(2);
-    MONTHS.push(key);
-    MONTH_LABELS[key] = `${short} ${yr}`;
-    MONTH_SHORT[key] = short;
+    labels[key] = `${short} ${yr}`;
+    shorts[key] = short;
   }
-})();
+  return { labels, shorts };
+}
 
+// Committed statuses (approved or later in lifecycle, excluding delivered which is "spent")
+const COMMITTED_STATUSES_FE = new Set<string>([
+  'approved',
+  'purchase_order_sent',
+  'purchase_order_confirmed',
+]);
 
-const QUARTERS: { label: string; months: string[] }[] = [
-  { label: 'Q1 2026', months: ['2026-02', '2026-03', '2026-04'] },
-  { label: 'Q2 2026', months: ['2026-05', '2026-06', '2026-07'] },
-  { label: 'Q3 2026', months: ['2026-08', '2026-09', '2026-10'] },
-  { label: 'Q4 2026', months: ['2026-11', '2026-12', '2027-01'] },
-];
+// Quarters are computed dynamically from data (see useDynamicQuarters below).
+// This constant is kept as a fallback type definition only.
+type QuarterDef = { label: string; months: string[] };
 
 // ---------------------------------------------------------------------------
 // Formatters
@@ -122,6 +126,78 @@ const CashOutPage: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('cashout');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [legendFilter, setLegendFilter] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+
+  // ---- Available years from functional area yearly budgets ----
+  const availableYears = useMemo((): number[] => {
+    const yearSet = new Set<number>();
+    for (const fa of functionalAreas) {
+      for (const b of fa.budgets ?? []) {
+        yearSet.add(b.year);
+      }
+    }
+    return Array.from(yearSet).sort();
+  }, [functionalAreas]);
+
+  // ---- Items filtered by selected year (based on expected_cash_out year) ----
+  const yearFilteredItems = useMemo(() => {
+    if (selectedYear === null) return filteredItems;
+    return filteredItems.filter((ci) => {
+      if (!ci.expected_cash_out) return false;
+      return Number(ci.expected_cash_out.slice(0, 4)) === selectedYear;
+    });
+  }, [filteredItems, selectedYear]);
+
+  // ---- Dynamic MONTHS derived from actual expected_cash_out dates in data ----
+  const dynamicMonths = useMemo((): string[] => {
+    const now = new Date();
+    const currentYear = selectedYear ?? now.getFullYear();
+
+    // Collect all months that appear in data
+    const monthSet = new Set<string>();
+
+    // Always include current year's months as a baseline
+    for (let m = 0; m < 12; m++) {
+      const d = new Date(currentYear, m, 1);
+      monthSet.add(d.toISOString().slice(0, 7));
+    }
+
+    // Add months from actual item data
+    for (const ci of filteredItems) {
+      if (ci.expected_cash_out) {
+        const monthKey = ci.expected_cash_out.slice(0, 7);
+        // Only include months in the selected year if a year is selected
+        if (selectedYear !== null) {
+          if (Number(monthKey.slice(0, 4)) === selectedYear) {
+            monthSet.add(monthKey);
+          }
+        } else {
+          monthSet.add(monthKey);
+        }
+      }
+    }
+
+    return Array.from(monthSet).sort();
+  }, [filteredItems, selectedYear]);
+
+  // ---- Month label maps derived from dynamic months ----
+  const { labels: MONTH_LABELS, shorts: MONTH_SHORT } = useMemo(
+    () => buildMonthMeta(dynamicMonths),
+    [dynamicMonths],
+  );
+
+  // ---- Budget reference lines per year ----
+  // Shows the total yearly budget as a horizontal ReferenceLine on the chart.
+  // We compute total budget per year across all visible functional areas.
+  const budgetByYear = useMemo((): Record<number, number> => {
+    const totals: Record<number, number> = {};
+    for (const fa of filteredFunctionalAreas) {
+      for (const b of fa.budgets ?? []) {
+        totals[b.year] = (totals[b.year] ?? 0) + b.amount;
+      }
+    }
+    return totals;
+  }, [filteredFunctionalAreas]);
 
   // ---- Helper: work area IDs for a functional area ----
   const faWaIds = useCallback(
@@ -135,29 +211,85 @@ const CashOutPage: React.FC = () => {
     [workAreas],
   );
 
-  // ---- Chart data: stacked area per functional area ----
+  // ---- Dynamic quarters computed from dynamic months ----
+  const dynamicQuarters = useMemo((): QuarterDef[] => {
+    if (dynamicMonths.length === 0) return [];
+
+    // Group dynamicMonths into calendar quarters
+    const quarterMap = new Map<string, string[]>();
+    for (const m of dynamicMonths) {
+      const [yearStr, monthStr] = m.split('-');
+      const monthNum = Number(monthStr);
+      const calQ = Math.ceil(monthNum / 3);
+      const key = `Q${calQ} ${yearStr}`;
+      if (!quarterMap.has(key)) quarterMap.set(key, []);
+      quarterMap.get(key)!.push(m);
+    }
+
+    return Array.from(quarterMap.entries()).map(([label, months]) => ({ label, months }));
+  }, [dynamicMonths]);
+
+  // ---- Chart data: stacked area per functional area, three series ----
   const chartData = useMemo(() => {
-    return MONTHS.map((month) => {
+    return dynamicMonths.map((month) => {
       const entry: Record<string, number | string> = {
         month,
         label: MONTH_LABELS[month] ?? month,
       };
-      let total = 0;
+      let forecastTotal = 0;
+      let committedTotal = 0;
+      let spentTotal = 0;
 
       filteredFunctionalAreas.forEach((fa) => {
         const waIds = faWaIds(fa.id);
-        const amount = filteredItems
-          .filter((ci) => waIds.has(ci.work_area_id) && ci.expected_cash_out === month)
+
+        // Forecast: items not rejected/obsolete/delivered (not yet spent)
+        const forecastAmount = yearFilteredItems
+          .filter(
+            (ci) =>
+              waIds.has(ci.work_area_id) &&
+              ci.expected_cash_out === month &&
+              ci.approval_status !== 'rejected' &&
+              ci.approval_status !== 'obsolete' &&
+              ci.approval_status !== 'delivered',
+          )
           .reduce((sum, ci) => sum + ci.total_amount, 0);
 
-        entry[`fa_${fa.id}`] = amount;
-        total += amount;
+        // Committed: approved, purchase_order_sent, purchase_order_confirmed
+        // (delivered is excluded here — it's counted as "spent")
+        const committedAmount = yearFilteredItems
+          .filter(
+            (ci) =>
+              waIds.has(ci.work_area_id) &&
+              ci.expected_cash_out === month &&
+              COMMITTED_STATUSES_FE.has(ci.approval_status),
+          )
+          .reduce((sum, ci) => sum + ci.total_amount, 0);
+
+        // Spent: delivered items only
+        const spentAmount = yearFilteredItems
+          .filter(
+            (ci) =>
+              waIds.has(ci.work_area_id) &&
+              ci.expected_cash_out === month &&
+              ci.approval_status === 'delivered',
+          )
+          .reduce((sum, ci) => sum + ci.total_amount, 0);
+
+        entry[`fa_${fa.id}`] = forecastAmount;
+        entry[`committed_fa_${fa.id}`] = committedAmount;
+        entry[`spent_fa_${fa.id}`] = spentAmount;
+        forecastTotal += forecastAmount;
+        committedTotal += committedAmount;
+        spentTotal += spentAmount;
       });
 
-      entry.total = total;
+      entry.total = forecastTotal;
+      entry.committed_total = committedTotal;
+      entry.spent_total = spentTotal;
       return entry;
     });
-  }, [filteredFunctionalAreas, filteredItems, faWaIds]);
+  }, [dynamicMonths, MONTH_LABELS, filteredFunctionalAreas, yearFilteredItems, faWaIds]);
 
   // ---- Heatmap table data ----
   const tableData = useMemo(() => {
@@ -167,8 +299,8 @@ const CashOutPage: React.FC = () => {
       const row: Record<string, number> = {};
       let rowTotal = 0;
 
-      MONTHS.forEach((month) => {
-        const amount = filteredItems
+      dynamicMonths.forEach((month) => {
+        const amount = yearFilteredItems
           .filter((ci) => waIds.has(ci.work_area_id) && ci.expected_cash_out === month)
           .reduce((sum, ci) => sum + ci.total_amount, 0);
         row[month] = amount;
@@ -178,64 +310,62 @@ const CashOutPage: React.FC = () => {
       row.__total = rowTotal;
       return { functionalArea: fa, months: row };
     });
-  }, [filteredFunctionalAreas, filteredItems, faWaIds]);
+  }, [filteredFunctionalAreas, yearFilteredItems, faWaIds, dynamicMonths]);
 
   // ---- Column totals ----
   const columnTotals = useMemo(() => {
     const totals: Record<string, number> = {};
-    MONTHS.forEach((month) => {
+    dynamicMonths.forEach((month) => {
       totals[month] = tableData.reduce((sum, row) => sum + (row.months[month] || 0), 0);
     });
     totals.__total = tableData.reduce((sum, row) => sum + row.months.__total, 0);
     return totals;
-  }, [tableData]);
+  }, [tableData, dynamicMonths]);
 
   // ---- Max cell value for heatmap ----
   const maxCellValue = useMemo(() => {
     let max = 0;
     tableData.forEach((row) => {
-      MONTHS.forEach((month) => {
+      dynamicMonths.forEach((month) => {
         if (row.months[month] > max) max = row.months[month];
       });
     });
     return max;
-  }, [tableData]);
+  }, [tableData, dynamicMonths]);
 
-  // ---- Quarterly sums ----
+  // ---- Quarterly sums (dynamic) ----
   const quarterlySums = useMemo(() => {
-    return QUARTERS.map((q) => {
+    return dynamicQuarters.map((q) => {
       const total = q.months.reduce((sum, m) => sum + (columnTotals[m] || 0), 0);
       const pct = columnTotals.__total > 0
         ? Math.round((total / columnTotals.__total) * 100)
         : 0;
       return { ...q, total, pct };
     });
-  }, [columnTotals]);
+  }, [dynamicQuarters, columnTotals]);
 
   // ---- Peak month ----
   const peakMonth = useMemo(() => {
-    let maxMonth = MONTHS[0];
+    let maxMonth = dynamicMonths[0] ?? CURRENT_MONTH;
     let maxVal = 0;
-    MONTHS.forEach((m) => {
+    dynamicMonths.forEach((m) => {
       const val = columnTotals[m] || 0;
       if (val > maxVal) {
         maxVal = val;
         maxMonth = m;
       }
     });
-    return { month: maxMonth, label: MONTH_LABELS[maxMonth], value: maxVal };
-  }, [columnTotals]);
+    return { month: maxMonth, label: MONTH_LABELS[maxMonth] ?? maxMonth, value: maxVal };
+  }, [columnTotals, dynamicMonths, MONTH_LABELS]);
 
   // ---- Next 3 months with functional area breakdown ----
   const upcomingMonths = useMemo(() => {
-    const currentMonthIndex = MONTHS.indexOf(CURRENT_MONTH);
-    const upcoming = MONTHS.slice(
-      Math.max(0, currentMonthIndex),
-      Math.min(MONTHS.length, currentMonthIndex + 3),
-    );
+    const currentMonthIndex = dynamicMonths.indexOf(CURRENT_MONTH);
+    const startIdx = currentMonthIndex >= 0 ? currentMonthIndex : 0;
+    const upcoming = dynamicMonths.slice(startIdx, startIdx + 3);
     return upcoming.map((m) => {
       const total = columnTotals[m] || 0;
-      const items = filteredItems.filter((ci) => ci.expected_cash_out === m);
+      const items = yearFilteredItems.filter((ci) => ci.expected_cash_out === m);
 
       // Functional area breakdown
       const faBreakdown: { fa: FunctionalArea; amount: number }[] = [];
@@ -252,18 +382,18 @@ const CashOutPage: React.FC = () => {
 
       return {
         month: m,
-        label: MONTH_LABELS[m],
+        label: MONTH_LABELS[m] ?? m,
         total,
         itemCount: items.length,
         faBreakdown,
       };
     });
-  }, [columnTotals, filteredItems, filteredFunctionalAreas, faWaIds]);
+  }, [columnTotals, yearFilteredItems, filteredFunctionalAreas, faWaIds, dynamicMonths, MONTH_LABELS]);
 
   // ---- Burndown data ----
   const burndownData = useMemo(() => {
     const byMonth: Record<string, number> = {};
-    filteredItems.forEach((item) => {
+    yearFilteredItems.forEach((item) => {
       const m = item.expected_cash_out;
       if (m) {
         byMonth[m] = (byMonth[m] || 0) + item.total_amount;
@@ -288,11 +418,11 @@ const CashOutPage: React.FC = () => {
         remaining: summary.budget - cumulativePlanned,
       };
     });
-  }, [filteredItems, summary.budget]);
+  }, [yearFilteredItems, summary.budget, MONTH_SHORT]);
 
   // ---- Detail items sorted ----
   const detailItems = useMemo(() => {
-    const items = [...filteredItems];
+    const items = [...yearFilteredItems];
 
     const getFANameForItem = (item: CostItem): string => {
       const wa = workAreas.find((w) => w.id === item.work_area_id);
@@ -318,7 +448,7 @@ const CashOutPage: React.FC = () => {
     });
 
     return items;
-  }, [filteredItems, sortField, sortDir, workAreas, functionalAreas]);
+  }, [yearFilteredItems, sortField, sortDir, workAreas, functionalAreas]);
 
   // ---- Functional area lookup helpers ----
   function getFAForItem(item: CostItem): FunctionalArea | undefined {
@@ -385,7 +515,11 @@ const CashOutPage: React.FC = () => {
           budget={summary.budget}
           committed={summary.committed}
           forecast={summary.forecast}
+          spent={summary.spent}
           remaining={summary.remaining}
+          availableYears={availableYears}
+          selectedYear={selectedYear}
+          onYearChange={setSelectedYear}
         />
       </div>
 
@@ -416,7 +550,11 @@ const CashOutPage: React.FC = () => {
                 <div>
                   <h2 className="text-base font-semibold text-gray-900">Cash-Out Timeline</h2>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Monthly cash-out by functional area — Feb 2026 to Jan 2027
+                    Monthly cash-out by functional area —{' '}
+                    {dynamicMonths.length > 0
+                      ? `${MONTH_LABELS[dynamicMonths[0]] ?? dynamicMonths[0]} to ${MONTH_LABELS[dynamicMonths[dynamicMonths.length - 1]] ?? dynamicMonths[dynamicMonths.length - 1]}`
+                      : 'no data'}
+                    {selectedYear !== null && ` · ${selectedYear}`}
                   </p>
                 </div>
                 {/* Clickable legend */}
@@ -457,7 +595,7 @@ const CashOutPage: React.FC = () => {
 
               <div className="px-2">
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
+                  <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
                     <defs>
                       {filteredFunctionalAreas.map((fa) => (
                         <linearGradient
@@ -498,18 +636,23 @@ const CashOutPage: React.FC = () => {
                     <Tooltip
                       content={({ active, payload, label }) => {
                         if (!active || !payload || payload.length === 0) return null;
-                        const visiblePayload = payload.filter((p) => {
+                        // Separate FA areas from aggregate lines
+                        const faPayload = payload.filter((p) => {
+                          const dk = String(p.dataKey);
+                          if (!dk.startsWith('fa_')) return false;
                           if (legendFilter === null) return true;
-                          return p.dataKey === `fa_${legendFilter}`;
+                          return dk === `fa_${legendFilter}`;
                         });
-                        const total = visiblePayload.reduce(
+                        const committedEntry = payload.find((p) => p.dataKey === 'committed_total');
+                        const spentEntry = payload.find((p) => p.dataKey === 'spent_total');
+                        const forecastTotal = faPayload.reduce(
                           (s, p) => s + (typeof p.value === 'number' ? p.value : 0),
                           0,
                         );
                         return (
                           <div className="bg-white/95 backdrop-blur-sm rounded-lg border border-gray-200 shadow-lg p-3 text-sm">
                             <p className="font-semibold text-gray-900 mb-1.5">{label}</p>
-                            {visiblePayload
+                            {faPayload
                               .filter((p) => typeof p.value === 'number' && p.value > 0)
                               .sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0))
                               .map((p) => {
@@ -537,9 +680,21 @@ const CashOutPage: React.FC = () => {
                                 );
                               })}
                             <div className="border-t border-gray-200 mt-1.5 pt-1.5 flex justify-between font-semibold text-gray-900">
-                              <span>Total</span>
-                              <span className="tabular-nums">{formatEur(total)}</span>
+                              <span>Forecast</span>
+                              <span className="tabular-nums">{formatEur(forecastTotal)}</span>
                             </div>
+                            {committedEntry && Number(committedEntry.value) > 0 && (
+                              <div className="flex justify-between text-xs text-emerald-700 mt-0.5">
+                                <span>Committed</span>
+                                <span className="tabular-nums">{formatEur(Number(committedEntry.value))}</span>
+                              </div>
+                            )}
+                            {spentEntry && Number(spentEntry.value) > 0 && (
+                              <div className="flex justify-between text-xs text-indigo-600 mt-0.5">
+                                <span>Spent (Delivered)</span>
+                                <span className="tabular-nums">{formatEur(Number(spentEntry.value))}</span>
+                              </div>
+                            )}
                           </div>
                         );
                       }}
@@ -559,7 +714,45 @@ const CashOutPage: React.FC = () => {
                         />
                       );
                     })}
-                  </AreaChart>
+                    {/* Committed overlay line */}
+                    <Line
+                      type="monotone"
+                      dataKey="committed_total"
+                      name="Committed"
+                      stroke="#059669"
+                      strokeWidth={2}
+                      dot={false}
+                      strokeDasharray="5 3"
+                      legendType="none"
+                    />
+                    {/* Spent overlay line */}
+                    <Line
+                      type="monotone"
+                      dataKey="spent_total"
+                      name="Spent"
+                      stroke="#6366f1"
+                      strokeWidth={2}
+                      dot={false}
+                      strokeDasharray="3 2"
+                      legendType="none"
+                    />
+                    {/* Budget reference lines per year */}
+                    {Object.entries(budgetByYear).map(([year, budget]) => (
+                      <ReferenceLine
+                        key={`budget_${year}`}
+                        y={budget}
+                        stroke="#f59e0b"
+                        strokeWidth={1.5}
+                        strokeDasharray="6 4"
+                        label={{
+                          value: `Budget ${year}: ${fmtCompact(budget)}`,
+                          position: 'insideTopRight',
+                          fontSize: 10,
+                          fill: '#b45309',
+                        }}
+                      />
+                    ))}
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
 
@@ -620,7 +813,7 @@ const CashOutPage: React.FC = () => {
                       <th className="px-3 py-2 text-left font-semibold text-gray-600 uppercase tracking-wider sticky left-0 bg-gray-50/80 z-10 min-w-[130px]">
                         Functional Area
                       </th>
-                      {MONTHS.map((m, colIdx) => {
+                      {dynamicMonths.map(\1) => {
                         const isCurrent = m === CURRENT_MONTH;
                         return (
                           <th
@@ -665,7 +858,7 @@ const CashOutPage: React.FC = () => {
                             <span className="truncate">{row.functionalArea.name}</span>
                           </div>
                         </td>
-                        {MONTHS.map((m, colIdx) => {
+                        {dynamicMonths.map(\1) => {
                           const val = row.months[m] || 0;
                           const t = maxCellValue > 0 ? Math.min(val / maxCellValue, 1) : 0;
                           const bg = val === 0 ? 'transparent' : interpolateColor(t);
@@ -710,7 +903,7 @@ const CashOutPage: React.FC = () => {
                       <td className="px-3 py-2 text-gray-900 sticky left-0 bg-gray-50/80 z-10">
                         Total
                       </td>
-                      {MONTHS.map((m, colIdx) => {
+                      {dynamicMonths.map(\1) => {
                         const isCurrent = m === CURRENT_MONTH;
                         return (
                           <td

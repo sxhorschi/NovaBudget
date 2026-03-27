@@ -11,6 +11,8 @@ interface SummaryStripProps {
   budget: number;
   committed: number;
   forecast: number;
+  /** Sum of all DELIVERED items. */
+  spent?: number;
   remaining: number;
   /** Available budget years for the year selector. */
   availableYears?: number[];
@@ -75,6 +77,7 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
   budget,
   committed,
   forecast,
+  spent = 0,
   remaining,
   availableYears,
   selectedYear,
@@ -138,6 +141,17 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
           barMax={budget || 1}
           barColor="green"
           tooltip="Sum of all approved cost items"
+        />
+
+        {/* Spent */}
+        <KPICard
+          label="Spent"
+          value={format(spent)}
+          textColor="text-emerald-700"
+          barValue={spent}
+          barMax={budget || 1}
+          barColor="green"
+          tooltip="Sum of all delivered items (status: Delivered)"
         />
 
         {/* Forecast */}
