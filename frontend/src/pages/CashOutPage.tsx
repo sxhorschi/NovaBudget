@@ -813,7 +813,7 @@ const CashOutPage: React.FC = () => {
                       <th className="px-3 py-2 text-left font-semibold text-gray-600 uppercase tracking-wider sticky left-0 bg-gray-50/80 z-10 min-w-[130px]">
                         Functional Area
                       </th>
-                      {dynamicMonths.map(\1) => {
+                      {dynamicMonths.map((m) => {
                         const isCurrent = m === CURRENT_MONTH;
                         return (
                           <th
@@ -858,7 +858,7 @@ const CashOutPage: React.FC = () => {
                             <span className="truncate">{row.functionalArea.name}</span>
                           </div>
                         </td>
-                        {dynamicMonths.map(\1) => {
+                        {dynamicMonths.map((m) => {
                           const val = row.months[m] || 0;
                           const t = maxCellValue > 0 ? Math.min(val / maxCellValue, 1) : 0;
                           const bg = val === 0 ? 'transparent' : interpolateColor(t);
@@ -903,7 +903,7 @@ const CashOutPage: React.FC = () => {
                       <td className="px-3 py-2 text-gray-900 sticky left-0 bg-gray-50/80 z-10">
                         Total
                       </td>
-                      {dynamicMonths.map(\1) => {
+                      {dynamicMonths.map((m) => {
                         const isCurrent = m === CURRENT_MONTH;
                         return (
                           <td
