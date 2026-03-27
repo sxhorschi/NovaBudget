@@ -60,6 +60,7 @@ PG_UUID.load_dialect_impl = _patched_load_dialect_impl
 
 # Now import models (after the patch)
 from app.models.base import Base
+from app.models.config_item import ConfigItem  # ensures config_items table is created
 from app.models.facility import Facility
 from app.models.functional_area import FunctionalArea
 from app.models.work_area import WorkArea

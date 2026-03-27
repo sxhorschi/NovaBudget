@@ -14,9 +14,10 @@ backend/
 │   ├── db.py                # Engine, Session Factory, get_session Dependency
 │   ├── api/                 # Router (ein File pro Ressource)
 │   │   ├── facilities.py
-│   │   ├── departments.py
+│   │   ├── functional_areas.py
 │   │   ├── work_areas.py
 │   │   ├── cost_items.py
+│   │   ├── config.py
 │   │   ├── summary.py
 │   │   ├── export.py
 │   │   ├── import_export.py
@@ -24,20 +25,22 @@ backend/
 │   ├── models/              # SQLAlchemy 2.0 Mapped Models
 │   │   ├── base.py          # Base, UUIDPrimaryKeyMixin, TimestampMixin
 │   │   ├── enums.py         # Alle Enums + SAEnum Column Types
+│   │   ├── config_item.py   # ConfigItem (products, phases, cost bases, cost drivers)
 │   │   ├── facility.py
-│   │   ├── department.py
+│   │   ├── functional_area.py
 │   │   ├── work_area.py
 │   │   ├── cost_item.py
 │   │   └── attachment.py
 │   ├── schemas/             # Pydantic v2 Request/Response Modelle
 │   │   ├── facility.py
-│   │   ├── department.py
+│   │   ├── functional_area.py
 │   │   ├── work_area.py
 │   │   ├── cost_item.py
 │   │   ├── summary.py
 │   │   └── attachment.py
 │   └── services/            # Business Logic
 │       ├── aggregation.py   # Budget Summaries, Cash-Out Timeline
+│       ├── config_service.py # Load/save config from config_items table
 │       ├── excel_import.py  # Excel Parsing und Import
 │       ├── excel_export.py  # Standard/Finance/SteerCo Export
 │       └── file_storage.py  # Attachment File Handling
@@ -274,6 +277,12 @@ Beispiel: `services/aggregation.py` berechnet Budget-Summaries und Cash-Out Time
   - `generate_standard_export()` — ein Sheet pro Department
   - `generate_finance_export()` — im BudgetTemplate-Format der Finanzabteilung
   - `generate_steering_committee_export()` — Ein-Seiten-Zusammenfassung
+
+## Storage
+
+PostgreSQL is the single source of truth. Config data (products, phases, cost bases, cost drivers) lives in the `config_items` table, NOT in CSV files. The `backend/data/` directory only contains `logo.png`.
+
+Config is seeded by migration `003_config_to_db` and read/written exclusively via `app/services/config_service.py` (`load_config` / `save_config`).
 
 ## Testen
 
