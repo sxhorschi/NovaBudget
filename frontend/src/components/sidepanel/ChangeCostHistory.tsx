@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Filter } from 'lucide-react';
 import type { ChangeCost, AdjustmentCategory } from '../../types/budget';
 import {
@@ -6,6 +6,7 @@ import {
   ADJUSTMENT_CATEGORY_COLORS,
 } from '../../types/budget';
 import { useBudgetData } from '../../context/BudgetDataContext';
+import { useYear } from '../../context/YearContext';
 import { formatEUR as formatEur } from '../costbook/AmountCell';
 
 // ---------------------------------------------------------------------------
@@ -14,7 +15,7 @@ import { formatEUR as formatEur } from '../costbook/AmountCell';
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
-  return d.toLocaleDateString('de-DE', {
+  return d.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -192,10 +193,8 @@ const NewChangeCostForm: React.FC<NewChangeCostFormProps> = ({ onSubmit, onCance
 interface ChangeCostHistoryProps {
   functionalAreaId: string;
   originalBudget: number;
+  onCountChange?: (count: number) => void;
 }
-
-/** @deprecated Use ChangeCostHistoryProps */
-export type BudgetAdjustmentHistoryProps = ChangeCostHistoryProps;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -204,21 +203,33 @@ export type BudgetAdjustmentHistoryProps = ChangeCostHistoryProps;
 const ChangeCostHistory: React.FC<ChangeCostHistoryProps> = ({
   functionalAreaId,
   originalBudget,
+  onCountChange,
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [yearFilter, setYearFilter] = useState<number | null>(null);
   const { changeCosts: allChangeCosts, addChangeCost } = useBudgetData();
+  const { selectedYear } = useYear();
 
   // Filter change costs for this functional area
   const changeCosts = useMemo(() => {
     let filtered = allChangeCosts
       .filter((a) => a.functional_area_id === functionalAreaId);
+    // Apply global year context first
+    if (selectedYear !== null) {
+      filtered = filtered.filter((a) => a.year === selectedYear);
+    }
+    // Then apply local year filter on top
     if (yearFilter != null) {
       filtered = filtered.filter((a) => a.year === yearFilter);
     }
     return filtered.sort((a, b) => a.created_at.localeCompare(b.created_at));
-  }, [functionalAreaId, allChangeCosts, yearFilter]);
+  }, [functionalAreaId, allChangeCosts, yearFilter, selectedYear]);
+
+  // Notify parent whenever change cost count changes
+  useEffect(() => {
+    onCountChange?.(changeCosts.length);
+  }, [changeCosts.length, onCountChange]);
 
   // Available years for filter
   const availableYears = useMemo(() => {
@@ -424,8 +435,5 @@ const ChangeCostHistory: React.FC<ChangeCostHistoryProps> = ({
     </div>
   );
 };
-
-/** @deprecated Use ChangeCostHistory */
-export const BudgetAdjustmentHistory = ChangeCostHistory;
 
 export default ChangeCostHistory;

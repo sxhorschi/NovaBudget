@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 UPLOADS_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
@@ -71,7 +71,7 @@ async def save_file(filename: str, data: bytes) -> tuple[str, str]:
 
     Files are stored under uploads/{year}/{month}/{uuid}_{filename}.
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     year = str(now.year)
     month = f"{now.month:02d}"
     unique_id = uuid.uuid4().hex[:12]

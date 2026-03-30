@@ -34,6 +34,8 @@ async def upload_attachment(
     cost_item_id: UUID | None = Form(None),
     work_area_id: UUID | None = Form(None),
     functional_area_id: UUID | None = Form(None),
+    price_history_id: UUID | None = Form(None),
+    change_cost_id: UUID | None = Form(None),
     description: str | None = Form(None),
     attachment_type: AttachmentType = Form(AttachmentType.OTHER),
     session: AsyncSession = Depends(get_session),
@@ -71,6 +73,8 @@ async def upload_attachment(
         cost_item_id=cost_item_id,
         work_area_id=work_area_id,
         functional_area_id=functional_area_id,
+        price_history_id=price_history_id,
+        change_cost_id=change_cost_id,
         filename=stored_name,
         original_filename=filename,
         content_type=content_type,
@@ -89,6 +93,7 @@ async def upload_attachment(
 
 @router.get("/", response_model=AttachmentList)
 async def list_attachments(
+    user: UserDep,
     cost_item_id: UUID | None = None,
     work_area_id: UUID | None = None,
     functional_area_id: UUID | None = None,
@@ -119,6 +124,7 @@ async def list_attachments(
 @router.get("/{attachment_id}/download")
 async def download_attachment(
     attachment_id: UUID,
+    user: UserDep,
     session: AsyncSession = Depends(get_session),
 ) -> FileResponse:
     """Download an attachment file."""
@@ -134,10 +140,22 @@ async def download_attachment(
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
+    # Open PDFs/images inline in browser, download everything else
+    inline_types = {
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/webp",
+        "image/svg+xml",
+    }
+    disposition = "inline" if attachment.content_type in inline_types else "attachment"
+
     return FileResponse(
         path=str(file_path),
         filename=attachment.original_filename,
         media_type=attachment.content_type,
+        content_disposition_type=disposition,
     )
 
 

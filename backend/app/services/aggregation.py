@@ -4,7 +4,7 @@ Definitions:
 - Committed   = SUM(total_amount) WHERE status IN (APPROVED, PURCHASE_ORDER_SENT, PURCHASE_ORDER_CONFIRMED, DELIVERED)
 - Spent       = SUM(total_amount) WHERE status = DELIVERED
 - Forecast    = SUM(total_amount) WHERE status NOT IN (REJECTED, OBSOLETE, DELIVERED)
-- Budget      = functional_area.budget_total + SUM(change_costs.amount WHERE budget_relevant=true)
+- Budget      = SUM(FunctionalAreaBudget.amount) + SUM(change_costs.amount WHERE budget_relevant=true)
 - Remaining   = Budget - Forecast
 - Cost of Completion (CoC) = Forecast  (same metric, different label)
 - Variance    = 0 for now (will use PriceHistory delta later)
@@ -75,6 +75,16 @@ async def get_functional_area_kpis(
     All monetary values use Decimal. Single query with conditional aggregation.
     """
 
+    # Subquery: SUM of all FunctionalAreaBudget.amount per functional area (all years)
+    budget_sub = (
+        select(
+            FunctionalAreaBudget.functional_area_id,
+            func.coalesce(func.sum(FunctionalAreaBudget.amount), ZERO).label("budget_amount"),
+        )
+        .group_by(FunctionalAreaBudget.functional_area_id)
+        .subquery("budget_sub")
+    )
+
     # Subquery: change cost totals per functional area (only budget_relevant ones)
     adj_sub = (
         select(
@@ -98,7 +108,7 @@ async def get_functional_area_kpis(
         select(
             FunctionalArea.id.label("functional_area_id"),
             FunctionalArea.name.label("functional_area_name"),
-            func.coalesce(FunctionalArea.budget_total, ZERO).label("budget_base"),
+            func.coalesce(budget_sub.c.budget_amount, ZERO).label("budget_base"),
             func.coalesce(adj_sub.c.adj_total, ZERO).label("adjustment_total"),
             # committed = approved + po_sent + po_confirmed + delivered
             func.coalesce(
@@ -121,31 +131,19 @@ async def get_functional_area_kpis(
                 ),
                 ZERO,
             ).label("spent"),
-            # variance = 0 for now (will use PriceHistory delta later)
-            func.coalesce(
-                func.sum(
-                    case(
-                        (
-                            is_active,
-                            ZERO,
-                        ),
-                        else_=ZERO,
-                    )
-                ),
-                ZERO,
-            ).label("variance"),
             # item count (active only, excl. rejected/obsolete)
             func.count(case((is_active, CostItem.id))).label("item_count"),
         )
         .select_from(FunctionalArea)
         .outerjoin(WorkArea, WorkArea.functional_area_id == FunctionalArea.id)
         .outerjoin(CostItem, CostItem.work_area_id == WorkArea.id)
+        .outerjoin(budget_sub, budget_sub.c.functional_area_id == FunctionalArea.id)
         .outerjoin(adj_sub, adj_sub.c.functional_area_id == FunctionalArea.id)
         .where(FunctionalArea.facility_id == facility_id)
         .group_by(
             FunctionalArea.id,
             FunctionalArea.name,
-            FunctionalArea.budget_total,
+            budget_sub.c.budget_amount,
             adj_sub.c.adj_total,
         )
         .order_by(FunctionalArea.name)
@@ -164,7 +162,6 @@ async def get_functional_area_kpis(
         spent = Decimal(str(row.spent))
         remaining = budget - forecast
         cost_of_completion = forecast  # CoC = Forecast (same metric, different label)
-        variance = Decimal(str(row.variance))
         utilization = _pct(committed, budget)
 
         kpis.append(
@@ -179,7 +176,7 @@ async def get_functional_area_kpis(
                 forecast=forecast,
                 remaining=remaining,
                 cost_of_completion=cost_of_completion,
-                variance=variance,
+                variance=ZERO,
                 item_count=row.item_count,
                 budget_utilization_pct=utilization,
             )
@@ -195,19 +192,18 @@ async def get_functional_area_kpis_by_year(
 
     Budget base comes from FunctionalAreaBudget entries for the year.
     Items are assigned to a year based on their expected_cash_out date;
-    items without expected_cash_out fall back to the current year.
+    items without expected_cash_out fall back to the requested year.
     """
-    from datetime import date
-
-    current_year = date.today().year
+    current_year = year
 
     # Subquery: FunctionalAreaBudget amounts for the requested year
     budget_sub = (
         select(
             FunctionalAreaBudget.functional_area_id,
-            func.coalesce(FunctionalAreaBudget.amount, ZERO).label("budget_amount"),
+            func.coalesce(func.sum(FunctionalAreaBudget.amount), ZERO).label("budget_amount"),
         )
         .where(FunctionalAreaBudget.year == year)
+        .group_by(FunctionalAreaBudget.functional_area_id)
         .subquery("budget_sub")
     )
 
@@ -252,10 +248,6 @@ async def get_functional_area_kpis_by_year(
                 func.sum(case((is_spent & in_year, CostItem.total_amount), else_=ZERO)),
                 ZERO,
             ).label("spent"),
-            func.coalesce(
-                func.sum(case((is_active & in_year, ZERO), else_=ZERO)),
-                ZERO,
-            ).label("variance"),
             func.count(case((is_active & in_year, CostItem.id))).label("item_count"),
         )
         .select_from(FunctionalArea)
@@ -285,7 +277,6 @@ async def get_functional_area_kpis_by_year(
         forecast = Decimal(str(row.forecast))
         remaining = budget - forecast
         cost_of_completion = forecast
-        variance = Decimal(str(row.variance))
         utilization = _pct(committed, budget)
 
         kpis.append(
@@ -301,7 +292,7 @@ async def get_functional_area_kpis_by_year(
                 forecast=forecast,
                 remaining=remaining,
                 cost_of_completion=cost_of_completion,
-                variance=variance,
+                variance=ZERO,
                 item_count=row.item_count,
                 budget_utilization_pct=utilization,
             )
@@ -501,9 +492,9 @@ async def get_budget_summary(session: AsyncSession) -> BudgetSummary:
     Uses correct Otto v4 definitions.
     """
 
-    # Budget = SUM(budget_total) + SUM(adjustments)
+    # Budget = SUM(FunctionalAreaBudget.amount) + SUM(adjustments)
     budget_result = await session.execute(
-        select(func.coalesce(func.sum(FunctionalArea.budget_total), ZERO))
+        select(func.coalesce(func.sum(FunctionalAreaBudget.amount), ZERO))
     )
     base_budget = Decimal(str(budget_result.scalar_one()))
 
@@ -526,10 +517,10 @@ async def get_budget_summary(session: AsyncSession) -> BudgetSummary:
     # Approved (same as committed for now)
     total_approved = total_committed
 
-    # Forecast = all except rejected/obsolete
+    # Forecast = all except rejected/obsolete/delivered
     forecast_result = await session.execute(
         select(func.coalesce(func.sum(CostItem.total_amount), ZERO)).where(
-            CostItem.approval_status.notin_(EXCLUDED_STATUSES)
+            CostItem.approval_status.notin_(FORECAST_EXCLUDED_STATUSES)
         )
     )
     forecast = Decimal(str(forecast_result.scalar_one()))
@@ -552,6 +543,16 @@ async def get_functional_area_summaries(
 ) -> list[FunctionalAreaSummary]:
     """DEPRECATED — use get_functional_area_kpis instead."""
 
+    # Subquery: SUM of all FunctionalAreaBudget.amount per functional area (all years)
+    budget_sub = (
+        select(
+            FunctionalAreaBudget.functional_area_id,
+            func.coalesce(func.sum(FunctionalAreaBudget.amount), ZERO).label("budget_amount"),
+        )
+        .group_by(FunctionalAreaBudget.functional_area_id)
+        .subquery("budget_sub")
+    )
+
     adj_sub = (
         select(
             ChangeCost.functional_area_id,
@@ -570,7 +571,7 @@ async def get_functional_area_summaries(
     stmt = (
         select(
             FunctionalArea.name.label("functional_area_name"),
-            func.coalesce(FunctionalArea.budget_total, ZERO).label("budget_base"),
+            func.coalesce(budget_sub.c.budget_amount, ZERO).label("budget_base"),
             func.coalesce(adj_sub.c.adj_total, ZERO).label("adj_total"),
             func.coalesce(
                 func.sum(
@@ -588,10 +589,11 @@ async def get_functional_area_summaries(
         .select_from(FunctionalArea)
         .outerjoin(WorkArea, WorkArea.functional_area_id == FunctionalArea.id)
         .outerjoin(CostItem, CostItem.work_area_id == WorkArea.id)
+        .outerjoin(budget_sub, budget_sub.c.functional_area_id == FunctionalArea.id)
         .outerjoin(adj_sub, adj_sub.c.functional_area_id == FunctionalArea.id)
         .group_by(
             FunctionalArea.name,
-            FunctionalArea.budget_total,
+            budget_sub.c.budget_amount,
             adj_sub.c.adj_total,
         )
         .order_by(FunctionalArea.name)

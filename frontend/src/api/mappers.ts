@@ -47,12 +47,15 @@ function mapFunctionalAreaBudgetFromApi(data: any): FunctionalAreaBudget {
 }
 
 export function mapFunctionalAreaFromApi(data: any): FunctionalArea {
+  const budgets = (data.budgets ?? []).map(mapFunctionalAreaBudgetFromApi);
+  // budget_total is derived from yearly budgets (DB column was removed)
+  const budgetTotal = budgets.reduce((s: number, b: FunctionalAreaBudget) => s + b.amount, 0);
   return {
     id: data.id,
     facility_id: data.facility_id,
     name: data.name,
-    budget_total: Number(data.budget_total ?? 0),
-    budgets: (data.budgets ?? []).map(mapFunctionalAreaBudgetFromApi),
+    budget_total: budgetTotal,
+    budgets,
   };
 }
 
@@ -72,7 +75,7 @@ export function mapCostItemFromApi(data: any): CostItem {
     unit_price: Number(data.unit_price ?? 0),
     quantity: Number(data.quantity ?? 1),
     total_amount: Number(data.total_amount ?? 0),
-    expected_cash_out: (data.expected_cash_out ?? '').slice(0, 7),
+    expected_cash_out: data.expected_cash_out ?? '',
     cost_basis: data.cost_basis ?? '',
     cost_driver: data.cost_driver ?? '',
     basis_description: data.basis_description ?? '',
@@ -96,14 +99,11 @@ export function mapChangeCostFromApi(data: any): ChangeCost {
     category: toLower(data.category) as AdjustmentCategory,
     cost_driver: data.cost_driver ?? '',
     budget_relevant: data.budget_relevant ?? false,
-    year: Number(data.year ?? 0),
+    year: Number(data.year ?? new Date().getFullYear()),
     created_at: data.created_at,
     created_by: data.created_by ?? undefined,
   };
 }
-
-/** @deprecated Use mapChangeCostFromApi */
-export const mapBudgetAdjustmentFromApi = mapChangeCostFromApi;
 
 // ---------------------------------------------------------------------------
 // To API

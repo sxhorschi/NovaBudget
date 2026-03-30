@@ -5,6 +5,8 @@ export interface UploadAttachmentParams {
   costItemId?: string;
   workAreaId?: string;
   functionalAreaId?: string;
+  priceHistoryId?: string;
+  changeCostId?: string;
   file: File;
   description?: string;
   attachmentType?: AttachmentType;
@@ -22,6 +24,12 @@ export async function uploadAttachment(params: UploadAttachmentParams): Promise<
   }
   if (params.functionalAreaId) {
     formData.append('functional_area_id', params.functionalAreaId);
+  }
+  if (params.priceHistoryId) {
+    formData.append('price_history_id', params.priceHistoryId);
+  }
+  if (params.changeCostId) {
+    formData.append('change_cost_id', params.changeCostId);
   }
   if (params.description) {
     formData.append('description', params.description);

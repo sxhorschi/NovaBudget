@@ -66,6 +66,7 @@ from app.models.functional_area import FunctionalArea
 from app.models.work_area import WorkArea
 from app.models.cost_item import CostItem
 from app.models.change_cost import ChangeCost
+from app.models.functional_area_budget import FunctionalAreaBudget
 from app.models.enums import (
     AdjustmentCategory,
     ApprovalStatus,
@@ -218,12 +219,22 @@ async def sample_data(session: AsyncSession):
             id=uuid.uuid4(),
             facility_id=facility.id,
             name=fa_name,
-            budget_total=budget,
             created_at=now,
             updated_at=now,
         )
         session.add(fa)
         functional_areas.append(fa)
+
+        # Create budget entry in FunctionalAreaBudget table
+        fa_budget = FunctionalAreaBudget(
+            id=uuid.uuid4(),
+            functional_area_id=fa.id,
+            year=2026,
+            amount=budget,
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(fa_budget)
 
         for wa_idx in range(2):
             wa = WorkArea(

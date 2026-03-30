@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 interface DeleteConfirmDialogProps {
@@ -9,6 +9,11 @@ interface DeleteConfirmDialogProps {
 
 const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({ itemDescription, onConfirm, onClose }) => {
   const [visible, setVisible] = useState(false);
+  const onCloseRef = useRef(onClose);
+  const onConfirmRef = useRef(onConfirm);
+
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  useEffect(() => { onConfirmRef.current = onConfirm; }, [onConfirm]);
 
   useEffect(() => {
     // Trigger fade-in on mount
@@ -21,16 +26,16 @@ const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({ itemDescripti
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [onClose]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleClose = () => {
     setVisible(false);
-    setTimeout(onClose, 150);
+    setTimeout(() => onCloseRef.current(), 150);
   };
 
   const handleConfirm = () => {
     setVisible(false);
-    setTimeout(onConfirm, 150);
+    setTimeout(() => onConfirmRef.current(), 150);
   };
 
   return (

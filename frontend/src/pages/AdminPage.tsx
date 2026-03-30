@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
   Users,
@@ -15,17 +16,9 @@ import {
   Trash2,
   Key,
   Network,
-  Settings,
-  Pencil,
-  Check,
-  Download,
-  Upload,
-  Image,
   AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useConfig } from '../context/ConfigContext';
-import type { AppConfig, ConfigItem } from '../context/ConfigContext';
 import { useFacility } from '../context/FacilityContext';
 import { useToast } from '../components/common/ToastProvider';
 import client from '../api/client';
@@ -62,7 +55,7 @@ interface GroupMapping {
   created_at: string;
 }
 
-type Tab = 'users' | 'permissions' | 'group-mapping' | 'configuration';
+type Tab = 'users' | 'permissions' | 'group-mapping';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -81,9 +74,9 @@ const formatDate = (dateStr: string | null, includeTime = false) => {
   if (!dateStr) return '--';
   // Backend stores UTC but without timezone suffix — append Z so the browser converts to local time
   const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
-  const date = d.toLocaleDateString('de-DE', { year: 'numeric', month: 'short', day: 'numeric' });
+  const date = d.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
   if (!includeTime) return date;
-  const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   return `${date}, ${time}`;
 };
 
@@ -96,37 +89,59 @@ const RoleDropdown: React.FC<{
   onChange: (role: string) => void;
 }> = ({ currentRole, onChange }) => {
   const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (btnRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const handleOpen = () => {
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setOpen((p) => !p);
+  };
 
   return (
     <div className="relative">
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={handleOpen}
         className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium ${ROLE_BADGE[currentRole] ?? ROLE_BADGE.viewer}`}
       >
         {currentRole}
         <ChevronDown size={12} />
       </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 z-20 w-32 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-            {ROLES.map((r) => (
-              <button
-                key={r}
-                onClick={() => {
-                  onChange(r);
-                  setOpen(false);
-                }}
-                className={`flex w-full items-center px-3 py-1.5 text-xs hover:bg-gray-50 ${
-                  r === currentRole ? 'font-semibold text-indigo-600' : 'text-gray-700'
-                }`}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-        </>
+      {open && createPortal(
+        <div
+          className="fixed z-[9999] w-32 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+          style={{ top: pos.top, left: pos.left }}
+        >
+          {ROLES.map((r) => (
+            <button
+              key={r}
+              onClick={() => {
+                onChange(r);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center px-3 py-1.5 text-xs hover:bg-gray-50 ${
+                r === currentRole ? 'font-semibold text-indigo-600' : 'text-gray-700'
+              }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -926,371 +941,6 @@ const GroupMappingTab: React.FC = () => {
 };
 
 // ---------------------------------------------------------------------------
-// Tab 4: Configuration
-// ---------------------------------------------------------------------------
-
-/** A single editable config section (Products, Phases, etc.) */
-const ConfigSection: React.FC<{
-  title: string;
-  items: ConfigItem[];
-  onUpdate: (items: ConfigItem[]) => void;
-  onImmediateSave?: (items: ConfigItem[]) => void;
-}> = ({ title, items, onUpdate, onImmediateSave }) => {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editLabel, setEditLabel] = useState('');
-  const [addLabel, setAddLabel] = useState('');
-
-  /** Auto-generate an ID from a label: lowercase, spaces to underscores, strip special chars. */
-  const generateId = (label: string): string =>
-    label
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
-      .replace(/\s+/g, '_')
-      .replace(/_+/g, '_')
-      .replace(/^_|_$/g, '');
-
-  const startEdit = (item: ConfigItem) => {
-    setEditingId(item.id);
-    setEditLabel(item.label);
-  };
-
-  const saveEdit = () => {
-    if (!editingId || !editLabel.trim()) return;
-    onUpdate(items.map((it) => (it.id === editingId ? { ...it, label: editLabel.trim() } : it)));
-    setEditingId(null);
-    setEditLabel('');
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditLabel('');
-  };
-
-  const handleAdd = () => {
-    const label = addLabel.trim();
-    if (!label) return;
-    const id = generateId(label);
-    if (!id) return;
-    if (items.some((it) => it.id === id)) return;
-    const updated = [...items, { id, label }];
-    onUpdate(updated);
-    if (onImmediateSave) onImmediateSave(updated);
-    setAddLabel('');
-  };
-
-  const handleDelete = (id: string) => {
-    onUpdate(items.filter((it) => it.id !== id));
-  };
-
-  return (
-    <div className="rounded-lg border border-gray-200">
-      <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-        <h4 className="text-sm font-semibold text-gray-800">{title}</h4>
-      </div>
-      <div className="p-4 space-y-2">
-        {items.map((item) => (
-          <div key={item.id} className="flex items-center gap-2 group">
-            <span className="text-xs text-gray-400 font-mono w-40 truncate" title={item.id}>{item.id}</span>
-            {editingId === item.id ? (
-              <>
-                <input
-                  type="text"
-                  value={editLabel}
-                  onChange={(e) => setEditLabel(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                  className="flex-1 rounded border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  autoFocus
-                />
-                <button onClick={saveEdit} className="p-1 text-green-600 hover:text-green-800"><Check size={14} /></button>
-                <button onClick={cancelEdit} className="p-1 text-gray-400 hover:text-gray-600"><X size={14} /></button>
-              </>
-            ) : (
-              <>
-                <span className="flex-1 text-sm text-gray-700">{item.label}</span>
-                <button
-                  onClick={() => startEdit(item)}
-                  className="p-1 text-gray-300 hover:text-black opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Pencil size={12} />
-                </button>
-                <button
-                  onClick={() => handleDelete(item.id)}
-                  className="p-1 text-gray-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </>
-            )}
-          </div>
-        ))}
-
-        {/* Add row */}
-        <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-          <input
-            type="text"
-            value={addLabel}
-            onChange={(e) => setAddLabel(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
-            className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            placeholder="Enter name (ID generated automatically)"
-          />
-          <button
-            onClick={handleAdd}
-            disabled={!addLabel.trim()}
-            className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            <Plus size={12} />
-            Add
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Branding section — logo upload
-// ---------------------------------------------------------------------------
-
-const LOGO_API_PATH = '/config/logo';
-
-const BrandingSection: React.FC = () => {
-  const [logoUrl, setLogoUrl] = useState<string>(`${client.defaults.baseURL}${LOGO_API_PATH}`);
-  const [uploading, setUploading] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [logoKey, setLogoKey] = useState(0);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      setFeedback({ type: 'error', message: 'File too large. Max 2 MB.' });
-      return;
-    }
-
-    setUploading(true);
-    setFeedback(null);
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      await client.post(LOGO_API_PATH, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setLogoUrl(`${client.defaults.baseURL}${LOGO_API_PATH}?t=${Date.now()}`);
-      setLogoKey((k) => k + 1);
-      setFeedback({ type: 'success', message: 'Logo updated for all users.' });
-      window.dispatchEvent(new Event('budget-tool:logo-changed'));
-    } catch {
-      setFeedback({ type: 'error', message: 'Failed to upload logo.' });
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  return (
-    <div className="rounded-lg border border-gray-200 mb-6">
-      <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <Image size={16} className="text-gray-500" />
-          <h4 className="text-sm font-semibold text-gray-800">Branding</h4>
-        </div>
-      </div>
-      <div className="p-4">
-        <p className="text-sm text-gray-500 mb-4">
-          Upload a custom logo to replace the default logo in the top bar. Accepted formats: PNG, JPG, SVG.
-        </p>
-
-        {/* Current logo preview */}
-        <div className="mb-4">
-          <label className="block text-xs font-medium text-gray-500 mb-2">Current Logo</label>
-          <div className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white p-4 min-h-[64px]">
-            <img
-              key={logoKey}
-              src={logoUrl}
-              alt="Current logo"
-              className="h-10 w-auto"
-              onError={(e) => {
-                const img = e.currentTarget;
-                if (!img.dataset.fallback) {
-                  img.dataset.fallback = '1';
-                  img.src = '/logo-placeholder.svg';
-                }
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Upload control */}
-        <div className="flex items-center gap-3">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/svg+xml"
-            onChange={handleFileSelect}
-            className="hidden"
-            id="logo-upload"
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            <Upload size={14} />
-            {uploading ? 'Uploading...' : 'Upload New Logo'}
-          </button>
-          <span className="text-xs text-gray-400">PNG, JPG, or SVG, recommended height 32-64px</span>
-        </div>
-
-        {/* Feedback message */}
-        {feedback && (
-          <div
-            className={`mt-3 rounded-lg px-3 py-2 text-sm ${
-              feedback.type === 'success'
-                ? 'bg-green-50 border border-green-200 text-green-700'
-                : 'bg-red-50 border border-red-200 text-red-700'
-            }`}
-          >
-            {feedback.message}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const ConfigurationTab: React.FC = () => {
-  const { config, updateConfig, isLoading } = useConfig();
-  const [localConfig, setLocalConfig] = useState<AppConfig>(config);
-  const [dirty, setDirty] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  // Sync from context when it reloads
-  useEffect(() => {
-    setLocalConfig(config);
-    setDirty(false);
-  }, [config]);
-
-  const handleSectionUpdate = (section: keyof AppConfig) => (items: ConfigItem[]) => {
-    setLocalConfig((prev) => ({ ...prev, [section]: items }));
-    setDirty(true);
-  };
-
-  const handleSectionImmediateSave = (section: keyof AppConfig) => (items: ConfigItem[]) => {
-    const newConfig = { ...localConfig, [section]: items };
-    setLocalConfig(newConfig);
-    setDirty(false);
-    updateConfig(newConfig);
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    await updateConfig(localConfig);
-    setDirty(false);
-    setSaving(false);
-  };
-
-  const handleExportCSV = () => {
-    const rows: string[] = ['section,id,label'];
-    const sections: (keyof AppConfig)[] = ['products', 'phases', 'cost_bases', 'cost_drivers'];
-    for (const section of sections) {
-      for (const item of localConfig[section]) {
-        rows.push(`${section},"${item.id}","${item.label}"`);
-      }
-    }
-    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'config-export.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportCSV = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv';
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const text = await file.text();
-      const lines = text.trim().split('\n').slice(1); // skip header
-      const parsed: AppConfig = { products: [], phases: [], cost_bases: [], cost_drivers: [] };
-      for (const line of lines) {
-        const match = line.match(/^(\w+),"?([^",]+)"?,"?([^"]+)"?$/);
-        if (!match) continue;
-        const [, section, id, label] = match;
-        if (section in parsed) {
-          (parsed as unknown as Record<string, ConfigItem[]>)[section].push({ id: id.trim(), label: label.trim() });
-        }
-      }
-      // Only apply sections that have items
-      const merged = { ...localConfig };
-      if (parsed.products.length > 0) merged.products = parsed.products;
-      if (parsed.phases.length > 0) merged.phases = parsed.phases;
-      if (parsed.cost_bases.length > 0) merged.cost_bases = parsed.cost_bases;
-      if (parsed.cost_drivers.length > 0) merged.cost_drivers = parsed.cost_drivers;
-      setLocalConfig(merged);
-      setDirty(true);
-    };
-    input.click();
-  };
-
-  return (
-    <div>
-      {/* Toolbar */}
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-500">
-          Edit products, phases, cost bases, and cost drivers used across the application.
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleImportCSV}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-          >
-            <Upload size={12} />
-            Import CSV
-          </button>
-          <button
-            onClick={handleExportCSV}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-          >
-            <Download size={12} />
-            Export CSV
-          </button>
-          {dirty && (
-            <button
-              onClick={handleSave}
-              disabled={saving || isLoading}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Branding */}
-      <BrandingSection />
-
-      {/* Config sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ConfigSection title="Products" items={localConfig.products} onUpdate={handleSectionUpdate('products')} onImmediateSave={handleSectionImmediateSave('products')} />
-        <ConfigSection title="Phases" items={localConfig.phases} onUpdate={handleSectionUpdate('phases')} onImmediateSave={handleSectionImmediateSave('phases')} />
-        <ConfigSection title="Cost Bases" items={localConfig.cost_bases} onUpdate={handleSectionUpdate('cost_bases')} onImmediateSave={handleSectionImmediateSave('cost_bases')} />
-        <ConfigSection title="Cost Drivers" items={localConfig.cost_drivers} onUpdate={handleSectionUpdate('cost_drivers')} onImmediateSave={handleSectionImmediateSave('cost_drivers')} />
-      </div>
-    </div>
-  );
-};
-
-// ---------------------------------------------------------------------------
 // Admin Page (main)
 // ---------------------------------------------------------------------------
 
@@ -1298,7 +948,6 @@ const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: 'users', label: 'Users', icon: Users },
   { key: 'permissions', label: 'Permissions', icon: Key },
   { key: 'group-mapping', label: 'Group Mapping', icon: Network },
-  { key: 'configuration', label: 'Configuration', icon: Settings },
 ];
 
 const AdminPage: React.FC = () => {
@@ -1336,7 +985,7 @@ const AdminPage: React.FC = () => {
           <h1 className="text-xl font-semibold text-gray-900">Administration</h1>
         </div>
         <p className="text-sm text-gray-500">
-          Manage users, permissions, Entra group mappings, and application configuration.
+          Manage users, permissions, and Entra group mappings.
         </p>
       </div>
 
@@ -1366,7 +1015,6 @@ const AdminPage: React.FC = () => {
       {activeTab === 'users' && <UsersTab />}
       {activeTab === 'permissions' && <PermissionsTab />}
       {activeTab === 'group-mapping' && <GroupMappingTab />}
-      {activeTab === 'configuration' && <ConfigurationTab />}
     </div>
   );
 };

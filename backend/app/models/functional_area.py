@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import uuid
-from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Numeric, String
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -28,12 +27,6 @@ class FunctionalArea(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    budget_total: Mapped[Decimal] = mapped_column(
-        Numeric(precision=15, scale=2),
-        nullable=False,
-        default=Decimal("0"),
-        server_default="0",
-    )
 
     # relationships
     facility: Mapped[Facility] = relationship(back_populates="functional_areas")

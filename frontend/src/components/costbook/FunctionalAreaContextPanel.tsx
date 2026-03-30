@@ -177,7 +177,7 @@ const AddBudgetRow: React.FC<AddBudgetRowProps> = ({ faId, existingYears }) => {
 
   const handleAdd = useCallback(async () => {
     const year = Number(yearDraft);
-    if (!year || existingYears.has(year)) return;
+    if (!year || year < 2000 || year > 2100 || existingYears.has(year)) return;
     const amount = Math.max(0, Number(parseGermanNumber(amountDraft)) || 0);
     const result = await createYearlyBudget(faId, year, amount, commentDraft.trim() || null);
     if (result) {
@@ -335,9 +335,7 @@ export default function FunctionalAreaContextPanel({
   const effectiveBudget = sortedBudgets.length > 0 ? yearlyBudgetTotal : budget;
   // Remaining = Budget - Forecast (consistent with useFilteredData source of truth)
   const remaining = effectiveBudget - forecast;
-  const hasChanges =
-    nameDraft.trim() !== functionalArea.name ||
-    budget !== functionalArea.budget_total;
+  const hasChanges = nameDraft.trim() !== functionalArea.name;
 
   return (
     <>
@@ -362,7 +360,7 @@ export default function FunctionalAreaContextPanel({
                 <Building2 size={13} />
                 Functional Area
               </div>
-              <h2 className="text-lg font-semibold text-gray-900 mt-1 truncate">{functionalArea.name}</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mt-1 truncate" title={functionalArea.name}>{functionalArea.name}</h2>
             </div>
             <button
               onClick={onClose}
@@ -384,15 +382,6 @@ export default function FunctionalAreaContextPanel({
                   onChange={(e) => setNameDraft(e.target.value)}
                   className={inputClass}
                 />
-              </div>
-              <div>
-                <label className={labelClass}>Base Budget (EUR)</label>
-                <BudgetAmountInput
-                  value={budgetDraft}
-                  onChange={setBudgetDraft}
-                  className={`${inputClass} tabular-nums`}
-                />
-                <p className="text-xs text-gray-400 mt-1">Legacy single budget value. Use yearly budgets below for per-year planning.</p>
               </div>
             </div>
           </Section>
@@ -460,7 +449,7 @@ export default function FunctionalAreaContextPanel({
                     return (
                       <div key={wa.id} className="px-3 py-2.5 flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{wa.name}</p>
+                          <p className="text-sm font-medium text-gray-800 truncate" title={wa.name}>{wa.name}</p>
                           <p className="text-xs text-gray-500">{waItems.length} items</p>
                         </div>
                         <p className="text-sm font-mono text-gray-700 whitespace-nowrap">{format(waTotal)}</p>
@@ -509,7 +498,7 @@ export default function FunctionalAreaContextPanel({
               </button>
               {onSave && (
                 <button
-                  onClick={() => onSave(functionalArea.id, { name: nameDraft.trim(), budget_total: budget })}
+                  onClick={() => onSave(functionalArea.id, { name: nameDraft.trim(), budget_total: effectiveBudget })}
                   disabled={!hasChanges}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-150 inline-flex items-center gap-1.5 ${
                     hasChanges

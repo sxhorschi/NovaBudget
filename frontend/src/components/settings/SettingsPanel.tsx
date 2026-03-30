@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { X, Calculator, Eye, Info, TrendingUp } from 'lucide-react';
-import { useDisplaySettings } from '../../context/DisplaySettingsContext';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Info, Settings, Plus, Trash2, Pencil, Check, Image, Upload } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { useConfig } from '../../context/ConfigContext';
+import type { AppConfig, ConfigOption } from '../../context/ConfigContext';
+import client from '../../api/client';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -12,76 +15,295 @@ interface SettingsPanelProps {
 }
 
 // ---------------------------------------------------------------------------
-// Small reusable pieces
+// Admin config helpers
 // ---------------------------------------------------------------------------
 
-const SectionTitle: React.FC<{
-  icon: React.ReactNode;
-  title: string;
-  badge?: React.ReactNode;
-}> = ({ icon, title, badge }) => (
-  <div className="flex items-center gap-2 mb-3">
-    <span className="text-indigo-600">{icon}</span>
-    <h3 className="text-sm font-semibold text-gray-900 tracking-tight">{title}</h3>
-    {badge}
-  </div>
-);
+const LOGO_API_PATH = '/config/logo';
 
-const Divider = () => <hr className="my-5 border-gray-200" />;
+const generateId = (label: string): string =>
+  label
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
 
-const Toggle: React.FC<{
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}> = ({ label, checked, onChange }) => (
-  <label className="flex items-center justify-between gap-3 cursor-pointer group">
-    <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors">{label}</span>
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`
-        relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors duration-200 ease-in-out
-        ${checked ? 'bg-indigo-600' : 'bg-gray-300'}
-      `}
-    >
-      <span
-        className={`
-          pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out mt-0.5
-          ${checked ? 'translate-x-[18px]' : 'translate-x-0.5'}
-        `}
+/** Inline-editable list of config items for one section (Products, Phases, etc.) */
+const ConfigSectionPanel: React.FC<{
+  items: ConfigOption[];
+  onAdd: (item: ConfigOption) => void;
+  onDelete: (id: string) => void;
+  onEdit: (id: string, newLabel: string) => void;
+}> = ({ items, onAdd, onDelete, onEdit }) => {
+  const [addLabel, setAddLabel] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState('');
+
+  const handleAdd = () => {
+    const label = addLabel.trim();
+    if (!label) return;
+    const id = generateId(label);
+    if (!id) return;
+    if (items.some((it) => it.id === id)) return;
+    onAdd({ id, label });
+    setAddLabel('');
+  };
+
+  const startEdit = (item: ConfigOption) => {
+    setEditingId(item.id);
+    setEditLabel(item.label);
+  };
+
+  const saveEdit = () => {
+    if (!editingId || !editLabel.trim()) return;
+    onEdit(editingId, editLabel.trim());
+    setEditingId(null);
+    setEditLabel('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditLabel('');
+  };
+
+  return (
+    <div>
+      <div className="space-y-0.5">
+        {items.map((item) => (
+          <div key={item.id} className="flex items-center gap-1.5 group py-1.5 pl-3 border-l-2 border-gray-200 hover:border-indigo-300 transition-colors">
+            {editingId === item.id ? (
+              <>
+                <input
+                  type="text"
+                  value={editLabel}
+                  onChange={(e) => setEditLabel(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveEdit();
+                    if (e.key === 'Escape') cancelEdit();
+                  }}
+                  onBlur={saveEdit}
+                  className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  autoFocus
+                />
+                <button onClick={saveEdit} className="p-1 text-green-600 hover:text-green-800 flex-shrink-0">
+                  <Check size={12} />
+                </button>
+                <button onClick={cancelEdit} className="p-1 text-gray-400 hover:text-gray-600 flex-shrink-0">
+                  <X size={12} />
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => startEdit(item)}
+                  className="flex-1 text-left text-sm text-gray-700 hover:text-gray-900 truncate"
+                  title={`Click to edit · id: ${item.id}`}
+                >
+                  {item.label}
+                </button>
+                <button
+                  onClick={() => startEdit(item)}
+                  className="p-1 text-gray-300 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                >
+                  <Pencil size={11} />
+                </button>
+                <button
+                  onClick={() => onDelete(item.id)}
+                  className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                >
+                  <Trash2 size={11} />
+                </button>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Inline add row */}
+      <div className="flex items-center gap-1.5 mt-3 ml-3 pl-3 py-2 border border-dashed border-gray-300 rounded-md">
+        <input
+          type="text"
+          value={addLabel}
+          onChange={(e) => setAddLabel(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
+          placeholder="New item…"
+          className="flex-1 rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:bg-white"
+        />
+        <button
+          onClick={handleAdd}
+          disabled={!addLabel.trim()}
+          className="inline-flex items-center gap-0.5 rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-40 flex-shrink-0 mr-1.5"
+        >
+          <Plus size={11} />
+          Add
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/** Logo upload widget for the admin config section */
+const LogoUploadPanel: React.FC = () => {
+  const [logoUrl, setLogoUrl] = useState<string>(`${client.defaults.baseURL}${LOGO_API_PATH}`);
+  const [logoKey, setLogoKey] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setFeedback({ type: 'error', message: 'File too large. Max 2 MB.' });
+      return;
+    }
+
+    setUploading(true);
+    setFeedback(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await client.post(LOGO_API_PATH, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setLogoUrl(`${client.defaults.baseURL}${LOGO_API_PATH}?t=${Date.now()}`);
+      setLogoKey((k) => k + 1);
+      setFeedback({ type: 'success', message: 'Logo updated.' });
+      window.dispatchEvent(new Event('budget-tool:logo-changed'));
+    } catch {
+      setFeedback({ type: 'error', message: 'Failed to upload logo.' });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="mb-3">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+        <span className="inline-flex items-center gap-1"><Image size={11} />Branding</span>
+      </p>
+
+      {/* Preview */}
+      <div className="mb-2 inline-flex items-center justify-center rounded border border-gray-200 bg-gray-50 p-2">
+        <img
+          key={logoKey}
+          src={logoUrl}
+          alt="Current logo"
+          className="h-8 w-auto"
+          onError={(e) => {
+            const img = e.currentTarget;
+            if (!img.dataset.fallback) {
+              img.dataset.fallback = '1';
+              img.src = '/logo-placeholder.svg';
+            }
+          }}
+        />
+      </div>
+
+      {/* Upload button */}
+      <div className="flex items-center gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/svg+xml"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="inline-flex items-center gap-1 rounded border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          <Upload size={11} />
+          {uploading ? 'Uploading…' : 'Upload Logo'}
+        </button>
+        <span className="text-xs text-gray-400">PNG, JPG or SVG</span>
+      </div>
+
+      {feedback && (
+        <p className={`mt-1.5 text-xs ${feedback.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+          {feedback.message}
+        </p>
+      )}
+    </div>
+  );
+};
+
+/** Category pill tabs config */
+const CATEGORY_TABS: { key: keyof AppConfig; label: string }[] = [
+  { key: 'products', label: 'Products' },
+  { key: 'phases', label: 'Phases' },
+  { key: 'cost_bases', label: 'Cost Bases' },
+  { key: 'cost_drivers', label: 'Cost Drivers' },
+];
+
+/** Full admin-only Configuration section rendered inside SettingsPanel */
+const AdminConfigSection: React.FC = () => {
+  const { config, updateConfig } = useConfig();
+  const [activeCategory, setActiveCategory] = useState<keyof AppConfig>('products');
+
+  const handleAdd = (section: keyof AppConfig) => (item: ConfigOption) => {
+    updateConfig({ ...config, [section]: [...config[section], item] });
+  };
+
+  const handleDelete = (section: keyof AppConfig) => (id: string) => {
+    updateConfig({ ...config, [section]: config[section].filter((it) => it.id !== id) });
+  };
+
+  const handleEdit = (section: keyof AppConfig) => (id: string, newLabel: string) => {
+    updateConfig({
+      ...config,
+      [section]: config[section].map((it) => (it.id === id ? { ...it, label: newLabel } : it)),
+    });
+  };
+
+  return (
+    <div>
+      {/* Category pill selector */}
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        {CATEGORY_TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setActiveCategory(key)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              activeCategory === key
+                ? 'bg-indigo-100 text-indigo-700'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            {label} ({config[key].length})
+          </button>
+        ))}
+      </div>
+
+      {/* Active category content */}
+      <ConfigSectionPanel
+        items={config[activeCategory]}
+        onAdd={handleAdd(activeCategory)}
+        onDelete={handleDelete(activeCategory)}
+        onEdit={handleEdit(activeCategory)}
       />
-    </button>
-  </label>
-);
+
+      {/* Logo upload — rarely used, kept at bottom */}
+      <div className="mt-6 pt-5 border-t border-gray-100">
+        <LogoUploadPanel />
+      </div>
+    </div>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
-  const {
-    showThousands,
-    setShowThousands,
-    financeBudgetFactor,
-    setFinanceBudgetFactor,
-    inflationEnabled,
-    setInflationEnabled,
-    inflationRate,
-    setInflationRate,
-  } = useDisplaySettings();
+  const { isAdmin } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
-
-  // --- Local string state for finance factor number input to allow typing decimals ---
-  const [factorInputStr, setFactorInputStr] = useState(() =>
-    financeBudgetFactor.toFixed(2),
-  );
-
-  // Keep local string in sync if context value changes
-  useEffect(() => {
-    setFactorInputStr(financeBudgetFactor.toFixed(2));
-  }, [financeBudgetFactor]);
 
   // Slide-in animation
   useEffect(() => {
@@ -101,46 +323,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [open, onClose]);
-
-  // --- Finance factor helpers ---
-  const factorPct = Math.round(financeBudgetFactor * 100);
-  const factorColor =
-    financeBudgetFactor > 1.0
-      ? 'text-red-600'
-      : financeBudgetFactor < 1.0
-      ? 'text-green-600'
-      : 'text-gray-700';
-
-  const handleFactorSlider = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = parseFloat(e.target.value);
-    if (Number.isFinite(v)) {
-      setFinanceBudgetFactor(v);
-    }
-  };
-
-  const handleFactorInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFactorInputStr(e.target.value);
-    const v = parseFloat(e.target.value);
-    if (Number.isFinite(v) && v >= 0.5 && v <= 1.5) {
-      setFinanceBudgetFactor(v);
-    }
-  };
-
-  const handleFactorInputBlur = () => {
-    const v = parseFloat(factorInputStr);
-    if (!Number.isFinite(v)) {
-      setFactorInputStr(financeBudgetFactor.toFixed(2));
-    } else {
-      const clamped = Math.min(Math.max(v, 0.5), 1.5);
-      setFinanceBudgetFactor(clamped);
-      setFactorInputStr(clamped.toFixed(2));
-    }
-  };
-
-  // --- Inflation example ---
-  const exampleAmount = 100;
-  const exampleYears = 2;
-  const exampleInflated = exampleAmount * Math.pow(1 + inflationRate / 100, exampleYears);
 
   if (!open) return null;
 
@@ -184,118 +366,30 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
 
-          {/* ============ 1. Finance Export ============ */}
-          <SectionTitle icon={<Calculator size={16} />} title="Finance Export" />
-          <div className="space-y-3">
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-medium text-gray-500">Budget Factor</label>
-                <span className={`text-sm font-semibold tabular-nums ${factorColor}`}>
-                  {factorPct}%
+          {/* ============ Configuration (admin only) ============ */}
+          {isAdmin && (
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-indigo-600"><Settings size={16} /></span>
+                <h3 className="text-sm font-semibold text-gray-900 tracking-tight">Configuration</h3>
+                <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-600">
+                  Admin only
                 </span>
               </div>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min="0.50"
-                  max="1.50"
-                  step="0.05"
-                  value={financeBudgetFactor}
-                  onChange={handleFactorSlider}
-                  className="flex-1 h-2 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                />
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.50"
-                  max="1.50"
-                  value={factorInputStr}
-                  onChange={handleFactorInput}
-                  onBlur={handleFactorInputBlur}
-                  className="w-20 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 text-center focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1.5">
-                Multiplier applied to all amounts in the Finance Template export.
-                0.85 = 85% of estimated costs.
-              </p>
-              {financeBudgetFactor > 1.0 && (
-                <p className="text-xs text-red-500 mt-1 font-medium">
-                  Factor &gt; 1.0: budgeting above estimated costs (over-budget scenario).
-                </p>
-              )}
+              <AdminConfigSection />
             </div>
-          </div>
+          )}
 
-          <Divider />
-
-          {/* ============ 3. Inflation ============ */}
-          <SectionTitle
-            icon={<TrendingUp size={16} />}
-            title="Inflation"
-            badge={
-              inflationEnabled ? (
-                <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                  INFLATION ON
-                </span>
-              ) : undefined
-            }
-          />
-          <div className="space-y-3">
-            <Toggle
-              label="Apply Inflation to Future Cash-Outs"
-              checked={inflationEnabled}
-              onChange={setInflationEnabled}
-            />
-
-            {inflationEnabled && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-medium text-gray-600">Annual Rate</label>
-                    <span className="text-sm font-semibold tabular-nums text-amber-700">
-                      {inflationRate.toFixed(1)}% per year
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="10"
-                    step="0.5"
-                    value={inflationRate}
-                    onChange={(e) => setInflationRate(parseFloat(e.target.value))}
-                    className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-amber-500"
-                  />
-                </div>
-                <p className="text-xs text-gray-500">
-                  Future cash-outs are multiplied by (1 + rate)<sup>years</sup>. Applies to display and exports.
-                </p>
-                <p className="text-xs text-amber-700 font-medium">
-                  e.g., €{exampleAmount}k in {exampleYears} years at {inflationRate.toFixed(1)}% = €{exampleInflated.toFixed(2)}k
-                </p>
-              </div>
-            )}
-          </div>
-
-          <Divider />
-
-          {/* ============ 4. Display ============ */}
-          <SectionTitle icon={<Eye size={16} />} title="Display" />
-          <div className="space-y-3">
-            <Toggle
-              label="Show amounts in thousands (k€)"
-              checked={showThousands}
-              onChange={setShowThousands}
-            />
-          </div>
-
-          <Divider />
-
-          {/* ============ 6. About ============ */}
-          <SectionTitle icon={<Info size={16} />} title="About" />
-          <div className="space-y-1 text-sm text-gray-600">
-            <p><span className="font-medium text-gray-700">Version:</span> 2.0</p>
-            <p><span className="font-medium text-gray-700">Stack:</span> React 19, TypeScript, Vite 8, TailwindCSS 4</p>
+          {/* ============ About ============ */}
+          <div className="pt-5 border-t border-gray-200">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-indigo-600"><Info size={16} /></span>
+              <h3 className="text-sm font-semibold text-gray-900 tracking-tight">About</h3>
+            </div>
+            <div className="space-y-1 text-sm text-gray-600">
+              <p><span className="font-medium text-gray-700">Version:</span> 2.1</p>
+              <p><span className="font-medium text-gray-700">Stack:</span> React 19, TypeScript, Vite 8, TailwindCSS 4</p>
+            </div>
           </div>
         </div>
       </div>

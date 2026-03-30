@@ -1,5 +1,5 @@
 /**
- * CAPEX Budget Tool — Design Tokens
+ * TytanOps Cost-Book — Design Tokens
  *
  * Design direction: Stripe / Linear inspired. Clean, professional, data-dense.
  * Light base (gray-50 / white) with Indigo accent.

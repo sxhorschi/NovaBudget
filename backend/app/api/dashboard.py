@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import UserDep
+from app.auth import UserDep, require_facility_access
 from app.db import get_session
 from app.schemas.dashboard import DashboardResponse
 from app.services.dashboard import get_dashboard
@@ -21,6 +21,7 @@ async def dashboard(
 ) -> DashboardResponse:
     """Return all KPIs, functional-area breakdowns, cash-out timeline, phase/status
     breakdowns, and recent changes for a facility — in a single call."""
+    await require_facility_access(facility_id, user, session)
     try:
         return await get_dashboard(session, facility_id)
     except ValueError as exc:

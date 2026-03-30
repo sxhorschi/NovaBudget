@@ -41,7 +41,7 @@ const DEFAULT_CONFIG: AppConfig = {
   cost_drivers: [],
 };
 
-const CONFIG_STORAGE_KEY = 'budget-tool:app-config';
+const CONFIG_STORAGE_KEY = 'novabudget:appConfig';
 
 // ---------------------------------------------------------------------------
 // getLabel helper — shared via context and also exported standalone
@@ -118,10 +118,14 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const data = res.data as AppConfig;
       setConfig(data);
       localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(data));
-    } catch {
-      // Apply locally on API failure
-      setConfig(newConfig);
-      localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(newConfig));
+    } catch (err) {
+      // Don't apply locally — keep old config so the UI reflects the actual server state
+      const message =
+        err instanceof Error ? err.message :
+        (typeof err === 'object' && err !== null && 'response' in err)
+          ? ((err as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? 'Failed to update configuration. Changes were not saved.')
+          : 'Failed to update configuration. Changes were not saved.';
+      setError(message);
     } finally {
       setIsLoading(false);
     }

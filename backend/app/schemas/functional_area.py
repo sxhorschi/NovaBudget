@@ -1,5 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -11,12 +10,10 @@ from app.schemas.work_area import WorkAreaRead
 class FunctionalAreaCreate(BaseModel):
     name: str
     facility_id: UUID
-    budget_total: Decimal = Decimal("0")
 
 
 class FunctionalAreaUpdate(BaseModel):
     name: str | None = None
-    budget_total: Decimal | None = None
 
 
 class FunctionalAreaRead(BaseModel):
@@ -25,7 +22,6 @@ class FunctionalAreaRead(BaseModel):
     id: UUID
     name: str
     facility_id: UUID
-    budget_total: Decimal | None = None
     budgets: list[FunctionalAreaBudgetRead] = []
     created_at: datetime
     updated_at: datetime

@@ -24,6 +24,6 @@ export async function updateWorkArea(
   return mapWorkAreaFromApi(data);
 }
 
-export async function deleteWorkArea(id: string): Promise<void> {
-  await client.delete(`/work-areas/${id}`);
+export async function deleteWorkArea(id: string, force: boolean = true): Promise<void> {
+  await client.delete(`/work-areas/${id}`, { params: { force } });
 }

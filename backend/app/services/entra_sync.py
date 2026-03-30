@@ -8,7 +8,7 @@ ID tokens from MSAL, not access tokens with Graph scopes.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,7 +64,7 @@ async def sync_user_from_entra(
         if entra_oid:
             db_user.entra_id = entra_oid
 
-    db_user.last_synced_at = datetime.utcnow()
+    db_user.last_synced_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
     await session.commit()
     await session.refresh(db_user)

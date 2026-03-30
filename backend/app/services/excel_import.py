@@ -22,7 +22,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import CostItem, FunctionalArea, WorkArea
+from app.models import CostItem, FunctionalArea, FunctionalAreaBudget, WorkArea
 from app.models.enums import ApprovalStatus
 from app.services.import_report import FunctionalAreaReport, ImportReport
 
@@ -100,13 +100,15 @@ HEADER_ALIASES: dict[str, set[str]] = {
 #  Helper functions
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _safe_decimal(value) -> Decimal:
+def _safe_decimal(value, *, warnings: list[str] | None = None) -> Decimal:
     """Convert a cell value to Decimal, returning 0 on failure."""
     if value is None:
         return Decimal(0)
     try:
         return Decimal(str(value)).quantize(Decimal("0.01"))
     except (InvalidOperation, ValueError, ArithmeticError):
+        if warnings is not None:
+            warnings.append(f"Could not parse '{value}' as number — defaulting to 0")
         return Decimal(0)
 
 
@@ -454,6 +456,7 @@ async def import_excel_file(
     facility_id: UUID,
     session: AsyncSession,
     dry_run: bool = False,
+    year: int | None = None,
 ) -> dict:
     """Import a TYTAN CAPEX Excel workbook into the database.
 
@@ -524,16 +527,32 @@ async def import_excel_file(
                 functional_area = FunctionalArea(
                     name=fa_display_name,
                     facility_id=facility_id,
-                    budget_total=Decimal(0),
                 )
                 session.add(functional_area)
                 await session.flush()
                 report.functional_areas_created += 1
 
-            # Set budget if available from BudgetTemplate
+            # Set budget if available from BudgetTemplate — store in FunctionalAreaBudget
             if fa_display_name in budgets:
-                functional_area.budget_total = budgets[fa_display_name]
-                fa_report.budget_total = budgets[fa_display_name]
+                budget_amount = budgets[fa_display_name]
+                current_year = year if year is not None else date.today().year
+                # Upsert: check if a budget entry already exists for this year
+                existing_budget_stmt = select(FunctionalAreaBudget).where(
+                    FunctionalAreaBudget.functional_area_id == functional_area.id,
+                    FunctionalAreaBudget.year == current_year,
+                )
+                existing_budget = (await session.execute(existing_budget_stmt)).scalar_one_or_none()
+                if existing_budget:
+                    existing_budget.amount = budget_amount
+                else:
+                    session.add(FunctionalAreaBudget(
+                        functional_area_id=functional_area.id,
+                        year=current_year,
+                        amount=budget_amount,
+                        comment="Imported from BudgetTemplate",
+                    ))
+                    await session.flush()
+                fa_report.budget_total = budget_amount
 
             # ── Parse rows ────────────────────────────────────────────────
             current_work_area: WorkArea | None = None
@@ -580,7 +599,13 @@ async def import_excel_file(
                     )
 
                 # Amount (computed value from data_only workbook)
-                amount = _safe_decimal(_cell_value(ws, row, col_map, "amount"))
+                amount_warnings: list[str] = []
+                amount = _safe_decimal(
+                    _cell_value(ws, row, col_map, "amount"),
+                    warnings=amount_warnings,
+                )
+                for w in amount_warnings:
+                    report.add_warning(f"{fa_display_name}, Row {row}: {w}")
 
                 # Skip items with zero amount (optional: could be a warning)
                 if amount == 0:
@@ -702,6 +727,9 @@ async def import_excel_file(
 
         if dry_run:
             await session.rollback()
+        elif report.errors:
+            await session.rollback()
+            report.add_warning("Import rolled back due to errors — no data was saved")
         else:
             await session.commit()
 

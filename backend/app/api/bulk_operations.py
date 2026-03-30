@@ -9,10 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from app.auth import UserDep, require_role
+from app.auth import CurrentUser, UserDep, require_facility_access, require_role
 from app.db import get_session
-from app.models import CostItem, WorkArea
+from app.models import CostItem, FunctionalArea, WorkArea
 from app.models.enums import ApprovalStatus
 from app.rate_limit import limiter
 from app.schemas.cost_item import CostItemRead
@@ -95,6 +96,19 @@ async def _fetch_items(
     return items, missing
 
 
+async def _check_bulk_facility_access(
+    items: dict[UUID, CostItem], user: CurrentUser, session: AsyncSession
+) -> None:
+    """Check facility access for all items in a bulk operation."""
+    wa_ids = {item.work_area_id for item in items.values()}
+    # Batch load work areas and their functional areas
+    wa_stmt = select(WorkArea).where(WorkArea.id.in_(wa_ids)).options(selectinload(WorkArea.functional_area))
+    was = (await session.execute(wa_stmt)).scalars().all()
+    facility_ids = {wa.functional_area.facility_id for wa in was if wa.functional_area}
+    for fid in facility_ids:
+        await require_facility_access(fid, user, session)
+
+
 # ── POST /bulk-update ───────────────────────────────────────────────────
 
 
@@ -135,6 +149,8 @@ async def bulk_update(
             status_code=404,
             detail=f"Cost items not found: {', '.join(str(m) for m in missing)}",
         )
+
+    await _check_bulk_facility_access(items_map, user, session)
 
     details: list[BulkItemDetail] = []
 
@@ -206,6 +222,8 @@ async def bulk_status(
             status_code=404,
             detail=f"Cost items not found: {', '.join(str(m) for m in missing)}",
         )
+
+    await _check_bulk_facility_access(items_map, user, session)
 
     # Pre-validate all transitions before changing anything
     for uid in body.item_ids:
@@ -288,6 +306,8 @@ async def bulk_delete(
             detail=f"Cost items not found: {', '.join(str(m) for m in missing)}",
         )
 
+    await _check_bulk_facility_access(items_map, user, session)
+
     details: list[BulkItemDetail] = []
 
     try:
@@ -353,6 +373,8 @@ async def bulk_move(
             detail=f"Cost items not found: {', '.join(str(m) for m in missing)}",
         )
 
+    await _check_bulk_facility_access(items_map, user, session)
+
     details: list[BulkItemDetail] = []
 
     try:
@@ -416,6 +438,9 @@ async def duplicate_cost_item(
             status_code=404,
             detail=f"Source cost item not found: {body.item_id}",
         )
+
+    # Check facility access for the source item
+    await _check_bulk_facility_access({source.id: source}, user, session)
 
     target_wa_id = body.target_work_area_id or source.work_area_id
 

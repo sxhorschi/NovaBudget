@@ -89,7 +89,7 @@ export default function CostItemRow({
 
       {/* Cash-Out */}
       <td className="px-4 py-2.5 text-sm font-mono tabular-nums text-slate-500 whitespace-nowrap">
-        {item.expected_cash_out}
+        {item.expected_cash_out.slice(0, 7)}
       </td>
 
       {/* Amount */}

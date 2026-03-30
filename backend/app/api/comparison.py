@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import UserDep
+from app.auth import UserDep, require_facility_access
 from app.db import get_session
 from app.models import Facility
 from app.services.aggregation import get_functional_area_kpis, get_facility_kpis
@@ -102,6 +102,10 @@ async def compare_facilities(
             detail=f"Facilities not found: {', '.join(missing)}",
         )
 
+    # Check facility access for each requested facility
+    for fid in facility_ids:
+        await require_facility_access(fid, user, session)
+
     # Compute KPIs for each facility
     entries: list[FacilityComparisonEntry] = []
     for fid in facility_ids:
@@ -173,6 +177,10 @@ async def compare_functional_areas(
             status_code=404,
             detail=f"Facilities not found: {', '.join(missing)}",
         )
+
+    # Check facility access for each requested facility
+    for fid in parsed_ids:
+        await require_facility_access(fid, user, session)
 
     # Normalize requested names for case-insensitive matching
     names_lower = {n.lower() for n in fa_names}

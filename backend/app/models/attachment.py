@@ -14,8 +14,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
+    from app.models.change_cost import ChangeCost
     from app.models.cost_item import CostItem
     from app.models.functional_area import FunctionalArea
+    from app.models.price_history import PriceHistory
     from app.models.work_area import WorkArea
 
 
@@ -65,6 +67,18 @@ class Attachment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=True,
     )
 
+    # Optional reference to the specific entry this attachment documents
+    price_history_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("price_history.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    change_cost_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("change_costs.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     # File metadata
     filename: Mapped[str] = mapped_column(String(500), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -93,6 +107,14 @@ class Attachment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     functional_area: Mapped[FunctionalArea | None] = relationship(
         foreign_keys=[functional_area_id],
+        lazy="selectin",
+    )
+    price_history: Mapped[PriceHistory | None] = relationship(
+        foreign_keys=[price_history_id],
+        lazy="selectin",
+    )
+    change_cost: Mapped[ChangeCost | None] = relationship(
+        foreign_keys=[change_cost_id],
         lazy="selectin",
     )
 

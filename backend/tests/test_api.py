@@ -95,7 +95,7 @@ async def _create_facility_and_work_area(client: AsyncClient) -> tuple[str, str]
     # Create functional area
     fa_resp = await client.post(
         "/api/v1/functional-areas/",
-        json={"facility_id": fac_id, "name": "Test FA", "budget_total": "100000.00"},
+        json={"facility_id": fac_id, "name": "Test FA"},
     )
     fa_id = fa_resp.json()["id"]
 

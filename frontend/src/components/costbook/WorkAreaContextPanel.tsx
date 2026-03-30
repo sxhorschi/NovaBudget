@@ -88,7 +88,7 @@ export default function WorkAreaContextPanel({
                 <FolderOpen size={13} />
                 Category
               </div>
-              <h2 className="text-lg font-semibold text-gray-900 mt-1 truncate">{workArea.name}</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mt-1 truncate" title={workArea.name}>{workArea.name}</h2>
               {functionalAreaName && (
                 <p className="text-xs text-gray-500 mt-1">Functional Area: {functionalAreaName}</p>
               )}
@@ -156,7 +156,7 @@ export default function WorkAreaContextPanel({
                     .map((item) => (
                       <div key={item.id} className="px-3 py-2.5 flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{item.description}</p>
+                          <p className="text-sm font-medium text-gray-800 truncate" title={item.description}>{item.description}</p>
                           <p className="text-xs text-gray-500">{STATUS_LABELS[item.approval_status]}</p>
                         </div>
                         <p className="text-sm font-mono text-gray-700 whitespace-nowrap">{format(item.total_amount)}</p>

@@ -3,7 +3,7 @@
 Business logic per Otto v4:
 - Committed   = SUM(total_amount) WHERE status = APPROVED
 - Forecast    = SUM(total_amount) WHERE status NOT IN (REJECTED, OBSOLETE)
-- Budget      = functional_area.budget_total + SUM(change_costs.amount WHERE budget_relevant=true)
+- Budget      = SUM(FunctionalAreaBudget.amount) + SUM(change_costs.amount WHERE budget_relevant=true)
 - Remaining   = Budget - Forecast
 - Cost of Completion = Forecast - Committed
 """
@@ -68,11 +68,13 @@ async def test_forecast_excludes_rejected_and_obsolete(session: AsyncSession, sa
 
 
 async def test_budget_includes_adjustments(session: AsyncSession, sample_data):
-    """total_budget should equal SUM(functional_area.budget_total) + SUM(adjustments).
+    """total_budget should equal SUM(FunctionalAreaBudget.amount) + SUM(adjustments).
     With no adjustments, it should equal the raw functional area budget totals."""
     summary = await get_budget_summary(session)
 
-    expected_budget = sum(fa.budget_total for fa in sample_data["functional_areas"])
+    expected_budget = sum(
+        b.amount for fa in sample_data["functional_areas"] for b in fa.budgets
+    )
 
     assert summary.total_budget == expected_budget, (
         f"Expected total_budget={expected_budget}, got {summary.total_budget}. "

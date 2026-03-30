@@ -79,16 +79,16 @@ const COLUMN_NAMES: Record<number, string> = {
   [COL.WORK_AREA]: 'Work Area',
   [COL.PHASE]: 'Phase',
   [COL.PRODUCT]: 'Product',
-  [COL.DESCRIPTION]: 'Beschreibung',
-  [COL.AMOUNT]: 'Betrag',
-  [COL.CASH_OUT]: 'Cash-Out Datum',
+  [COL.DESCRIPTION]: 'Description',
+  [COL.AMOUNT]: 'Amount',
+  [COL.CASH_OUT]: 'Cash-Out Date',
   [COL.COST_BASIS]: 'Cost Basis',
   [COL.COST_DRIVER]: 'Cost Driver',
-  [COL.BASIS_DESC]: 'Basis Beschreibung',
-  [COL.ASSUMPTIONS]: 'Annahmen',
-  [COL.APPROVAL]: 'Genehmigungsstatus',
-  [COL.APPROVAL_DATE]: 'Genehmigungsdatum',
-  [COL.COMMENTS]: 'Kommentare',
+  [COL.BASIS_DESC]: 'Basis Description',
+  [COL.ASSUMPTIONS]: 'Assumptions',
+  [COL.APPROVAL]: 'Approval Status',
+  [COL.APPROVAL_DATE]: 'Approval Date',
+  [COL.COMMENTS]: 'Comments',
 };
 
 // ---------------------------------------------------------------------------
@@ -424,7 +424,7 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
           warnings.push({
             sheet: sheetName,
             row: excelRow,
-            message: `Zeile ohne Betrag — wird uebersprungen`,
+            message: `Row without amount — skipping`,
             severity: 'warning',
           });
           continue;
@@ -462,8 +462,8 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
             'Work Area': cellStr(row, colMap.WORK_AREA) ?? currentWorkArea.name,
             'Phase': cellStr(row, colMap.PHASE) ?? '',
             'Product': cellStr(row, colMap.PRODUCT) ?? '',
-            'Beschreibung': description,
-            'Betrag': amount,
+            'Description': description,
+            'Amount': amount,
             'Cash-Out': cellStr(row, colMap.CASH_OUT) ?? '',
             'Status': cellStr(row, colMap.APPROVAL) ?? '',
           });
@@ -483,7 +483,7 @@ export function parseExcelFile(data: ArrayBuffer, facilityId: string = ''): Exce
     warnings.push({
       sheet: '-',
       row: 0,
-      message: 'Keine Daten erkannt. Stellen Sie sicher, dass die Excel-Datei dem erwarteten Format entspricht (Header in Zeile 5, Daten ab Zeile 6).',
+      message: 'No data detected. Make sure the Excel file matches the expected format (headers in row 5, data from row 6).',
       severity: 'error',
     });
   }

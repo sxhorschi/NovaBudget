@@ -18,7 +18,7 @@ class FunctionalAreaKPI(BaseModel):
     functional_area_name: str
     year: int | None = None      # budget year (None = all years aggregated)
     budget: Decimal              # budget_total + SUM(budget_adjustments)
-    budget_base: Decimal         # functional_area.budget_total (original)
+    budget_base: Decimal         # SUM(FunctionalAreaBudget.amount) (original)
     adjustment_total: Decimal    # SUM(budget_adjustments.amount)
     committed: Decimal           # SUM(total_amount) WHERE status = APPROVED
     spent: Decimal               # SUM(total_amount) WHERE status = DELIVERED

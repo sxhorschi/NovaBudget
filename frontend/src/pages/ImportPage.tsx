@@ -12,6 +12,7 @@ import {
   Building2,
   FlaskConical,
   Info,
+  Calendar,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../components/common/ToastProvider';
@@ -315,6 +316,15 @@ const ImportPage: React.FC = () => {
   const [dryRunLoading, setDryRunLoading] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [dryRunResult, setDryRunResult] = useState<any>(null);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+
+  // Year options: current year -2 to +3
+  const yearOptions = useMemo(() => {
+    const current = new Date().getFullYear();
+    const years: number[] = [];
+    for (let y = current - 2; y <= current + 3; y++) years.push(y);
+    return years;
+  }, []);
 
   // Use facility ID from URL params (route-scoped), falling back to context
   const selectedFacilityId = facilityId ?? facility.id;
@@ -378,7 +388,7 @@ const ImportPage: React.FC = () => {
       formData.append('file', rawFile);
 
       const response = await client.post(
-        `/import/excel?facility_id=${selectedFacilityId}&dry_run=true`,
+        `/import/excel?facility_id=${selectedFacilityId}&dry_run=true&year=${selectedYear}`,
         formData,
         { headers: { 'Content-Type': 'multipart/form-data' } },
       );
@@ -394,7 +404,7 @@ const ImportPage: React.FC = () => {
     } finally {
       setDryRunLoading(false);
     }
-  }, [rawFile, selectedFacilityId, toast]);
+  }, [rawFile, selectedFacilityId, selectedYear, toast]);
 
   // --- Confirm import ---
   const confirmImport = useCallback(async () => {
@@ -409,7 +419,7 @@ const ImportPage: React.FC = () => {
       const formData = new FormData();
       formData.append('file', rawFile);
 
-      await client.post(`/import/excel?facility_id=${selectedFacilityId}`, formData, {
+      await client.post(`/import/excel?facility_id=${selectedFacilityId}&year=${selectedYear}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
@@ -431,7 +441,7 @@ const ImportPage: React.FC = () => {
           'Import failed. Please try again.',
       );
     }
-  }, [parseResult, rawFile, selectedFacilityId, toast]);
+  }, [parseResult, rawFile, selectedFacilityId, selectedYear, toast]);
 
   // --- Drag & Drop ---
   const onDrop = useCallback(
@@ -500,6 +510,31 @@ const ImportPage: React.FC = () => {
           <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
             ID: {selectedFacilityId}
           </span>
+        </div>
+
+        {/* Budget Year Selector */}
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-2.5">
+          <Calendar size={16} className="text-indigo-600 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-indigo-600 font-medium uppercase tracking-wider">
+              Budget year
+            </p>
+            <p className="text-[10px] text-gray-400">
+              Budget data will be imported for the selected year
+            </p>
+          </div>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            disabled={step === 'importing' || step === 'success'}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Step Indicator */}

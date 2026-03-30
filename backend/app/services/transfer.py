@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.cost_item import CostItem
 from app.models.functional_area import FunctionalArea
+from app.models.functional_area_budget import FunctionalAreaBudget
 from app.models.enums import ApprovalStatus
 from app.models.facility import Facility
 from app.models.transfer_log import TransferLog
@@ -290,10 +291,19 @@ async def transfer_functional_areas(
                 id=uuid.uuid4(),
                 facility_id=target_facility_id,
                 name=fa.name,
-                budget_total=fa.budget_total,
             )
             session.add(new_fa)
             await session.flush()
+
+            # Copy budget entries
+            for budget in fa.budgets:
+                new_budget = FunctionalAreaBudget(
+                    functional_area_id=new_fa.id,
+                    year=budget.year,
+                    amount=budget.amount,
+                    comment=budget.comment,
+                )
+                session.add(new_budget)
 
             logs.append(_log_entry(
                 "functional_area", fa.id, new_fa.id,

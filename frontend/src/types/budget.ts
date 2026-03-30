@@ -21,6 +21,36 @@ export type Product = string;
 export type CostBasis = string;
 export type CostDriver = string;
 
+// --- Centralized status sets (mutually exclusive buckets) ---
+
+/** Committed: approved + PO pipeline (NOT delivered — that's Spent) */
+export const COMMITTED_STATUSES: Set<ApprovalStatus> = new Set([
+  "approved",
+  "purchase_order_sent",
+  "purchase_order_confirmed",
+]);
+
+/** Spent: delivered items only */
+export const SPENT_STATUSES: Set<ApprovalStatus> = new Set([
+  "delivered",
+]);
+
+/** Dead: excluded from all aggregation */
+export const EXCLUDED_STATUSES: Set<ApprovalStatus> = new Set([
+  "rejected",
+  "obsolete",
+]);
+
+/** Forecast: open/in-progress items (NOT committed, NOT spent, NOT excluded) */
+export const FORECAST_STATUSES: Set<ApprovalStatus> = new Set([
+  "open",
+  "reviewed",
+  "submitted_for_approval",
+  "on_hold",
+  "pending_supplier_negotiation",
+  "pending_technical_clarification",
+]);
+
 // --- Interfaces ---
 
 export interface Facility {
@@ -129,9 +159,6 @@ export interface ChangeCost {
   created_by?: string;
 }
 
-/** @deprecated Use ChangeCost instead */
-export type BudgetAdjustment = ChangeCost;
-
 export const ADJUSTMENT_CATEGORY_LABELS: Record<AdjustmentCategory, string> = {
   product_change: 'Product Change',
   supplier_change: 'Supplier Change',
@@ -157,6 +184,8 @@ export interface Attachment {
   cost_item_id: string | null;
   work_area_id: string | null;
   functional_area_id: string | null;
+  price_history_id: string | null;
+  change_cost_id: string | null;
   filename: string;
   original_filename: string;
   content_type: string;
@@ -180,24 +209,6 @@ export const ATTACHMENT_TYPE_LABELS: Record<AttachmentType, string> = {
   PHOTO: 'Photo',
   OTHER: 'Other',
 };
-
-// --- Summary types ---
-
-export interface BudgetSummary {
-  total_budget: number;
-  total_spent: number;
-  total_approved: number;
-  total_delta: number;
-  cost_of_completion: number;
-}
-
-export interface FunctionalAreaSummary {
-  functional_area_name: string;
-  budget: number;
-  spent: number;
-  approved: number;
-  delta: number;
-}
 
 export interface CashOutEntry {
   month: string;

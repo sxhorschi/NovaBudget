@@ -56,9 +56,9 @@ const PREDEFINED_VIEWS: SavedView[] = [
 // localStorage helpers
 // ---------------------------------------------------------------------------
 
-const STORAGE_KEY = 'budget-tool-custom-views';
+const STORAGE_KEY = 'novabudget:customViews';
 
-const HIDDEN_VIEWS_KEY = 'budget-tool-hidden-views';
+const HIDDEN_VIEWS_KEY = 'novabudget:hiddenViews';
 
 function loadCustomViews(): SavedView[] {
   try {

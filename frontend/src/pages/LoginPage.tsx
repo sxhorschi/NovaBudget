@@ -54,7 +54,7 @@ const LoginPage: React.FC = () => {
             />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-            Budget Tool
+            TytanOps Cost-Book
           </h1>
           <p className="mt-1 text-sm text-gray-500">
             TYTAN Technologies

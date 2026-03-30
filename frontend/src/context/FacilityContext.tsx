@@ -7,7 +7,7 @@ import { dispatchToastEvent } from '../components/common/ToastProvider';
 // localStorage — only for remembering the selected facility (UI preference)
 // ---------------------------------------------------------------------------
 
-const CURRENT_FACILITY_KEY = 'budget-tool:current-facility-id';
+const CURRENT_FACILITY_KEY = 'novabudget:currentFacilityId';
 
 function loadCurrentFacilityId(): string | null {
   try {

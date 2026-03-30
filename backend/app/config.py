@@ -20,3 +20,12 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+import warnings
+
+if settings.SECRET_KEY == "change-me-in-production" and not settings.AUTH_DISABLED:
+    warnings.warn(
+        "SECRET_KEY is set to the default value. "
+        "Set the SECRET_KEY environment variable for production!",
+        stacklevel=1,
+    )

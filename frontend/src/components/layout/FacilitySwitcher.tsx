@@ -117,7 +117,7 @@ const FacilitySwitcher: React.FC = () => {
         aria-expanded={open}
       >
         {/* Name */}
-        <span className="text-sm font-semibold text-gray-700 truncate max-w-[180px]">
+        <span className="text-sm font-semibold text-gray-700 truncate max-w-[180px]" title={currentFacility.name}>
           {currentFacility.name}
         </span>
         {/* Chevron */}
@@ -145,10 +145,10 @@ const FacilitySwitcher: React.FC = () => {
                 }`}
               >
                 <div className="min-w-0 flex-1">
-                  <p className={`text-sm truncate ${isActive ? 'font-semibold text-indigo-700' : 'font-medium text-gray-700'}`}>
+                  <p className={`text-sm truncate ${isActive ? 'font-semibold text-indigo-700' : 'font-medium text-gray-700'}`} title={facility.name}>
                     {facility.name}
                   </p>
-                  <p className="text-xs text-gray-400 truncate">{facility.location}</p>
+                  <p className="text-xs text-gray-400 truncate" title={facility.location}>{facility.location}</p>
                 </div>
                 {isActive && (
                   <span className="text-[10px] font-medium text-indigo-600 flex-shrink-0">Current</span>

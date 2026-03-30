@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/v1/functional-areas", tags=["functional-areas"])
 
 @router.get("/", response_model=list[FunctionalAreaRead])
 async def list_functional_areas(
-    facility_id: UUID | None = None, session: AsyncSession = Depends(get_session)
+    _user: UserDep, facility_id: UUID | None = None, session: AsyncSession = Depends(get_session)
 ):
     stmt = select(FunctionalArea).order_by(FunctionalArea.name)
     if facility_id:
@@ -26,7 +26,7 @@ async def list_functional_areas(
 
 
 @router.get("/{functional_area_id}", response_model=FunctionalAreaWithWorkAreas)
-async def get_functional_area(functional_area_id: UUID, session: AsyncSession = Depends(get_session)):
+async def get_functional_area(functional_area_id: UUID, _user: UserDep, session: AsyncSession = Depends(get_session)):
     stmt = (
         select(FunctionalArea)
         .where(FunctionalArea.id == functional_area_id)

@@ -14,6 +14,8 @@ class AttachmentCreate(BaseModel):
     cost_item_id: UUID | None = None
     work_area_id: UUID | None = None
     functional_area_id: UUID | None = None
+    price_history_id: UUID | None = None
+    change_cost_id: UUID | None = None
     description: str | None = None
     attachment_type: AttachmentType = AttachmentType.OTHER
 
@@ -27,6 +29,8 @@ class AttachmentRead(BaseModel):
     cost_item_id: UUID | None = None
     work_area_id: UUID | None = None
     functional_area_id: UUID | None = None
+    price_history_id: UUID | None = None
+    change_cost_id: UUID | None = None
     filename: str
     original_filename: str
     content_type: str

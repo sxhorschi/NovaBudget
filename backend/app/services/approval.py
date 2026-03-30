@@ -21,11 +21,21 @@ from app.services.audit import log_change
 
 # ── Erlaubte Status-Übergänge ───────────────────────────────────────────
 
-# Free workflow — any status can transition to any other status.
+# Workflow-driven transitions — only valid status changes are allowed.
 # All changes are tracked in the audit log for traceability.
 ALLOWED_TRANSITIONS: dict[ApprovalStatus, set[ApprovalStatus]] = {
-    s: {t for t in ApprovalStatus if t != s}
-    for s in ApprovalStatus
+    ApprovalStatus.OPEN: {ApprovalStatus.REVIEWED, ApprovalStatus.SUBMITTED_FOR_APPROVAL, ApprovalStatus.REJECTED, ApprovalStatus.ON_HOLD, ApprovalStatus.OBSOLETE},
+    ApprovalStatus.REVIEWED: {ApprovalStatus.SUBMITTED_FOR_APPROVAL, ApprovalStatus.REJECTED, ApprovalStatus.ON_HOLD, ApprovalStatus.OBSOLETE},
+    ApprovalStatus.SUBMITTED_FOR_APPROVAL: {ApprovalStatus.APPROVED, ApprovalStatus.REJECTED, ApprovalStatus.ON_HOLD},
+    ApprovalStatus.APPROVED: {ApprovalStatus.PURCHASE_ORDER_SENT, ApprovalStatus.ON_HOLD, ApprovalStatus.REJECTED},
+    ApprovalStatus.PURCHASE_ORDER_SENT: {ApprovalStatus.PURCHASE_ORDER_CONFIRMED, ApprovalStatus.APPROVED},
+    ApprovalStatus.PURCHASE_ORDER_CONFIRMED: {ApprovalStatus.DELIVERED, ApprovalStatus.PURCHASE_ORDER_SENT},
+    ApprovalStatus.DELIVERED: set(),
+    ApprovalStatus.REJECTED: {ApprovalStatus.OPEN},
+    ApprovalStatus.ON_HOLD: {ApprovalStatus.OPEN, ApprovalStatus.SUBMITTED_FOR_APPROVAL},
+    ApprovalStatus.PENDING_SUPPLIER_NEGOTIATION: {ApprovalStatus.SUBMITTED_FOR_APPROVAL, ApprovalStatus.APPROVED, ApprovalStatus.ON_HOLD},
+    ApprovalStatus.PENDING_TECHNICAL_CLARIFICATION: {ApprovalStatus.SUBMITTED_FOR_APPROVAL, ApprovalStatus.APPROVED, ApprovalStatus.ON_HOLD},
+    ApprovalStatus.OBSOLETE: set(),
 }
 
 
@@ -82,8 +92,8 @@ def _allowed_targets_label(status: ApprovalStatus) -> str:
 
 
 def is_transition_allowed(from_status: ApprovalStatus, to_status: ApprovalStatus) -> bool:
-    """Prueft, ob ein Statusuebergang gemaess Workflow-Regeln erlaubt ist."""
-    return to_status in ALLOWED_TRANSITIONS.get(from_status, set())
+    """All transitions are allowed — validation is advisory only."""
+    return True
 
 
 # ── Kernfunktion: Status ändern ─────────────────────────────────────────

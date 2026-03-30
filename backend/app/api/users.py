@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -179,7 +179,7 @@ async def create_user(
         department=data.department,
         job_title=data.job_title,
         invited_by=UUID(current_user.id) if current_user.id else None,
-        invited_at=datetime.utcnow(),
+        invited_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     session.add(user)
     await session.commit()

@@ -28,12 +28,18 @@ const COST_BASIS_COLORS: Record<string, string> = {
 
 interface PriceTimelineProps {
   costItemId: string;
+  onCountChange?: (count: number) => void;
 }
 
-const PriceTimeline: React.FC<PriceTimelineProps> = ({ costItemId }) => {
+const PriceTimeline: React.FC<PriceTimelineProps> = ({ costItemId, onCountChange }) => {
   const [entries, setEntries] = useState<PriceHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  // Notify parent whenever entry count changes
+  useEffect(() => {
+    onCountChange?.(entries.length);
+  }, [entries.length, onCountChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,12 +137,12 @@ const PriceTimeline: React.FC<PriceTimelineProps> = ({ costItemId }) => {
             : 0;
 
           const date = new Date(entry.created_at);
-          const dateStr = date.toLocaleDateString('de-DE', {
+          const dateStr = date.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
           });
-          const timeStr = date.toLocaleTimeString('de-DE', {
+          const timeStr = date.toLocaleTimeString('en-GB', {
             hour: '2-digit',
             minute: '2-digit',
           });

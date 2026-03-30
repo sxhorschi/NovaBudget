@@ -167,7 +167,7 @@ async def get_dashboard(
     functional_areas_out: list[DashboardFunctionalArea] = []
 
     for fa in sorted(facility.functional_areas, key=lambda d: d.name):
-        fa_budget = fa.budget_total or ZERO
+        fa_budget = sum((b.amount or ZERO) for b in fa.budgets) if fa.budgets else ZERO
         fa_adj = sum((a.amount or ZERO) for a in fa.change_costs if a.budget_relevant)
         agg = fa_agg.get(fa.id)
 

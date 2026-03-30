@@ -116,11 +116,11 @@ async def _load_functional_areas(
 
 
 def _fa_effective_budget(fa: FunctionalArea) -> Decimal:
-    """Compute effective budget = budget_total + sum(adjustments).
+    """Compute effective budget = SUM(FunctionalAreaBudget.amount) + sum(adjustments).
 
     Matches the canonical definition from aggregation.py.
     """
-    base = fa.budget_total or Decimal(0)
+    base = sum((b.amount or Decimal(0)) for b in fa.budgets) if fa.budgets else Decimal(0)
     adj = sum((a.amount or Decimal(0)) for a in fa.change_costs if a.budget_relevant)
     return base + adj
 
@@ -291,9 +291,15 @@ _FIN_ROW2_FONT = Font(name="Calibri", size=9, color="808080")
 _FIN_ROW3_FONT = Font(name="Calibri", bold=True, size=9, color="2F5496")
 
 
-def _generate_month_range(start_year: int = 2026, start_month: int = 1,
-                          end_year: int = 2027, end_month: int = 12) -> list[date]:
+def _generate_month_range(
+    start_year: int | None = None, start_month: int = 1,
+    end_year: int | None = None, end_month: int = 12,
+) -> list[date]:
     """Generate list of first-of-month dates for the range."""
+    if start_year is None:
+        start_year = date.today().year
+    if end_year is None:
+        end_year = start_year + 1
     months: list[date] = []
     current = date(start_year, start_month, 1)
     end = date(end_year, end_month, 1)
@@ -319,9 +325,9 @@ async def generate_finance_export(
     session: AsyncSession,
     facility_id: UUID,
     budget_factor: Decimal = DEFAULT_BUDGET_FACTOR,
-    start_year: int = 2026,
+    start_year: int | None = None,
     start_month: int = 1,
-    end_year: int = 2027,
+    end_year: int | None = None,
     end_month: int = 12,
 ) -> tuple[bytes, str]:
     """Generate the pixel-perfect BudgetTemplate-style finance export.

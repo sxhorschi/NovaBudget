@@ -10,14 +10,15 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated
+from uuid import UUID
 
 import httpx
 import jwt
 from fastapi import Depends, HTTPException, Request, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -112,7 +113,7 @@ async def _enrich_from_db(
             db_user.name = token_name
 
     # Update last_login timestamp
-    db_user.last_login = datetime.utcnow()
+    db_user.last_login = datetime.now(timezone.utc).replace(tzinfo=None)
 
     await session.commit()
     await session.refresh(db_user)
@@ -238,3 +239,28 @@ def require_role(*roles: str):
             )
         return user
     return _check_role
+
+
+async def require_facility_access(
+    facility_id: UUID,
+    user: CurrentUser,
+    session: AsyncSession,
+) -> CurrentUser:
+    """Verify the user has access to the given facility via FacilityPermission."""
+    if user.role == "admin":
+        return user  # Global admins bypass facility-level checks
+    from app.models.permission import FacilityPermission
+    stmt = select(FacilityPermission).where(
+        FacilityPermission.user_id == UUID(user.id),
+        or_(
+            FacilityPermission.facility_id == facility_id,
+            FacilityPermission.facility_id.is_(None),
+        ),
+    )
+    result = await session.execute(stmt)
+    if not result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No access to this facility",
+        )
+    return user

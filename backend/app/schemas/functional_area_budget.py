@@ -4,18 +4,17 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class FunctionalAreaBudgetCreate(BaseModel):
-    year: int
-    amount: Decimal
+    year: int = Field(ge=2000, le=2100)
+    amount: Decimal = Field(ge=0)
     comment: str | None = None
 
 
 class FunctionalAreaBudgetUpdate(BaseModel):
-    year: int | None = None
-    amount: Decimal | None = None
+    amount: Decimal | None = Field(default=None, ge=0)
     comment: str | None = None
 
 

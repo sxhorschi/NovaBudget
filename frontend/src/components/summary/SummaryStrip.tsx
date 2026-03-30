@@ -9,7 +9,7 @@ import { useAmountFormatter } from '../costbook/AmountCell';
 
 interface SummaryStripProps {
   budget: number;
-  committed: number;
+  committed?: number;
   forecast: number;
   /** Sum of all DELIVERED items. */
   spent?: number;
@@ -62,7 +62,7 @@ const KPICard: React.FC<KPICardProps> = ({
       {label}
       {tooltip && <HelpTooltip text={tooltip} />}
     </span>
-    <span className={`text-lg font-bold font-mono tabular-nums truncate ${textColor}`}>
+    <span className={`text-lg font-bold font-mono tabular-nums truncate ${textColor}`} title={value}>
       {value}
     </span>
     <ProgressMicro value={barValue} max={barMax} color={barColor} />
@@ -132,17 +132,6 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
           tooltip="Total approved budget of all visible functional areas, incl. target adjustments"
         />
 
-        {/* Committed */}
-        <KPICard
-          label="Committed"
-          value={format(committed)}
-          textColor="text-green-700"
-          barValue={committed}
-          barMax={budget || 1}
-          barColor="green"
-          tooltip="Sum of all approved cost items"
-        />
-
         {/* Spent */}
         <KPICard
           label="Spent"
@@ -162,7 +151,7 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
           barValue={forecast}
           barMax={budget || 1}
           barColor="yellow"
-          tooltip="Expected total costs: all items not rejected or obsolete"
+          tooltip="All active items (not rejected, obsolete, or delivered)"
         />
 
         {/* Remaining */}
@@ -179,7 +168,7 @@ const SummaryStrip: React.FC<SummaryStripProps> = ({
           barValue={Math.max(remaining, 0)}
           barMax={budget || 1}
           barColor={remColor}
-          tooltip="Remaining budget = Budget - Forecast"
+          tooltip="Remaining = Budget - Forecast - Spent"
         />
       </div>
     </div>

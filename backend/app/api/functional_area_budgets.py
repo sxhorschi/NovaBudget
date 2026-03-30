@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import UserDep, require_role
@@ -34,6 +35,7 @@ async def _get_fa_or_404(
 @router.get("/", response_model=list[FunctionalAreaBudgetRead])
 async def list_budgets(
     fa_id: UUID,
+    _user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     await _get_fa_or_404(fa_id, session)
@@ -67,7 +69,7 @@ async def create_budget(
     session.add(budget)
     try:
         await session.flush()
-    except Exception:
+    except IntegrityError:
         await session.rollback()
         raise HTTPException(
             status_code=409,
@@ -121,11 +123,11 @@ async def update_budget(
         )
     try:
         await session.commit()
-    except Exception:
+    except IntegrityError:
         await session.rollback()
         raise HTTPException(
             status_code=409,
-            detail=f"Budget for year {data.year} already exists for this functional area.",
+            detail=f"Budget update conflicts with existing entry for this functional area.",
         )
     await session.refresh(budget)
     return budget

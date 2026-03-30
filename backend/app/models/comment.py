@@ -23,6 +23,7 @@ class Comment(Base):
         PG_UUID(as_uuid=True),
         ForeignKey("cost_items.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),

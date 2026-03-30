@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { InteractionRequiredAuthError } from '@azure/msal-browser';
 import { msalInstance, loginScopes } from '../lib/msal';
 import client from '../api/client';
@@ -105,12 +105,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const init = async () => {
       try {
-        console.log('[Auth] Initializing MSAL...');
         await msalInstance.initialize();
         msalReady.current = true;
-        console.log('[Auth] MSAL initialized, handling redirect...');
         const result = await msalInstance.handleRedirectPromise();
-        console.log('[Auth] Redirect result:', result ? 'got token' : 'no redirect');
 
         if (result?.account && result.idToken) {
           // Just came back from redirect login
@@ -168,16 +165,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const canEdit = user?.role === 'admin' || user?.role === 'editor';
   const isAdmin = user?.role === 'admin';
 
-  const value: AuthContextValue = {
-    user,
-    isAuthenticated: user !== null,
-    isLoading,
-    authError,
-    canEdit: !!canEdit,
-    isAdmin: !!isAdmin,
-    login,
-    logout,
-  };
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      isAuthenticated: user !== null,
+      isLoading,
+      authError,
+      canEdit: !!canEdit,
+      isAdmin: !!isAdmin,
+      login,
+      logout,
+    }),
+    [user, isLoading, authError, canEdit, isAdmin, login, logout],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

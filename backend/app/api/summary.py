@@ -16,10 +16,10 @@ Legacy endpoints (deprecated, kept for backward compat):
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import UserDep
+from app.auth import UserDep, require_facility_access
 from app.db import get_session
 from app.schemas.summary import (
     ApprovalPipelineEntry,
@@ -62,6 +62,7 @@ async def facility_kpis(
     user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
+    await require_facility_access(facility_id, user, session)
     try:
         return await get_facility_kpis(facility_id, session)
     except ValueError as exc:
@@ -76,9 +77,10 @@ async def facility_kpis(
 async def functional_area_kpis(
     facility_id: UUID,
     user: UserDep,
-    year: int | None = None,
+    year: int | None = Query(default=None, ge=2000, le=2100),
     session: AsyncSession = Depends(get_session),
 ):
+    await require_facility_access(facility_id, user, session)
     try:
         if year is not None:
             return await get_functional_area_kpis_by_year(facility_id, year, session)
@@ -97,6 +99,7 @@ async def cash_out_forecast(
     user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
+    await require_facility_access(facility_id, user, session)
     try:
         return await get_cash_out_forecast(facility_id, session)
     except ValueError as exc:
@@ -113,6 +116,7 @@ async def phase_breakdown(
     user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
+    await require_facility_access(facility_id, user, session)
     try:
         return await get_phase_breakdown(facility_id, session)
     except ValueError as exc:
@@ -129,6 +133,7 @@ async def approval_pipeline(
     user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
+    await require_facility_access(facility_id, user, session)
     try:
         return await get_approval_pipeline(facility_id, session)
     except ValueError as exc:

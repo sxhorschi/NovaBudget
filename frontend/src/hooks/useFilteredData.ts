@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import type { FilterState } from './useFilterState';
 import type { FunctionalArea, WorkArea, CostItem } from '../types/budget';
+import { SPENT_STATUSES, EXCLUDED_STATUSES } from '../types/budget';
 import { useBudgetData } from '../context/BudgetDataContext';
 
 function normalizeSearchText(value: string): string {
   return value
-    .toLocaleLowerCase('de-DE')
+    .toLocaleLowerCase('en-GB')
     .replace(/\u00e4/g, 'ae')
     .replace(/\u00f6/g, 'oe')
     .replace(/\u00fc/g, 'ue')
@@ -40,7 +41,7 @@ export interface FilteredData {
 // Hook
 // ---------------------------------------------------------------------------
 
-export function useFilteredData(filters: FilterState): FilteredData {
+export function useFilteredData(filters: FilterState, year?: number | null): FilteredData {
   const {
     functionalAreas: allFunctionalAreas,
     workAreas: allWorkAreas,
@@ -106,18 +107,40 @@ export function useFilteredData(filters: FilterState): FilteredData {
       );
     }
 
-    // ---- Step 4: Filter work areas to those that still have items ----
+    // ---- Step 3b: Filter by year (expected_cash_out) ----
+    const activeYear = year ?? null;
+    if (activeYear !== null) {
+      const yearStr = String(activeYear);
+      items = items.filter(
+        (ci) => ci.expected_cash_out && ci.expected_cash_out.slice(0, 4) === yearStr,
+      );
+    }
+
+    // ---- Step 4+5: Filter work areas and functional areas ----
+    // FAs with a budget for the selected year are always kept (even with 0 items).
+    const faIdsWithYearBudget = new Set<string>();
+    if (activeYear !== null) {
+      for (const fa of functionalAreas) {
+        if ((fa.budgets ?? []).some((b) => b.year === activeYear && b.amount > 0)) {
+          faIdsWithYearBudget.add(fa.id);
+        }
+      }
+    }
+
     const itemWorkAreaIds = new Set(items.map((ci) => ci.work_area_id));
     let filteredWorkAreas = hasItemLevelFilters
-      ? workAreasInFAs.filter((wa) => itemWorkAreaIds.has(wa.id))
+      ? workAreasInFAs.filter((wa) =>
+          itemWorkAreaIds.has(wa.id) || faIdsWithYearBudget.has(wa.functional_area_id)
+        )
       : workAreasInFAs;
 
-    // ---- Step 5: Filter functional areas to those that still have work areas ----
     const filteredWaFaIds = new Set(
       filteredWorkAreas.map((wa) => wa.functional_area_id),
     );
     let filteredFunctionalAreas = hasItemLevelFilters
-      ? functionalAreas.filter((d) => filteredWaFaIds.has(d.id))
+      ? functionalAreas.filter((d) =>
+          filteredWaFaIds.has(d.id) || faIdsWithYearBudget.has(d.id)
+        )
       : functionalAreas;
 
     // ---- Step 5b: Apply overBudget filter ----
@@ -136,9 +159,12 @@ export function useFilteredData(filters: FilterState): FilteredData {
           )
           .reduce((s, ci) => s + ci.total_amount, 0);
         const faAdjustments = changeCosts
-          .filter((cc) => cc.functional_area_id === fa.id && cc.budget_relevant)
+          .filter((cc) => cc.functional_area_id === fa.id && cc.budget_relevant
+            && (activeYear === null || cc.year === activeYear))
           .reduce((sum, cc) => sum + cc.amount, 0);
-        const faYearlyTotal = (fa.budgets ?? []).reduce((s, b) => s + b.amount, 0);
+        const faYearlyTotal = (fa.budgets ?? [])
+          .filter((b) => activeYear === null || b.year === activeYear)
+          .reduce((s, b) => s + b.amount, 0);
         const faBudget = (faYearlyTotal > 0 ? faYearlyTotal : fa.budget_total) + faAdjustments;
         if (faTotal > faBudget) {
           overBudgetFaIds.add(fa.id);
@@ -154,42 +180,47 @@ export function useFilteredData(filters: FilterState): FilteredData {
 
     // ---- Step 6: Compute summary ----
 
-    // Spent = items with status DELIVERED
-    const spent = items
-      .filter((ci) => ci.approval_status === 'delivered')
-      .reduce((sum, ci) => sum + ci.total_amount, 0);
-
-    // Committed = nur freigegebene (approved) Items
-    const committed = items
-      .filter((ci) => ci.approval_status === 'approved')
-      .reduce((sum, ci) => sum + ci.total_amount, 0);
-
-    // Forecast = alle Items die nicht rejected oder obsolete sind
+    // Forecast = all active items (not rejected, obsolete, or delivered)
     const forecast = items
-      .filter(
-        (ci) =>
-          ci.approval_status !== 'rejected' &&
-          ci.approval_status !== 'obsolete',
-      )
+      .filter((ci) => !EXCLUDED_STATUSES.has(ci.approval_status) && !SPENT_STATUSES.has(ci.approval_status))
       .reduce((sum, ci) => sum + ci.total_amount, 0);
+
+    // Spent = delivered items
+    const spent = items
+      .filter((ci) => SPENT_STATUSES.has(ci.approval_status))
+      .reduce((sum, ci) => sum + ci.total_amount, 0);
+
+    const committed = 0; // kept for interface compat
 
     // Budget = Yearly budgets sum (if available) or budget_total + change costs
     const filteredFaIds = new Set(filteredFunctionalAreas.map((d) => d.id));
     const baseBudget = filteredFunctionalAreas.reduce(
       (sum, d) => {
+        const budgets = d.budgets ?? [];
+        if (activeYear !== null) {
+          // When a year is selected, only include that year's budget
+          const yearBudget = budgets
+            .filter((b) => b.year === activeYear)
+            .reduce((s, b) => s + b.amount, 0);
+          return sum + yearBudget;
+        }
         // If yearly budgets exist, use their total; otherwise fall back to budget_total
-        const yearlyTotal = (d.budgets ?? []).reduce((s, b) => s + b.amount, 0);
+        const yearlyTotal = budgets.reduce((s, b) => s + b.amount, 0);
         return sum + (yearlyTotal > 0 ? yearlyTotal : d.budget_total);
       },
       0,
     );
     const adjustmentTotal = changeCosts
-      .filter((cc) => filteredFaIds.has(cc.functional_area_id) && cc.budget_relevant)
+      .filter((cc) =>
+        filteredFaIds.has(cc.functional_area_id) &&
+        cc.budget_relevant &&
+        (activeYear === null || cc.year === activeYear),
+      )
       .reduce((sum, cc) => sum + cc.amount, 0);
     const budget = baseBudget + adjustmentTotal;
 
-    // Remaining = Budget - Forecast
-    const remaining = budget - forecast;
+    // Remaining = Budget - Forecast - Spent
+    const remaining = budget - forecast - spent;
 
     // Delta: placeholder — will be replaced by PriceHistory in Phase 4
     const delta = 0;
@@ -211,6 +242,7 @@ export function useFilteredData(filters: FilterState): FilteredData {
     };
   }, [
     filters,
+    year,
     allFunctionalAreas,
     allWorkAreas,
     allCostItems,

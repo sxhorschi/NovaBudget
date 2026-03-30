@@ -10,6 +10,7 @@ import type {
 } from '../types/budget';
 import {
   STATUS_LABELS,
+  COMMITTED_STATUSES,
 } from '../types/budget';
 import { useConfig } from '../context/ConfigContext';
 import { useBudgetData } from '../context/BudgetDataContext';
@@ -28,6 +29,7 @@ import DeleteConfirmDialog from '../components/costbook/DeleteConfirmDialog';
 import TransferDialog from '../components/transfer/TransferDialog';
 import { useToast } from '../components/common/ToastProvider';
 import { useAuth } from '../context/AuthContext';
+import { useYear } from '../context/YearContext';
 import { formatThousands, parseGermanNumber } from '../components/costbook/AmountCell';
 
 // ---------------------------------------------------------------------------
@@ -41,7 +43,7 @@ interface ModalAmountInputProps {
   className?: string;
 }
 
-/** Formatted EUR amount input for modals — shows German thousand separators and EUR prefix. */
+/** Formatted EUR amount input for modals — shows thousand separators and EUR prefix. */
 const ModalAmountInput: React.FC<ModalAmountInputProps> = ({ value, onChange, placeholder, className }) => {
   const [display, setDisplay] = useState(() => formatThousands(value));
   const inputRef = useRef<HTMLInputElement>(null);
@@ -105,6 +107,7 @@ const CostbookPage: React.FC = () => {
     workAreas,
     costItems,
     updateCostItem,
+    changeItemStatus,
     deleteCostItem,
     createCostItem,
     createWorkArea,
@@ -115,22 +118,11 @@ const CostbookPage: React.FC = () => {
     deleteFunctionalArea,
   } = useBudgetData();
   const { filters, setFilter, setAllFilters, resetFilters, hasActiveFilters } = useFilterState();
+  // -- Year selector (shared via YearContext) --
+  const { selectedYear, setSelectedYear, availableYears } = useYear();
   const { filteredFunctionalAreas, filteredWorkAreas, filteredItems, summary } =
-    useFilteredData(filters);
+    useFilteredData(filters, selectedYear);
   const toast = useToast();
-
-  // -- Year selector for SummaryStrip --
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
-
-  const availableYears = useMemo(() => {
-    const years = new Set<number>();
-    for (const fa of functionalAreas) {
-      for (const b of fa.budgets ?? []) {
-        years.add(b.year);
-      }
-    }
-    return Array.from(years).sort();
-  }, [functionalAreas]);
 
   // -- Functional Area filter options (derived from context) --
   const faOptions = useMemo(
@@ -157,6 +149,9 @@ const CostbookPage: React.FC = () => {
   const [newItemWorkAreaId, setNewItemWorkAreaId] = useState<string | null>(null);
   const [newItemDescription, setNewItemDescription] = useState('');
   const [newItemAmount, setNewItemAmount] = useState('0');
+  const [newItemShowUnits, setNewItemShowUnits] = useState(false);
+  const [newItemUnitPrice, setNewItemUnitPrice] = useState('0');
+  const [newItemQuantity, setNewItemQuantity] = useState('1');
   const [newItemPhase, setNewItemPhase] = useState('');
   const [newItemProduct, setNewItemProduct] = useState('');
   const [newItemCostBasis, setNewItemCostBasis] = useState('');
@@ -263,9 +258,9 @@ const CostbookPage: React.FC = () => {
       totals[fa.id] = 0;
     }
 
-    // Committed = only approved items (consistent with useFilteredData source of truth)
+    // Committed = approved + PO sent + PO confirmed (consistent with useFilteredData)
     for (const item of filteredItems) {
-      if (item.approval_status !== 'approved') continue;
+      if (!COMMITTED_STATUSES.has(item.approval_status)) continue;
       const faId = workAreaToFA.get(item.work_area_id);
       if (faId == null) continue;
       totals[faId] = (totals[faId] ?? 0) + item.total_amount;
@@ -296,9 +291,9 @@ const CostbookPage: React.FC = () => {
 
   const handleStatusChange = useCallback(
     (item: CostItem, newStatus: ApprovalStatus) => {
-      updateCostItem(item.id, { approval_status: newStatus });
+      changeItemStatus(item.id, newStatus);
     },
-    [updateCostItem],
+    [changeItemStatus],
   );
 
   const handleDeleteRequest = useCallback((item: CostItem) => {
@@ -483,12 +478,17 @@ const CostbookPage: React.FC = () => {
       return;
     }
 
-    const now = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const qty = newItemShowUnits ? Math.max(1, Number(newItemQuantity) || 1) : 1;
+    const unitPrice = newItemShowUnits ? Math.max(0, Number(newItemUnitPrice) || 0) : amount;
+
+    const now = selectedYear
+      ? `${selectedYear}-01-01`
+      : new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     const newItem = await createCostItem(newItemWorkAreaId, {
       description: newItemDescription.trim(),
-      unit_price: amount,
-      quantity: 1,
+      unit_price: unitPrice,
+      quantity: qty,
       total_amount: amount,
       expected_cash_out: now,
       approval_status: 'open',
@@ -513,6 +513,9 @@ const CostbookPage: React.FC = () => {
     newItemDescription,
     newItemWorkAreaId,
     newItemAmount,
+    newItemShowUnits,
+    newItemUnitPrice,
+    newItemQuantity,
     newItemPhase,
     newItemProduct,
     newItemCostBasis,
@@ -668,6 +671,7 @@ const CostbookPage: React.FC = () => {
           budget={summary.budget}
           committed={summary.committed}
           forecast={summary.forecast}
+          spent={summary.spent}
           remaining={summary.remaining}
           availableYears={availableYears}
           selectedYear={selectedYear}
@@ -679,7 +683,7 @@ const CostbookPage: React.FC = () => {
       <div className="px-6 pt-4">
         <BudgetDashboard
           budget={summary.budget}
-          committed={summary.committed}
+          committed={summary.spent}
           forecast={summary.forecast}
           remaining={summary.remaining}
           itemCount={summary.itemCount}
@@ -784,11 +788,63 @@ const CostbookPage: React.FC = () => {
                     <label className="block text-xs font-medium text-gray-500 mb-1">Amount (EUR)</label>
                     <ModalAmountInput
                       value={newItemAmount}
-                      onChange={setNewItemAmount}
+                      onChange={(v) => {
+                        setNewItemAmount(v);
+                        if (newItemShowUnits) {
+                          const qty = Math.max(1, Number(newItemQuantity) || 1);
+                          setNewItemUnitPrice(String(Math.round((Number(v) || 0) / qty)));
+                        }
+                      }}
                       placeholder="0"
                       className="w-full rounded-md border border-gray-300 py-2 text-sm tabular-nums"
                     />
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewItemShowUnits((p) => !p);
+                      if (!newItemShowUnits) {
+                        setNewItemUnitPrice(newItemAmount);
+                        setNewItemQuantity('1');
+                      }
+                    }}
+                    className="text-xs text-gray-400 hover:text-indigo-600 transition-colors -mt-1"
+                  >
+                    {newItemShowUnits ? '\u2212 Hide unit breakdown' : '+ Unit breakdown'}
+                  </button>
+                  {newItemShowUnits && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Unit Price (EUR)</label>
+                        <ModalAmountInput
+                          value={newItemUnitPrice}
+                          onChange={(v) => {
+                            setNewItemUnitPrice(v);
+                            const qty = Math.max(1, Number(newItemQuantity) || 1);
+                            setNewItemAmount(String((Number(v) || 0) * qty));
+                          }}
+                          placeholder="0"
+                          className="w-full rounded-md border border-gray-300 py-2 text-sm tabular-nums"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Quantity</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={newItemQuantity}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, '');
+                            setNewItemQuantity(raw);
+                            const qty = Math.max(1, Number(raw) || 1);
+                            setNewItemAmount(String((Number(newItemUnitPrice) || 0) * qty));
+                          }}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm tabular-nums"
+                          placeholder="1"
+                        />
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">Phase <span className="text-red-400">*</span></label>
                     <select
@@ -928,6 +984,7 @@ const CostbookPage: React.FC = () => {
               functionalAreas={filteredFunctionalAreas}
               workAreas={workAreasWithItems}
               functionalAreaCommittedTotals={faCommittedTotals}
+              selectedYear={selectedYear}
               onSelectItem={handleSelectItem}
               selectedItemId={selectedItem?.id ?? null}
               onStatusChange={handleStatusChange}
@@ -946,6 +1003,7 @@ const CostbookPage: React.FC = () => {
           functionalAreaBudget={selectedFABudget}
           workAreaName={selectedWaName}
           onSave={canEdit ? handleSave : undefined}
+          onStatusChange={canEdit ? changeItemStatus : undefined}
           onClose={() => setSelectedItem(null)}
           onDelete={canEdit ? handleDeleteFromPanel : undefined}
           onDuplicate={canEdit ? handleDuplicate : undefined}

@@ -6,7 +6,7 @@ exposed.  There are deliberately no PUT or DELETE endpoints.
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,13 +22,17 @@ router = APIRouter(prefix="/api/v1/change-costs", tags=["change-costs"])
 
 @router.get("/", response_model=list[ChangeCostRead])
 async def list_change_costs(
+    _user: UserDep,
     functional_area_id: UUID | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
 ):
     """List all change costs, optionally filtered by functional area."""
     stmt = select(ChangeCost).order_by(ChangeCost.created_at)
     if functional_area_id:
         stmt = stmt.where(ChangeCost.functional_area_id == functional_area_id)
+    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     result = await session.execute(stmt)
     return result.scalars().all()
 
@@ -36,6 +40,7 @@ async def list_change_costs(
 @router.get("/{change_cost_id}", response_model=ChangeCostRead)
 async def get_change_cost(
     change_cost_id: UUID,
+    _user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     """Get a single change cost by ID."""

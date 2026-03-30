@@ -31,7 +31,7 @@ function formatFileSize(bytes: number): string {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('de-DE', {
+  return new Date(iso).toLocaleDateString('en-GB', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -286,7 +286,7 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ costItemId, onCountChan
                 <FileIcon contentType={att.content_type} />
 
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-800 truncate leading-tight">
+                  <p className="text-sm text-gray-800 truncate leading-tight" title={att.original_filename}>
                     {att.original_filename}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">

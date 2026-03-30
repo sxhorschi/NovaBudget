@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 from pathlib import Path
+from uuid import UUID as PyUUID
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
@@ -11,7 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import UserDep, require_role
 from app.db import get_session
+from app.schemas.config import ConfigUpdate
+from app.services.audit import log_change
 from app.services.config_service import load_config, save_config
+
+CONFIG_SENTINEL_ID = PyUUID("00000000-0000-0000-0000-000000000000")
 
 router = APIRouter(prefix="/api/v1/config", tags=["config"])
 
@@ -42,10 +48,39 @@ async def get_config(session: AsyncSession = Depends(get_session)):
 
 
 @router.put("/", dependencies=[Depends(require_role("admin"))])
-async def update_config(data: dict, user: UserDep, session: AsyncSession = Depends(get_session)):
+async def update_config(data: ConfigUpdate, user: UserDep, session: AsyncSession = Depends(get_session)):
     """Update the application config. Admin only."""
-    await save_config(session, data)
-    return await load_config(session)
+    # Load old config before saving so we can compute a diff for the audit log
+    old_config = await load_config(session)
+
+    try:
+        await save_config(session, data.model_dump(exclude_none=True))
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+    new_config = await load_config(session)
+
+    # Compute which categories changed and log the diff
+    changes: dict[str, dict[str, str]] = {}
+    for key in ("products", "phases", "cost_bases", "cost_drivers"):
+        old_ids = {item["id"] for item in old_config.get(key, [])}
+        new_ids = {item["id"] for item in new_config.get(key, [])}
+        old_labels = sorted(item["label"] for item in old_config.get(key, []))
+        new_labels = sorted(item["label"] for item in new_config.get(key, []))
+        if old_ids != new_ids or old_labels != new_labels:
+            changes[key] = {
+                "old": json.dumps(old_labels),
+                "new": json.dumps(new_labels),
+            }
+
+    if changes:
+        await log_change(
+            session, "config", CONFIG_SENTINEL_ID, "updated",
+            changes=changes, user_id=user.email,
+        )
+        await session.commit()
+
+    return new_config
 
 
 @router.get("/logo")

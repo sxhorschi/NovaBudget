@@ -4,10 +4,10 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 // localStorage keys
 // ---------------------------------------------------------------------------
 
-const LS_DISPLAY_K = 'settings_display_thousands';
-const LS_FINANCE_BUDGET_FACTOR = 'capex-planner:finance-budget-factor';
-const LS_INFLATION_ENABLED = 'capex-planner:inflation-enabled';
-const LS_INFLATION_RATE = 'capex-planner:inflation-rate';
+const LS_DISPLAY_K = 'novabudget:showThousands';
+const LS_FINANCE_BUDGET_FACTOR = 'novabudget:financeBudgetFactor';
+const LS_INFLATION_ENABLED = 'novabudget:inflationEnabled';
+const LS_INFLATION_RATE = 'novabudget:inflationRate';
 
 // ---------------------------------------------------------------------------
 // Utility: apply inflation to a future amount
@@ -67,6 +67,7 @@ export function DisplaySettingsProvider({ children }: { children: React.ReactNod
   );
   const [financeBudgetFactor, setFinanceBudgetFactorRaw] = useState<number>(() => {
     const stored = localStorage.getItem(LS_FINANCE_BUDGET_FACTOR)
+      ?? localStorage.getItem('capex-planner:finance-budget-factor')
       ?? localStorage.getItem('settings_finance_export_factor')
       ?? localStorage.getItem('settings_factor_085');
     if (stored) {

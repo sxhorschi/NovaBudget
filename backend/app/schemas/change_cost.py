@@ -21,7 +21,7 @@ class ChangeCostCreate(BaseModel):
     category: AdjustmentCategory
     cost_driver: str = Field(..., min_length=1, max_length=50, description="Cost driver from config")
     budget_relevant: bool = Field(default=False, description="Whether this change cost affects budget calculation")
-    year: int = Field(..., description="Budget year this change cost affects")
+    year: int = Field(..., ge=2000, le=2100, description="Budget year this change cost affects")
     created_by: str | None = None
 
 

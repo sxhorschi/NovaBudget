@@ -1,11 +1,11 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func as sqlfunc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.auth import UserDep, require_role
+from app.auth import UserDep, require_facility_access, require_role
 from app.db import get_session
 from app.models import FunctionalArea, WorkArea, CostItem
 from app.schemas.work_area import WorkAreaCreate, WorkAreaRead, WorkAreaUpdate, WorkAreaWithItems
@@ -16,10 +16,13 @@ router = APIRouter(prefix="/api/v1/work-areas", tags=["work-areas"])
 
 @router.get("/", response_model=list[WorkAreaRead])
 async def list_work_areas(
+    user: UserDep,
     functional_area_id: UUID | None = None,
     facility_id: UUID | None = None,
     session: AsyncSession = Depends(get_session),
 ):
+    if facility_id:
+        await require_facility_access(facility_id, user, session)
     stmt = select(WorkArea).order_by(WorkArea.name)
     if functional_area_id:
         stmt = stmt.where(WorkArea.functional_area_id == functional_area_id)
@@ -31,7 +34,7 @@ async def list_work_areas(
 
 
 @router.get("/{work_area_id}", response_model=WorkAreaWithItems)
-async def get_work_area(work_area_id: UUID, session: AsyncSession = Depends(get_session)):
+async def get_work_area(work_area_id: UUID, user: UserDep, session: AsyncSession = Depends(get_session)):
     stmt = (
         select(WorkArea)
         .where(WorkArea.id == work_area_id)
@@ -41,6 +44,9 @@ async def get_work_area(work_area_id: UUID, session: AsyncSession = Depends(get_
     work_area = result.scalar_one_or_none()
     if not work_area:
         raise HTTPException(status_code=404, detail="Work area not found")
+    fa = await session.get(FunctionalArea, work_area.functional_area_id)
+    if fa:
+        await require_facility_access(fa.facility_id, user, session)
     return work_area
 
 
@@ -87,11 +93,22 @@ async def update_work_area(
 async def delete_work_area(
     work_area_id: UUID,
     user: UserDep,
+    force: bool = Query(False, description="Force deletion even if work area has cost items"),
     session: AsyncSession = Depends(get_session),
 ):
     work_area = await session.get(WorkArea, work_area_id)
     if not work_area:
         raise HTTPException(status_code=404, detail="Work area not found")
+    if not force:
+        item_count_result = await session.execute(
+            select(sqlfunc.count(CostItem.id)).where(CostItem.work_area_id == work_area_id)
+        )
+        item_count = item_count_result.scalar_one()
+        if item_count > 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Work area contains {item_count} cost item(s). Pass force=true to confirm deletion.",
+            )
     work_area_id_copy = work_area.id
     await session.delete(work_area)
     await log_change(session, "work_area", work_area_id_copy, "deleted", user_id=user.email)

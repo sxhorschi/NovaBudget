@@ -19,11 +19,9 @@ export interface BudgetDataContextValue {
   workAreas: WorkArea[];
   costItems: CostItem[];
   changeCosts: ChangeCost[];
-  /** @deprecated Use changeCosts */
-  budgetAdjustments: ChangeCost[];
-
   // CRUD Mutations — all async, backend-first
   updateCostItem: (id: string, data: Partial<CostItem>) => void;
+  changeItemStatus: (id: string, newStatus: string) => void;
   deleteCostItem: (id: string) => void;
   createCostItem: (workAreaId: string, data: Partial<CostItem>) => Promise<CostItem | null>;
   createWorkArea: (functionalAreaId: string, name: string) => Promise<WorkArea | null>;
@@ -34,9 +32,6 @@ export interface BudgetDataContextValue {
   deleteFunctionalArea: (functionalAreaId: string) => void;
   updateFunctionalAreaBudget: (faId: string, newBudget: number) => void;
   addChangeCost: (functionalAreaId: string, amount: number, reason: string, category?: string, costDriver?: string, budgetRelevant?: boolean, year?: number) => void;
-  /** @deprecated Use addChangeCost */
-  addBudgetAdjustment: (functionalAreaId: string, amount: number, reason: string, category?: string) => void;
-
   // Yearly budget CRUD
   createYearlyBudget: (faId: string, year: number, amount: number, comment?: string | null) => Promise<FunctionalAreaBudget | null>;
   updateYearlyBudget: (faId: string, budgetId: string, data: { year?: number; amount?: number; comment?: string | null }) => Promise<void>;
@@ -91,6 +86,12 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // AbortController to cancel stale requests on facility switch
   const abortRef = useRef<AbortController | null>(null);
 
+  // Request ID counter to prevent stale responses on facility switch
+  const requestIdRef = useRef(0);
+
+  // Double-submit prevention for create mutations
+  const submittingRef = useRef(false);
+
   // --- Load all data for the current facility from backend ---
   const loadFacilityData = useCallback(async (fId: string) => {
     if (!fId) {
@@ -107,6 +108,8 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const controller = new AbortController();
     abortRef.current = controller;
 
+    const thisRequestId = ++requestIdRef.current;
+
     setIsLoading(true);
     try {
       const [fas, was, cis] = await Promise.all([
@@ -115,31 +118,28 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         ciApi.listCostItems(fId),
       ]);
 
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || thisRequestId !== requestIdRef.current) return;
 
       setFunctionalAreas(fas);
       setWorkAreas(was);
       setCostItems(cis);
 
-      // Load change costs per functional area
-      const allCC: ChangeCost[] = [];
-      for (const fa of fas) {
-        try {
-          const cc = await ccApi.listChangeCosts(fa.id);
-          allCC.push(...cc);
-        } catch {
-          // Individual functional area fetch failure is non-critical
-        }
-      }
-      if (!controller.signal.aborted) {
+      // Load change costs per functional area — all in parallel
+      const ccResults = await Promise.allSettled(
+        fas.map((fa) => ccApi.listChangeCosts(fa.id)),
+      );
+      const allCC: ChangeCost[] = ccResults
+        .filter((r): r is PromiseFulfilledResult<ChangeCost[]> => r.status === 'fulfilled')
+        .flatMap((r) => r.value);
+      if (!controller.signal.aborted && thisRequestId === requestIdRef.current) {
         setChangeCosts(allCC);
       }
     } catch {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && thisRequestId === requestIdRef.current) {
         dispatchToastEvent('error', 'Failed to load data from server.');
       }
     } finally {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && thisRequestId === requestIdRef.current) {
         setIsLoading(false);
       }
     }
@@ -153,29 +153,48 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // --- CRUD: Cost Items ---
 
   const updateCostItem = useCallback((id: string, data: Partial<CostItem>) => {
-    // Optimistic update
-    setCostItems((prev) =>
-      prev.map((ci) => (ci.id === id ? { ...ci, ...data, updated_at: new Date().toISOString() } : ci)),
-    );
+    // Capture previous state for rollback
+    let prev: CostItem[] = [];
+    setCostItems((current) => {
+      prev = current;
+      return current.map((ci) => (ci.id === id ? { ...ci, ...data, updated_at: new Date().toISOString() } : ci));
+    });
+
+    const rollback = () => setCostItems(prev);
 
     // Status changes must go through the workflow endpoint (PUT returns 409)
     if (data.approval_status) {
       const { approval_status, ...rest } = data;
       // Change status via workflow endpoint
       ciChangeStatus(id, approval_status).catch(() => {
+        rollback();
         dispatchToastEvent('error', 'Failed to change approval status.');
       });
       // Update other fields if any
       if (Object.keys(rest).length > 0) {
         ciApi.updateCostItem(id, rest).catch(() => {
+          rollback();
           dispatchToastEvent('error', 'Failed to update cost item.');
         });
       }
     } else {
       ciApi.updateCostItem(id, data).catch(() => {
+        rollback();
         dispatchToastEvent('error', 'Failed to update cost item.');
       });
     }
+  }, []);
+
+  const changeItemStatus = useCallback((id: string, newStatus: string) => {
+    let prev: CostItem[] = [];
+    setCostItems((current) => {
+      prev = current;
+      return current.map((ci) => (ci.id === id ? { ...ci, approval_status: newStatus as CostItem['approval_status'] } : ci));
+    });
+    ciChangeStatus(id, newStatus).catch(() => {
+      setCostItems(prev);
+      dispatchToastEvent('error', 'Failed to change status.');
+    });
   }, []);
 
   const deleteCostItem = useCallback((id: string) => {
@@ -188,8 +207,10 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const createCostItem = useCallback(
     async (workAreaId: string, data: Partial<CostItem>): Promise<CostItem | null> => {
-      const now = new Date().toISOString().split('T')[0];
+      if (submittingRef.current) return null;
+      submittingRef.current = true;
       try {
+        const now = new Date().toISOString().split('T')[0];
         const newItem = await ciApi.createCostItem({
           work_area_id: workAreaId,
           description: data.description ?? '',
@@ -216,6 +237,8 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       } catch {
         dispatchToastEvent('error', 'Failed to create cost item.');
         return null;
+      } finally {
+        submittingRef.current = false;
       }
     },
     [],
@@ -225,8 +248,10 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const createWorkArea = useCallback(
     async (functionalAreaId: string, name: string): Promise<WorkArea | null> => {
+      if (submittingRef.current) return null;
       const trimmed = name.trim();
       if (!trimmed) return null;
+      submittingRef.current = true;
       try {
         const newWA = await waApi.createWorkArea({ functional_area_id: functionalAreaId, name: trimmed });
         setWorkAreas((prev) => [...prev, newWA]);
@@ -234,6 +259,8 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       } catch {
         dispatchToastEvent('error', 'Failed to create category.');
         return null;
+      } finally {
+        submittingRef.current = false;
       }
     },
     [],
@@ -242,9 +269,14 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const updateWorkArea = useCallback((workAreaId: string, data: Partial<Pick<WorkArea, 'name'>>) => {
     const nextName = data.name?.trim();
     if (!nextName) return;
-    // Optimistic
-    setWorkAreas((prev) => prev.map((wa) => (wa.id === workAreaId ? { ...wa, name: nextName } : wa)));
+    // Capture previous state for rollback
+    let prev: WorkArea[] = [];
+    setWorkAreas((current) => {
+      prev = current;
+      return current.map((wa) => (wa.id === workAreaId ? { ...wa, name: nextName } : wa));
+    });
     waApi.updateWorkArea(workAreaId, { name: nextName }).catch(() => {
+      setWorkAreas(prev);
       dispatchToastEvent('error', 'Failed to update category.');
     });
   }, []);
@@ -262,8 +294,10 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const createFunctionalArea = useCallback(
     async (name: string, budgetTotal: number = 0): Promise<FunctionalArea | null> => {
+      if (submittingRef.current) return null;
       const trimmed = name.trim();
       if (!trimmed) return null;
+      submittingRef.current = true;
       try {
         const newFA = await faApi.createFunctionalArea({
           facility_id: facilityId,
@@ -275,6 +309,8 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       } catch {
         dispatchToastEvent('error', 'Failed to create functional area.');
         return null;
+      } finally {
+        submittingRef.current = false;
       }
     },
     [facilityId],
@@ -287,9 +323,14 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (typeof data.budget_total === 'number' && !Number.isNaN(data.budget_total)) {
         payload.budget_total = Math.max(0, data.budget_total);
       }
-      // Optimistic
-      setFunctionalAreas((prev) => prev.map((d) => (d.id === functionalAreaId ? { ...d, ...payload } : d)));
+      // Capture previous state for rollback
+      let prev: FunctionalArea[] = [];
+      setFunctionalAreas((current) => {
+        prev = current;
+        return current.map((d) => (d.id === functionalAreaId ? { ...d, ...payload } : d));
+      });
       faApi.updateFunctionalArea(functionalAreaId, payload).catch(() => {
+        setFunctionalAreas(prev);
         dispatchToastEvent('error', 'Failed to update functional area.');
       });
     },
@@ -312,8 +353,14 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [workAreas]);
 
   const updateFunctionalAreaBudget = useCallback((faId: string, newBudget: number) => {
-    setFunctionalAreas((prev) => prev.map((d) => (d.id === faId ? { ...d, budget_total: newBudget } : d)));
+    // Capture previous state for rollback
+    let prev: FunctionalArea[] = [];
+    setFunctionalAreas((current) => {
+      prev = current;
+      return current.map((d) => (d.id === faId ? { ...d, budget_total: newBudget } : d));
+    });
     faApi.updateFunctionalArea(faId, { budget_total: newBudget }).catch(() => {
+      setFunctionalAreas(prev);
       dispatchToastEvent('error', 'Failed to update functional area budget.');
     });
   }, []);
@@ -331,27 +378,14 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         cost_driver: costDriver ?? 'product',
         budget_relevant: budgetRelevant ?? false,
         year: year ?? new Date().getFullYear(),
-      }).then(() => {
-        // Reload change costs for this functional area
-        ccApi.listChangeCosts(functionalAreaId).then((cc) => {
-          setChangeCosts((prev) => {
-            const other = prev.filter((a) => a.functional_area_id !== functionalAreaId);
-            return [...other, ...cc];
-          });
-        }).catch(() => {});
+      }).then((created) => {
+        // Use the returned entity directly instead of refetching
+        setChangeCosts((prev) => [...prev, created]);
       }).catch(() => {
         dispatchToastEvent('error', 'Failed to create change cost.');
       });
     },
     [],
-  );
-
-  /** @deprecated Use addChangeCost */
-  const addBudgetAdjustment = useCallback(
-    (functionalAreaId: string, amount: number, reason: string, category?: string) => {
-      addChangeCost(functionalAreaId, amount, reason, category);
-    },
-    [addChangeCost],
   );
 
   // --- Yearly Budget CRUD ---
@@ -431,8 +465,8 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       workAreas,
       costItems,
       changeCosts,
-      budgetAdjustments: changeCosts,
       updateCostItem,
+      changeItemStatus,
       deleteCostItem,
       createCostItem,
       createWorkArea,
@@ -443,7 +477,6 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       deleteFunctionalArea,
       updateFunctionalAreaBudget,
       addChangeCost,
-      addBudgetAdjustment,
       createYearlyBudget,
       updateYearlyBudget,
       deleteYearlyBudget,
@@ -453,10 +486,10 @@ export const BudgetDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }),
     [
       facility, functionalAreas, workAreas, costItems, changeCosts,
-      updateCostItem, deleteCostItem, createCostItem,
+      updateCostItem, changeItemStatus, deleteCostItem, createCostItem,
       createWorkArea, updateWorkArea, deleteWorkArea,
       createFunctionalArea, updateFunctionalArea, deleteFunctionalArea,
-      updateFunctionalAreaBudget, addChangeCost, addBudgetAdjustment,
+      updateFunctionalAreaBudget, addChangeCost,
       createYearlyBudget, updateYearlyBudget, deleteYearlyBudget,
       bulkImport,
       loadFacilityData, facilityId, isLoading,

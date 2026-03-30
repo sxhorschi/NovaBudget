@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import UserDep
+from app.auth import UserDep, require_facility_access
 from app.db import get_session
 from app.rate_limit import limiter
 from app.services.excel_export import (
@@ -43,6 +43,7 @@ async def export_standard(
     session: AsyncSession = Depends(get_session),
 ):
     """Export filtered cost items as Excel with one sheet per functional area."""
+    await require_facility_access(facility_id, user, session)
 
     fa_ids: list[UUID] | None = None
     if fa:
@@ -75,6 +76,7 @@ async def export_finance(
     session: AsyncSession = Depends(get_session),
 ):
     """Export BudgetTemplate-format Excel for Finance."""
+    await require_facility_access(facility_id, user, session)
 
     try:
         content, filename = await generate_finance_export(
@@ -95,6 +97,7 @@ async def export_steering_committee(
     session: AsyncSession = Depends(get_session),
 ):
     """Export one-page steering committee summary."""
+    await require_facility_access(facility_id, user, session)
 
     try:
         content, filename = await generate_steering_committee_export(session, facility_id)

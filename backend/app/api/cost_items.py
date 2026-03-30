@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import UserDep, require_role
+from app.auth import UserDep, require_facility_access, require_role
 from app.db import get_session
 from app.models import AuditLog, CostItem, WorkArea
 from app.models.enums import ApprovalStatus
@@ -77,6 +77,7 @@ def _parse_enums(raw: str | None, enum_cls: type) -> list:
 
 @router.get("/", response_model=CostItemSearchResult)
 async def list_cost_items(
+    user: UserDep,
     facility_id: UUID,
     functional_area_id: str | None = Query(None, description="Comma-separated UUIDs"),
     work_area_id: UUID | None = None,
@@ -95,6 +96,7 @@ async def list_cost_items(
     page_size: int = Query(50, ge=1, le=500),
     session: AsyncSession = Depends(get_session),
 ):
+    await require_facility_access(facility_id, user, session)
     params = CostItemSearchParams(
         facility_id=facility_id,
         functional_area_ids=_parse_uuids(functional_area_id),
@@ -119,10 +121,16 @@ async def list_cost_items(
 # ── Single Item CRUD ─────────────────────────────────────────────────────
 
 @router.get("/{item_id}", response_model=CostItemRead)
-async def get_cost_item(item_id: UUID, session: AsyncSession = Depends(get_session)):
+async def get_cost_item(item_id: UUID, user: UserDep, session: AsyncSession = Depends(get_session)):
     item = await session.get(CostItem, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Cost item not found")
+    from app.models import FunctionalArea
+    wa = await session.get(WorkArea, item.work_area_id)
+    if wa:
+        fa = await session.get(FunctionalArea, wa.functional_area_id)
+        if fa:
+            await require_facility_access(fa.facility_id, user, session)
     return item
 
 
@@ -135,7 +143,8 @@ async def create_cost_item(
     work_area = await session.get(WorkArea, data.work_area_id)
     if not work_area:
         raise HTTPException(status_code=404, detail="Work area not found")
-    item = CostItem(**data.model_dump())
+    total_amount = data.unit_price * data.quantity
+    item = CostItem(**data.model_dump(), total_amount=total_amount)
     session.add(item)
     await session.flush()
 
@@ -167,6 +176,14 @@ async def update_cost_item(
     item = await session.get(CostItem, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Cost item not found")
+
+    # Optimistic locking: reject if item was modified since the client last read it
+    if data.expected_updated_at and item.updated_at != data.expected_updated_at:
+        raise HTTPException(
+            status_code=409,
+            detail="This item was modified by another user. Please refresh and try again.",
+        )
+
     update_data = data.model_dump(exclude_unset=True)
     # Statusänderungen nur über den Approval-Workflow erlauben
     if "approval_status" in update_data:
@@ -178,13 +195,15 @@ async def update_cost_item(
                 "POST .../submit, .../approve, .../reject oder PATCH .../status."
             ),
         )
-    # Extract price_change_basis before applying updates (not a model field)
+    # Extract non-model fields before applying updates
     price_change_basis = update_data.pop("price_change_basis", None)
+    update_data.pop("expected_updated_at", None)
 
-    # Detect if price/quantity is changing (before mutation)
+    # Detect if price/quantity/total is changing (before mutation)
     price_changing = (
         ("unit_price" in update_data and update_data["unit_price"] != item.unit_price)
         or ("quantity" in update_data and update_data["quantity"] != item.quantity)
+        or ("total_amount" in update_data and update_data["total_amount"] != item.total_amount)
     )
 
     # Capture old values before mutation
@@ -192,6 +211,18 @@ async def update_cost_item(
 
     for key, value in update_data.items():
         setattr(item, key, value)
+
+    # Reconcile total_amount vs unit_price × quantity
+    if "total_amount" in update_data and "unit_price" not in update_data:
+        # Total was changed directly — back-compute unit_price
+        if item.quantity > 0:
+            item.unit_price = item.total_amount / item.quantity
+        else:
+            item.unit_price = item.total_amount
+    elif "unit_price" in update_data or "quantity" in update_data:
+        # Unit breakdown changed — recompute total
+        item.total_amount = item.unit_price * item.quantity
+
     changes = build_changes(old_values, update_data)
     if changes:
         await log_change(session, "cost_item", item.id, "updated", changes=changes, user_id=user.email)
@@ -309,6 +340,7 @@ async def change_cost_item_status(
 )
 async def get_cost_item_audit_log(
     item_id: UUID,
+    _user: UserDep,
     session: AsyncSession = Depends(get_session),
 ):
     """Gibt die Statusänderungs-Historie eines Cost Items zurück."""

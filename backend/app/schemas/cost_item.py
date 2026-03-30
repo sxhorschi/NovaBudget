@@ -12,16 +12,15 @@ class CostItemCreate(BaseModel):
     description: str = Field(min_length=1, max_length=500)
     unit_price: Decimal = Field(ge=0, max_digits=15, decimal_places=2)
     quantity: Decimal = Field(default=Decimal("1"), ge=0, max_digits=15, decimal_places=2)
-    total_amount: Decimal = Field(ge=0, max_digits=15, decimal_places=2)
     expected_cash_out: date | None = None
-    cost_basis: str = Field(min_length=1, max_length=200)
+    cost_basis: str = Field(min_length=1, max_length=50)
     cost_driver: str | None = None
     basis_description: str | None = Field(default=None, max_length=1000)
     assumptions: str | None = Field(default=None, max_length=2000)
     approval_status: ApprovalStatus = ApprovalStatus.OPEN
     approval_date: date | None = None
-    project_phase: str = Field(min_length=1, max_length=200)
-    product: str = Field(min_length=1, max_length=200)
+    project_phase: str = Field(min_length=1, max_length=50)
+    product: str = Field(min_length=1, max_length=50)
     requester: str | None = Field(default=None, max_length=200)
 
 
@@ -84,3 +83,6 @@ class CostItemUpdate(BaseModel):
         max_length=50,
         description="Required when unit_price or quantity changes. One of: cost_estimation, initial_supplier_offer, revised_supplier_offer, final",
     )
+    # Optimistic locking: if provided, the update will fail with 409 if the
+    # item was modified after this timestamp.
+    expected_updated_at: datetime | None = None

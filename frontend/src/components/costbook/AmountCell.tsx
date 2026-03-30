@@ -20,36 +20,36 @@ interface AmountCellProps {
 }
 
 /** Shared EUR formatter instance (avoid re-creating on every call). */
-const eurFormatter = new Intl.NumberFormat('de-DE', {
+const eurFormatter = new Intl.NumberFormat('en-GB', {
   style: 'currency',
   currency: 'EUR',
   maximumFractionDigits: 0,
   minimumFractionDigits: 0,
 });
 
-const keurNumberFormatter = new Intl.NumberFormat('de-DE', {
+const keurNumberFormatter = new Intl.NumberFormat('en-GB', {
   maximumFractionDigits: 0,
   minimumFractionDigits: 0,
 });
 
-/** Format a number as EUR with thousands separator (German locale). */
+/** Format a number as EUR with thousands separator. */
 export function formatEUR(value: number): string {
   return eurFormatter.format(value);
 }
 
-/** Format a number as k€ (German locale, no decimal). */
+/** Format a number as k€ (no decimal). */
 export function formatKEUR(value: number): string {
   return `${keurNumberFormatter.format(Math.round(value / 1000))} k€`;
 }
 
 /**
- * Format a raw numeric string with German thousand separators.
- * E.g. "125000" -> "125.000"
+ * Format a raw numeric string with thousand separators.
+ * E.g. "125000" -> "125,000"
  */
 export function formatThousands(raw: string): string {
   const digits = raw.replace(/\D/g, '');
   if (digits === '') return '';
-  return Number(digits).toLocaleString('de-DE');
+  return Number(digits).toLocaleString('en-GB');
 }
 
 /**

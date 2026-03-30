@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ArrowUp, ArrowDown, SearchX, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import type { FunctionalArea, WorkAreaWithItems, CostItem, ApprovalStatus } from '../../types/budget';
+import { COMMITTED_STATUSES } from '../../types/budget';
 import { getFAColor } from '../../styles/design-tokens';
 import FunctionalAreaRow from './FunctionalAreaRow';
 import WorkAreaRow from './WorkAreaRow';
@@ -71,6 +72,7 @@ export interface CostbookTableProps {
   functionalAreas: FunctionalArea[];
   workAreas: WorkAreaWithItems[];
   functionalAreaCommittedTotals?: Record<string, number>;
+  selectedYear?: number | null;
   onSelectItem: (item: CostItem) => void;
   selectedItemId: string | null;
   onStatusChange: (item: CostItem, newStatus: ApprovalStatus) => void;
@@ -87,6 +89,7 @@ export default function CostbookTable({
   functionalAreas,
   workAreas,
   functionalAreaCommittedTotals,
+  selectedYear,
   onSelectItem,
   selectedItemId,
   onStatusChange,
@@ -290,9 +293,9 @@ export default function CostbookTable({
             for (const wa of faWAs) {
               faItems.push(...wa.cost_items);
             }
-            // Committed = only approved items (consistent with useFilteredData source of truth)
+            // Committed = approved + PO sent + PO confirmed (consistent with useFilteredData)
             const visibleCommitted = faItems
-              .filter((ci) => ci.approval_status === 'approved')
+              .filter((ci) => COMMITTED_STATUSES.has(ci.approval_status))
               .reduce((s, ci) => s + ci.total_amount, 0);
             const committed = functionalAreaCommittedTotals?.[fa.id] ?? visibleCommitted;
             const isFAExpanded = expandedFAs.has(fa.id);
@@ -304,7 +307,13 @@ export default function CostbookTable({
                 <FunctionalAreaRow
                   name={fa.name}
                   committed={committed}
-                  budget={fa.budget_total}
+                  budget={(() => {
+                    const budgets = fa.budgets ?? [];
+                    if (selectedYear != null) {
+                      return budgets.filter((b) => b.year === selectedYear).reduce((s, b) => s + b.amount, 0);
+                    }
+                    return budgets.reduce((s, b) => s + b.amount, 0);
+                  })()}
                   itemCount={faItems.length}
                   expanded={isFAExpanded}
                   onToggle={() => toggleFA(fa.id)}

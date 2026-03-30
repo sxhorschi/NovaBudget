@@ -16,12 +16,12 @@ function formatRelativeTime(iso: string): string {
   const diffHours = Math.floor(diffMin / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffSec < 60) return 'Gerade eben';
-  if (diffMin < 60) return `vor ${diffMin} Min.`;
-  if (diffHours < 24) return `vor ${diffHours} Std.`;
-  if (diffDays < 7) return `vor ${diffDays} Tag${diffDays !== 1 ? 'en' : ''}`;
+  if (diffSec < 60) return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
 
-  return date.toLocaleDateString('de-DE', {
+  return date.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -34,13 +34,14 @@ function formatRelativeTime(iso: string): string {
 
 interface CommentThreadProps {
   costItemId: string;
+  onCountChange?: (count: number) => void;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-const CommentThread: React.FC<CommentThreadProps> = ({ costItemId }) => {
+const CommentThread: React.FC<CommentThreadProps> = ({ costItemId, onCountChange }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -48,6 +49,11 @@ const CommentThread: React.FC<CommentThreadProps> = ({ costItemId }) => {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Notify parent whenever comment list changes
+  useEffect(() => {
+    onCountChange?.(comments.length);
+  }, [comments.length, onCountChange]);
 
   // Fetch comments whenever costItemId changes
   useEffect(() => {
@@ -124,13 +130,13 @@ const CommentThread: React.FC<CommentThreadProps> = ({ costItemId }) => {
 
   if (loading) {
     return (
-      <div className="text-xs text-gray-400 py-2">Kommentare werden geladen...</div>
+      <div className="text-xs text-gray-400 py-2">Loading comments...</div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-xs text-red-400 py-2">Kommentare konnten nicht geladen werden.</div>
+      <div className="text-xs text-red-400 py-2">Failed to load comments.</div>
     );
   }
 
@@ -140,7 +146,7 @@ const CommentThread: React.FC<CommentThreadProps> = ({ costItemId }) => {
       {comments.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-6 text-gray-400">
           <MessageCircle size={28} className="opacity-40" />
-          <span className="text-xs">Noch keine Kommentare</span>
+          <span className="text-xs">No comments yet</span>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -151,7 +157,7 @@ const CommentThread: React.FC<CommentThreadProps> = ({ costItemId }) => {
             >
               {/* Header row: author + timestamp */}
               <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="text-xs font-semibold text-gray-800 truncate">
+                <span className="text-xs font-semibold text-gray-800 truncate" title={comment.user_name}>
                   {comment.user_name}
                 </span>
                 <span className="text-[10px] text-gray-400 flex-shrink-0 tabular-nums">
@@ -169,7 +175,7 @@ const CommentThread: React.FC<CommentThreadProps> = ({ costItemId }) => {
                 type="button"
                 onClick={() => handleDelete(comment.id)}
                 disabled={deletingId === comment.id}
-                aria-label="Kommentar löschen"
+                aria-label="Delete comment"
                 className={`absolute top-2 right-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ${
                   deletingId === comment.id
                     ? 'text-gray-300 cursor-not-allowed'
@@ -189,7 +195,7 @@ const CommentThread: React.FC<CommentThreadProps> = ({ costItemId }) => {
           ref={textareaRef}
           rows={2}
           className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 focus:shadow-sm transition-colors resize-none"
-          placeholder="Kommentar schreiben… (Ctrl+Enter zum Senden)"
+          placeholder="Write a comment… (Ctrl+Enter to send)"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -207,7 +213,7 @@ const CommentThread: React.FC<CommentThreadProps> = ({ costItemId }) => {
             }`}
           >
             <Send size={14} />
-            Senden
+            Send
           </button>
         </div>
       </div>

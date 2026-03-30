@@ -20,15 +20,15 @@ import {
   ArrowUpRight,
   ArrowUpDown,
   BarChart3,
-  FilterX,
 } from 'lucide-react';
 import HelpTooltip from '../components/help/HelpTooltip';
 import EmptyState from '../components/common/EmptyState';
 import type { CostItem, FunctionalArea } from '../types/budget';
-import { STATUS_LABELS, STATUS_COLORS } from '../types/budget';
+import { STATUS_LABELS, STATUS_COLORS, SPENT_STATUSES, EXCLUDED_STATUSES } from '../types/budget';
 import { getFAColor } from '../styles/design-tokens';
 import { formatEUR } from '../components/costbook/AmountCell';
 import { useBudgetData } from '../context/BudgetDataContext';
+import { useYear } from '../context/YearContext';
 import { useFilterState } from '../hooks/useFilterState';
 import { useFilteredData } from '../hooks/useFilteredData';
 import FilterBar from '../components/filter/FilterBar';
@@ -59,12 +59,7 @@ function buildMonthMeta(months: string[]): {
   return { labels, shorts };
 }
 
-// Committed statuses (approved or later in lifecycle, excluding delivered which is "spent")
-const COMMITTED_STATUSES_FE = new Set<string>([
-  'approved',
-  'purchase_order_sent',
-  'purchase_order_confirmed',
-]);
+// Use centralized COMMITTED_STATUSES from types/budget.ts
 
 // Quarters are computed dynamically from data (see useDynamicQuarters below).
 // This constant is kept as a fallback type definition only.
@@ -115,9 +110,8 @@ function heatmapTextColor(t: number): string {
 // ---------------------------------------------------------------------------
 
 const CashOutPage: React.FC = () => {
-  const { functionalAreas, workAreas } = useBudgetData();
+  const { functionalAreas, workAreas, costItems } = useBudgetData();
   const { filters, setFilter, resetFilters, hasActiveFilters } = useFilterState();
-  const { filteredFunctionalAreas, filteredItems, summary } = useFilteredData(filters);
   const navigate = useNavigate();
   const { facilityId } = useParams<{ facilityId: string }>();
 
@@ -125,28 +119,9 @@ const CashOutPage: React.FC = () => {
   const [hoveredCell, setHoveredCell] = useState<{ row: number; col: number } | null>(null);
   const [sortField, setSortField] = useState<SortField>('cashout');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [legendFilter, setLegendFilter] = useState<string | null>(null);
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const { selectedYear, setSelectedYear, availableYears } = useYear();
 
-  // ---- Available years from functional area yearly budgets ----
-  const availableYears = useMemo((): number[] => {
-    const yearSet = new Set<number>();
-    for (const fa of functionalAreas) {
-      for (const b of fa.budgets ?? []) {
-        yearSet.add(b.year);
-      }
-    }
-    return Array.from(yearSet).sort();
-  }, [functionalAreas]);
-
-  // ---- Items filtered by selected year (based on expected_cash_out year) ----
-  const yearFilteredItems = useMemo(() => {
-    if (selectedYear === null) return filteredItems;
-    return filteredItems.filter((ci) => {
-      if (!ci.expected_cash_out) return false;
-      return Number(ci.expected_cash_out.slice(0, 4)) === selectedYear;
-    });
-  }, [filteredItems, selectedYear]);
+  const { filteredFunctionalAreas, filteredItems, summary } = useFilteredData(filters, selectedYear);
 
   // ---- Dynamic MONTHS derived from actual expected_cash_out dates in data ----
   const dynamicMonths = useMemo((): string[] => {
@@ -186,19 +161,6 @@ const CashOutPage: React.FC = () => {
     [dynamicMonths],
   );
 
-  // ---- Budget reference lines per year ----
-  // Shows the total yearly budget as a horizontal ReferenceLine on the chart.
-  // We compute total budget per year across all visible functional areas.
-  const budgetByYear = useMemo((): Record<number, number> => {
-    const totals: Record<number, number> = {};
-    for (const fa of filteredFunctionalAreas) {
-      for (const b of fa.budgets ?? []) {
-        totals[b.year] = (totals[b.year] ?? 0) + b.amount;
-      }
-    }
-    return totals;
-  }, [filteredFunctionalAreas]);
-
   // ---- Helper: work area IDs for a functional area ----
   const faWaIds = useCallback(
     (faId: string): Set<string> => {
@@ -229,67 +191,34 @@ const CashOutPage: React.FC = () => {
     return Array.from(quarterMap.entries()).map(([label, months]) => ({ label, months }));
   }, [dynamicMonths]);
 
-  // ---- Chart data: stacked area per functional area, three series ----
+  // ---- Chart data: forecast + spent per month + budget burndown ----
   const chartData = useMemo(() => {
+    const totalBudget = summary.budget;
+    let cumulative = 0;
+
     return dynamicMonths.map((month) => {
-      const entry: Record<string, number | string> = {
+      const monthItems = filteredItems.filter((ci) => ci.expected_cash_out?.slice(0, 7) === month);
+
+      const forecast = monthItems
+        .filter((ci) => !EXCLUDED_STATUSES.has(ci.approval_status) && !SPENT_STATUSES.has(ci.approval_status))
+        .reduce((sum, ci) => sum + ci.total_amount, 0);
+
+      const spent = monthItems
+        .filter((ci) => SPENT_STATUSES.has(ci.approval_status))
+        .reduce((sum, ci) => sum + ci.total_amount, 0);
+
+      cumulative += forecast + spent;
+      const budgetRemaining = Math.max(0, totalBudget - cumulative);
+
+      return {
         month,
         label: MONTH_LABELS[month] ?? month,
+        forecast,
+        spent,
+        budgetRemaining,
       };
-      let forecastTotal = 0;
-      let committedTotal = 0;
-      let spentTotal = 0;
-
-      filteredFunctionalAreas.forEach((fa) => {
-        const waIds = faWaIds(fa.id);
-
-        // Forecast: items not rejected/obsolete/delivered (not yet spent)
-        const forecastAmount = yearFilteredItems
-          .filter(
-            (ci) =>
-              waIds.has(ci.work_area_id) &&
-              ci.expected_cash_out === month &&
-              ci.approval_status !== 'rejected' &&
-              ci.approval_status !== 'obsolete' &&
-              ci.approval_status !== 'delivered',
-          )
-          .reduce((sum, ci) => sum + ci.total_amount, 0);
-
-        // Committed: approved, purchase_order_sent, purchase_order_confirmed
-        // (delivered is excluded here — it's counted as "spent")
-        const committedAmount = yearFilteredItems
-          .filter(
-            (ci) =>
-              waIds.has(ci.work_area_id) &&
-              ci.expected_cash_out === month &&
-              COMMITTED_STATUSES_FE.has(ci.approval_status),
-          )
-          .reduce((sum, ci) => sum + ci.total_amount, 0);
-
-        // Spent: delivered items only
-        const spentAmount = yearFilteredItems
-          .filter(
-            (ci) =>
-              waIds.has(ci.work_area_id) &&
-              ci.expected_cash_out === month &&
-              ci.approval_status === 'delivered',
-          )
-          .reduce((sum, ci) => sum + ci.total_amount, 0);
-
-        entry[`fa_${fa.id}`] = forecastAmount;
-        entry[`committed_fa_${fa.id}`] = committedAmount;
-        entry[`spent_fa_${fa.id}`] = spentAmount;
-        forecastTotal += forecastAmount;
-        committedTotal += committedAmount;
-        spentTotal += spentAmount;
-      });
-
-      entry.total = forecastTotal;
-      entry.committed_total = committedTotal;
-      entry.spent_total = spentTotal;
-      return entry;
     });
-  }, [dynamicMonths, MONTH_LABELS, filteredFunctionalAreas, yearFilteredItems, faWaIds]);
+  }, [dynamicMonths, MONTH_LABELS, filteredItems, summary.budget]);
 
   // ---- Heatmap table data ----
   const tableData = useMemo(() => {
@@ -300,8 +229,8 @@ const CashOutPage: React.FC = () => {
       let rowTotal = 0;
 
       dynamicMonths.forEach((month) => {
-        const amount = yearFilteredItems
-          .filter((ci) => waIds.has(ci.work_area_id) && ci.expected_cash_out === month)
+        const amount = filteredItems
+          .filter((ci) => waIds.has(ci.work_area_id) && ci.expected_cash_out && ci.expected_cash_out.slice(0, 7) === month)
           .reduce((sum, ci) => sum + ci.total_amount, 0);
         row[month] = amount;
         rowTotal += amount;
@@ -310,7 +239,7 @@ const CashOutPage: React.FC = () => {
       row.__total = rowTotal;
       return { functionalArea: fa, months: row };
     });
-  }, [filteredFunctionalAreas, yearFilteredItems, faWaIds, dynamicMonths]);
+  }, [filteredFunctionalAreas, filteredItems, faWaIds, dynamicMonths]);
 
   // ---- Column totals ----
   const columnTotals = useMemo(() => {
@@ -365,7 +294,7 @@ const CashOutPage: React.FC = () => {
     const upcoming = dynamicMonths.slice(startIdx, startIdx + 3);
     return upcoming.map((m) => {
       const total = columnTotals[m] || 0;
-      const items = yearFilteredItems.filter((ci) => ci.expected_cash_out === m);
+      const items = filteredItems.filter((ci) => ci.expected_cash_out && ci.expected_cash_out.slice(0, 7) === m);
 
       // Functional area breakdown
       const faBreakdown: { fa: FunctionalArea; amount: number }[] = [];
@@ -388,28 +317,31 @@ const CashOutPage: React.FC = () => {
         faBreakdown,
       };
     });
-  }, [columnTotals, yearFilteredItems, filteredFunctionalAreas, faWaIds, dynamicMonths, MONTH_LABELS]);
+  }, [columnTotals, filteredItems, filteredFunctionalAreas, faWaIds, dynamicMonths, MONTH_LABELS]);
 
-  // ---- Burndown data ----
+  // ---- Burndown data (uses dynamicMonths so it renders even with no items) ----
   const burndownData = useMemo(() => {
-    const byMonth: Record<string, number> = {};
-    yearFilteredItems.forEach((item) => {
-      const m = item.expected_cash_out;
+    if (dynamicMonths.length === 0) return [];
+
+    const plannedByMonth: Record<string, number> = {};
+    const actualByMonth: Record<string, number> = {};
+
+    filteredItems.forEach((item) => {
+      const m = item.expected_cash_out?.slice(0, 7);
       if (m) {
-        byMonth[m] = (byMonth[m] || 0) + item.total_amount;
+        plannedByMonth[m] = (plannedByMonth[m] || 0) + item.total_amount;
+        if (item.approval_status === 'delivered') {
+          actualByMonth[m] = (actualByMonth[m] || 0) + item.total_amount;
+        }
       }
     });
-
-    const months = Object.keys(byMonth).sort();
-    if (months.length === 0) return [];
 
     let cumulativePlanned = 0;
     let cumulativeActual = 0;
 
-    return months.map((m) => {
-      const monthAmount = byMonth[m] || 0;
-      cumulativePlanned += monthAmount;
-      cumulativeActual += monthAmount;
+    return dynamicMonths.map((m) => {
+      cumulativePlanned += plannedByMonth[m] || 0;
+      cumulativeActual += actualByMonth[m] || 0;
       return {
         month: m,
         label: MONTH_SHORT[m] ?? m,
@@ -418,11 +350,11 @@ const CashOutPage: React.FC = () => {
         remaining: summary.budget - cumulativePlanned,
       };
     });
-  }, [yearFilteredItems, summary.budget, MONTH_SHORT]);
+  }, [dynamicMonths, filteredItems, summary.budget, MONTH_SHORT]);
 
   // ---- Detail items sorted ----
   const detailItems = useMemo(() => {
-    const items = [...yearFilteredItems];
+    const items = [...filteredItems];
 
     const getFANameForItem = (item: CostItem): string => {
       const wa = workAreas.find((w) => w.id === item.work_area_id);
@@ -435,7 +367,7 @@ const CashOutPage: React.FC = () => {
       let cmp = 0;
       switch (sortField) {
         case 'cashout':
-          cmp = a.expected_cash_out.localeCompare(b.expected_cash_out);
+          cmp = (a.expected_cash_out ?? '').localeCompare(b.expected_cash_out ?? '');
           break;
         case 'functionalArea':
           cmp = getFANameForItem(a).localeCompare(getFANameForItem(b));
@@ -448,7 +380,7 @@ const CashOutPage: React.FC = () => {
     });
 
     return items;
-  }, [yearFilteredItems, sortField, sortDir, workAreas, functionalAreas]);
+  }, [filteredItems, sortField, sortDir, workAreas, functionalAreas]);
 
   // ---- Functional area lookup helpers ----
   function getFAForItem(item: CostItem): FunctionalArea | undefined {
@@ -493,10 +425,6 @@ const CashOutPage: React.FC = () => {
   }
 
   // ---- Legend click handler ----
-  function handleLegendClick(faId: string): void {
-    setLegendFilter((prev) => (prev === faId ? null : faId));
-  }
-
   return (
     <>
       {/* ================================================================ */}
@@ -557,39 +485,20 @@ const CashOutPage: React.FC = () => {
                     {selectedYear !== null && ` · ${selectedYear}`}
                   </p>
                 </div>
-                {/* Clickable legend */}
-                <div className="flex flex-wrap items-center gap-3">
-                  {filteredFunctionalAreas.map((fa) => {
-                    const isActive = legendFilter === null || legendFilter === fa.id;
-                    return (
-                      <button
-                        key={fa.id}
-                        type="button"
-                        onClick={() => handleLegendClick(fa.id)}
-                        className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-all duration-200 ${
-                          isActive
-                            ? 'opacity-100 bg-gray-50 hover:bg-gray-100'
-                            : 'opacity-40 hover:opacity-70'
-                        }`}
-                      >
-                        <div
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: getFAColor(fa.id) }}
-                        />
-                        <span className="text-gray-700 font-medium">{fa.name}</span>
-                      </button>
-                    );
-                  })}
-                  {legendFilter !== null && (
-                    <button
-                      type="button"
-                      onClick={() => setLegendFilter(null)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      <FilterX className="w-3 h-3" />
-                      All
-                    </button>
-                  )}
+                {/* Chart legend */}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+                    <span className="text-gray-600">Forecast</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
+                    <span className="text-gray-600">Spent</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <div className="w-3 h-0.5 bg-amber-500" style={{ borderTop: '1.5px dashed #f59e0b' }} />
+                    <span className="text-gray-600">Budget Remaining</span>
+                  </div>
                 </div>
               </div>
 
@@ -597,27 +506,14 @@ const CashOutPage: React.FC = () => {
                 <ResponsiveContainer width="100%" height={300}>
                   <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
                     <defs>
-                      {filteredFunctionalAreas.map((fa) => (
-                        <linearGradient
-                          key={fa.id}
-                          id={`grad_fa_${fa.id}`}
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="0%"
-                            stopColor={getFAColor(fa.id)}
-                            stopOpacity={0.6}
-                          />
-                          <stop
-                            offset="100%"
-                            stopColor={getFAColor(fa.id)}
-                            stopOpacity={0.05}
-                          />
-                        </linearGradient>
-                      ))}
+                      <linearGradient id="grad_forecast" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6366f1" stopOpacity={0.4} />
+                        <stop offset="100%" stopColor="#6366f1" stopOpacity={0.05} />
+                      </linearGradient>
+                      <linearGradient id="grad_spent" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#059669" stopOpacity={0.5} />
+                        <stop offset="100%" stopColor="#059669" stopOpacity={0.05} />
+                      </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis
@@ -636,122 +532,65 @@ const CashOutPage: React.FC = () => {
                     <Tooltip
                       content={({ active, payload, label }) => {
                         if (!active || !payload || payload.length === 0) return null;
-                        // Separate FA areas from aggregate lines
-                        const faPayload = payload.filter((p) => {
-                          const dk = String(p.dataKey);
-                          if (!dk.startsWith('fa_')) return false;
-                          if (legendFilter === null) return true;
-                          return dk === `fa_${legendFilter}`;
-                        });
-                        const committedEntry = payload.find((p) => p.dataKey === 'committed_total');
-                        const spentEntry = payload.find((p) => p.dataKey === 'spent_total');
-                        const forecastTotal = faPayload.reduce(
-                          (s, p) => s + (typeof p.value === 'number' ? p.value : 0),
-                          0,
-                        );
+                        const forecastVal = Number(payload.find((p) => p.dataKey === 'forecast')?.value ?? 0);
+                        const spentVal = Number(payload.find((p) => p.dataKey === 'spent')?.value ?? 0);
+                        const remainingVal = Number(payload.find((p) => p.dataKey === 'budgetRemaining')?.value ?? 0);
                         return (
                           <div className="bg-white/95 backdrop-blur-sm rounded-lg border border-gray-200 shadow-lg p-3 text-sm">
                             <p className="font-semibold text-gray-900 mb-1.5">{label}</p>
-                            {faPayload
-                              .filter((p) => typeof p.value === 'number' && p.value > 0)
-                              .sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0))
-                              .map((p) => {
-                                const fa = filteredFunctionalAreas.find(
-                                  (d) => `fa_${d.id}` === p.dataKey,
-                                );
-                                return (
-                                  <div
-                                    key={String(p.dataKey)}
-                                    className="flex items-center justify-between gap-6"
-                                  >
-                                    <div className="flex items-center gap-1.5">
-                                      <div
-                                        className="w-2 h-2 rounded-full"
-                                        style={{ backgroundColor: String(p.color) }}
-                                      />
-                                      <span className="text-gray-600">
-                                        {fa?.name ?? String(p.dataKey)}
-                                      </span>
-                                    </div>
-                                    <span className="font-medium tabular-nums text-gray-900">
-                                      {formatEur(Number(p.value))}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            <div className="border-t border-gray-200 mt-1.5 pt-1.5 flex justify-between font-semibold text-gray-900">
-                              <span>Forecast</span>
-                              <span className="tabular-nums">{formatEur(forecastTotal)}</span>
+                            {forecastVal > 0 && (
+                              <div className="flex justify-between gap-6">
+                                <span className="text-indigo-600">Forecast</span>
+                                <span className="font-medium tabular-nums">{formatEur(forecastVal)}</span>
+                              </div>
+                            )}
+                            {spentVal > 0 && (
+                              <div className="flex justify-between gap-6">
+                                <span className="text-emerald-600">Spent</span>
+                                <span className="font-medium tabular-nums">{formatEur(spentVal)}</span>
+                              </div>
+                            )}
+                            {(forecastVal > 0 || spentVal > 0) && (
+                              <div className="border-t border-gray-200 mt-1.5 pt-1.5 flex justify-between font-semibold text-gray-900">
+                                <span>Total</span>
+                                <span className="tabular-nums">{formatEur(forecastVal + spentVal)}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between gap-6 mt-1">
+                              <span className="text-amber-600">Budget Remaining</span>
+                              <span className="font-medium tabular-nums">{formatEur(remainingVal)}</span>
                             </div>
-                            {committedEntry && Number(committedEntry.value) > 0 && (
-                              <div className="flex justify-between text-xs text-emerald-700 mt-0.5">
-                                <span>Committed</span>
-                                <span className="tabular-nums">{formatEur(Number(committedEntry.value))}</span>
-                              </div>
-                            )}
-                            {spentEntry && Number(spentEntry.value) > 0 && (
-                              <div className="flex justify-between text-xs text-indigo-600 mt-0.5">
-                                <span>Spent (Delivered)</span>
-                                <span className="tabular-nums">{formatEur(Number(spentEntry.value))}</span>
-                              </div>
-                            )}
                           </div>
                         );
                       }}
                     />
-                    {filteredFunctionalAreas.map((fa) => {
-                      const isVisible = legendFilter === null || legendFilter === fa.id;
-                      return (
-                        <Area
-                          key={fa.id}
-                          type="monotone"
-                          dataKey={`fa_${fa.id}`}
-                          stackId="cashout"
-                          stroke={isVisible ? (getFAColor(fa.id)) : 'transparent'}
-                          strokeWidth={isVisible ? 1.5 : 0}
-                          fill={isVisible ? `url(#grad_fa_${fa.id})` : 'transparent'}
-                          fillOpacity={isVisible ? 1 : 0}
-                        />
-                      );
-                    })}
-                    {/* Committed overlay line */}
-                    <Line
+                    <Area
                       type="monotone"
-                      dataKey="committed_total"
-                      name="Committed"
-                      stroke="#059669"
-                      strokeWidth={2}
-                      dot={false}
-                      strokeDasharray="5 3"
-                      legendType="none"
-                    />
-                    {/* Spent overlay line */}
-                    <Line
-                      type="monotone"
-                      dataKey="spent_total"
-                      name="Spent"
+                      dataKey="forecast"
+                      name="Forecast"
                       stroke="#6366f1"
                       strokeWidth={2}
-                      dot={false}
-                      strokeDasharray="3 2"
-                      legendType="none"
+                      fill="url(#grad_forecast)"
                     />
-                    {/* Budget reference lines per year */}
-                    {Object.entries(budgetByYear).map(([year, budget]) => (
-                      <ReferenceLine
-                        key={`budget_${year}`}
-                        y={budget}
-                        stroke="#f59e0b"
-                        strokeWidth={1.5}
-                        strokeDasharray="6 4"
-                        label={{
-                          value: `Budget ${year}: ${fmtCompact(budget)}`,
-                          position: 'insideTopRight',
-                          fontSize: 10,
-                          fill: '#b45309',
-                        }}
-                      />
-                    ))}
+                    <Area
+                      type="monotone"
+                      dataKey="spent"
+                      name="Spent"
+                      stroke="#059669"
+                      strokeWidth={2}
+                      fill="url(#grad_spent)"
+                    />
+                    {/* Budget burndown line */}
+                    <Line
+                      type="monotone"
+                      dataKey="budgetRemaining"
+                      name="Budget Remaining"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      strokeDasharray="6 4"
+                      dot={false}
+                      activeDot={{ r: 4, fill: '#f59e0b', stroke: '#fff', strokeWidth: 2 }}
+                    />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -813,7 +652,7 @@ const CashOutPage: React.FC = () => {
                       <th className="px-3 py-2 text-left font-semibold text-gray-600 uppercase tracking-wider sticky left-0 bg-gray-50/80 z-10 min-w-[130px]">
                         Functional Area
                       </th>
-                      {dynamicMonths.map((m) => {
+                      {dynamicMonths.map((m, colIdx) => {
                         const isCurrent = m === CURRENT_MONTH;
                         return (
                           <th
@@ -858,7 +697,7 @@ const CashOutPage: React.FC = () => {
                             <span className="truncate">{row.functionalArea.name}</span>
                           </div>
                         </td>
-                        {dynamicMonths.map((m) => {
+                        {dynamicMonths.map((m, colIdx) => {
                           const val = row.months[m] || 0;
                           const t = maxCellValue > 0 ? Math.min(val / maxCellValue, 1) : 0;
                           const bg = val === 0 ? 'transparent' : interpolateColor(t);
@@ -903,7 +742,7 @@ const CashOutPage: React.FC = () => {
                       <td className="px-3 py-2 text-gray-900 sticky left-0 bg-gray-50/80 z-10">
                         Total
                       </td>
-                      {dynamicMonths.map((m) => {
+                      {dynamicMonths.map((m, colIdx) => {
                         const isCurrent = m === CURRENT_MONTH;
                         return (
                           <td
@@ -1169,7 +1008,7 @@ const CashOutPage: React.FC = () => {
                             className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
                           >
                             <td className="px-4 py-2 text-gray-600 tabular-nums whitespace-nowrap">
-                              {MONTH_LABELS[item.expected_cash_out] ?? item.expected_cash_out}
+                              {MONTH_LABELS[item.expected_cash_out?.slice(0, 7) ?? ''] ?? item.expected_cash_out?.slice(0, 7) ?? '-'}
                             </td>
                             <td className="px-4 py-2">
                               <div className="flex items-center gap-2">
