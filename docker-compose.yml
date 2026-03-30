@@ -33,7 +33,7 @@ services:
       AZURE_TENANT_ID: ${VITE_AZURE_TENANT_ID:-}
       AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
       MAIL_SENDER_EMAIL: ${MAIL_SENDER_EMAIL:-}
-      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:5173"]'}
+      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:8080"]'}
       URL_PREFIX: ${URL_PREFIX:-}
     volumes:
       - ./backend/app:/app/app
@@ -75,12 +75,11 @@ services:
       args:
         VITE_AZURE_CLIENT_ID: ${VITE_AZURE_CLIENT_ID:-}
         VITE_AZURE_TENANT_ID: ${VITE_AZURE_TENANT_ID:-}
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
         VITE_AUTH_DISABLED: ${VITE_AUTH_DISABLED:-false}
         VITE_URL_PREFIX: ${VITE_URL_PREFIX:-}
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-5173}:5173"
+      - "${FRONTEND_PORT:-8080}:80"
     depends_on:
       - backend
-

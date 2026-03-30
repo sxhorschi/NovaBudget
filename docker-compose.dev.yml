@@ -1,8 +1,5 @@
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
     volumes:
       - ./backend/app:/app/app
       - ./backend/alembic:/app/alembic
@@ -12,7 +9,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: build
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
-    command: npm run dev -- --host 0.0.0.0 --port 5173
+      - ./frontend/index.html:/app/index.html
+    command: npx vite --host 0.0.0.0 --port 5173
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
