@@ -40,6 +40,7 @@ services:
       - ./backend/data:/app/data
       - ./backend/scripts:/app/scripts
       - ./backups:/backups
+      - ./uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
