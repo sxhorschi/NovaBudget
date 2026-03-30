@@ -1,0 +1,42 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Pull latest code
+        working-directory: /home/tytandev/NovaBudget
+        run: |
+          git fetch origin
+          git checkout ${{ github.ref_name }}
+          git reset --hard origin/${{ github.ref_name }}
+
+      - name: Build and deploy
+        working-directory: /home/tytandev/NovaBudget
+        run: |
+          docker compose build
+          docker compose up -d
+
+      - name: Wait for health check
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+              echo "Backend healthy!"
+              exit 0
+            fi
+            echo "Waiting for backend... ($i/30)"
+            sleep 2
+          done
+          echo "Health check failed after 60 seconds"
+          exit 1
+
+      - name: Clean up old Docker images
+        run: docker image prune -f
